@@ -1,10 +1,10 @@
 <?php
 
-namespace Bangsamu\Sso;
+namespace Bangsamu\Master;
 
 use Illuminate\Support\ServiceProvider;
 
-class SsoPackageServiceProvider extends ServiceProvider
+class MasterPackageServiceProvider extends ServiceProvider
 {
     /**
      * Register services.
@@ -24,10 +24,10 @@ class SsoPackageServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../resources/config/SsoConfig.php' => config_path('SsoConfig.php'),
         ]);
-        $this->loadViewsFrom(__DIR__.'/../resources/views', 'sso');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'master');
 
         $this->publishes([
-            __DIR__.'/../resources/views' => resource_path('views/vendor/sso'),
+            __DIR__.'/../resources/views' => resource_path('views/vendor/master'),
         ]);
 
         // $this->publishes([
@@ -35,7 +35,7 @@ class SsoPackageServiceProvider extends ServiceProvider
         // ]);
 
         $this->publishes([
-            __DIR__.'/routes.php' => base_path('routes/sso.php'),
+            __DIR__.'/routes.php' => base_path('routes/master.php'),
         ]);
     }
 }
