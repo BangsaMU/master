@@ -3,7 +3,9 @@
     "description": "Clay menggunakan master",
     "type": "library",
     "license": "MIT",
-    "require": {},
+    "require": {
+        "bangsamu/library-clay": "^dev-master"
+    },
     "autoload": {
         "psr-4": {
             "Bangsamu\\Master\\": "src/"
