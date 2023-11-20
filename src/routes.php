@@ -20,26 +20,38 @@ Route::prefix('api')
         Route::get('get-ip',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'getIp'])
             ->name('get-ip');
 
+        /*untuk webhook update dari master*/
         Route::post('/sync-master/{tabel?}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'syncTabel'])
             ->name('sync-master');
-
+        /*untuk manual get sync ke DB master*/
         Route::get('/master-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'tabel'])
             ->name('master-tabel');
 
-        Route::get('/master-location/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'location'])
-            ->name('master-location');
-
-        Route::get('/master-project/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'project'])
-            ->name('master-project');
-
-        Route::get('/master-employee/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'employee'])
-            ->name('master-employee');
-
-        Route::get('/master-item-code/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'itemCode'])
-            ->name('master-item-code');
-
-        Route::get('/master-uom/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'uom'])
-            ->name('master-uom');
+        /*list data master*/
+        Route::get('getitemcodebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getItemCodeByParams'])
+            ->name('getitemcodebyparams');
+        Route::get('getuombyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getUomByParams'])
+            ->name('getuombyparams');
+        Route::get('getpcabyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getPcaByParams'])
+            ->name('getpcabyparams');
+        Route::get('getcategorybyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getCategoryByParams'])
+            ->name('getcategorybyparams');
+        Route::get('getitemgroupbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getItemGroupByParams'])
+            ->name('getitemgroupbyparams');
+        Route::get('getprojectbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getProjectByParams'])
+            ->name('getprojectbyparams');
+        Route::get('getdepartmentbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getDepartmentByParams'])
+            ->name('getdepartmentbyparams');
+        Route::get('getlocationbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getLocationByParamsX'])
+            ->name('getlocationbyparams');
+        Route::get('getemployeebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getEmployeeByParams'])
+            ->name('getemployeebyparams');
+        Route::get('getbrandbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getBrandByParams'])
+            ->name('getbrandbyparams');
+        Route::get('getvendorbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getVendorByParams'])
+            ->name('getvendorbyparams');
+        Route::get('getappsbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getAppsByParams'])
+            ->name('getappsbyparams');
     });
 
 Route::middleware(['web'])->group(function () {

@@ -16,7 +16,7 @@ class MasterDepartment extends Model
     use HasFactory, Notifiable;
     use SoftDeletes;
 
-    protected $connection = 'meindo_master';
+    protected $connection = 'db_master';
     public $table = "master_department";
     protected $guarded = [];
 }
