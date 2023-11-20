@@ -1,18 +1,18 @@
 {
-    "name": "bangsamu/sso",
-    "description": "login menggunakan sso sendiri",
+    "name": "bangsamu/master",
+    "description": "Clay menggunakan master",
     "type": "library",
     "license": "MIT",
     "require": {},
     "autoload": {
         "psr-4": {
-            "Bangsamu\\Sso\\": "src/"
+            "Bangsamu\\Master\\": "src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Bangsamu\\Sso\\MasterPackageServiceProvider"
+                "Bangsamu\\Master\\MasterPackageServiceProvider"
             ]
         }
     },

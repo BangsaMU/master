@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace Bangsamu\Master\Controllers;
 
+use App\Http\Controllers\Controller;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -19,8 +21,79 @@ use Illuminate\Support\Facades\Auth;
 class MasterController extends Controller
 {
 
+    /**
+     * The prefix to use for register/load the package resources.
+     *
+     * @var string
+     */
+    protected $pkgPrefix = 'master';
+
     function __construct($CHAT_ID = null, $param = null)
     {
+    }
+
+    function tabel(Request $request, $tabel, $id = null)
+    {
+        $log = [];
+        $sync_insert = []; /*list insert array id*/
+        $sync_update = []; /*list update array id*/
+
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.FIELD');
+
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master'.Str::studly($tabel));
+
+        // dd($key_lokal,$tabel_lokal, $key_master, $tabel_master);
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
+        extract($getDataSync);
+
+        $jml = $data_sync_lokal->count();
+        $jml_master = $data_sync_master->count();
+
+        /*cek jumlah data master dan lokal jika beda maka insert*/
+        $list_id = $data_sync_lokal->pluck('id')->toArray();
+        $list_id_master = $data_sync_master->pluck('id')->toArray();
+        if ($jml != $jml_master) {
+            /*cek list id master dan lokal*/
+            $list_id_diff = array_diff($list_id_master, $list_id);
+            $sync_insert = $list_id_diff;/*list id yang akan di insert*/
+            // dd($list_id_master, $list_id, $list_id_diff);
+        };
+
+        $list_id_same = array_intersect($list_id_master, $list_id);
+        $sync_update = $list_id_same;/*list id yang akan di update*/
+        // dd($list_id_same);
+
+        if ($jml_master) {
+            $data_array = $data_sync_lokal->toArray();
+            $master_array = $data_sync_master->toArray();
+
+            /*convert array lokal index ke key dengan id */
+            foreach ($data_array as  $key => $val) {
+                $data_array_map_lokal[$val['id']] = $val;
+            }
+
+            /*convert array master index ke key dengan id */
+            // dd(compact('data_array','master_array', 'key_master', 'key_lokal'));
+            $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+
+            if ($sync_update) {
+                $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+            }
+
+            /*cek data master berdasarkan id yang akan di insert*/
+            if ($sync_insert) {
+                $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+            }
+
+            $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
+        } else {
+            $respon['data']['message'] = 'Data Not Found';
+            $respon['data']['sync'] = @$data_array_map_master;
+        }
+
+        return LibraryClayController::setOutput($respon);
     }
 
     /**
@@ -33,7 +106,7 @@ class MasterController extends Controller
         $id = empty($id) ? @$data['rows'][0]['id'] : $id;
         $validate_tabel = @$data['tabel'] ? $data['tabel'] :  $tabel;
         $validate_tabel = @$data['tabel'] == $tabel;
-        $master_tabel = config('SyncConfig.MASTER_TABEL');
+        $master_tabel = config(ucfirst($this->pkgPrefix) . 'Config.MASTER_TABEL');
         $validate_master = in_array($tabel, $master_tabel);
         $validate_rows = is_array(@$data['rows'][0]);
         $validate_id = @$data['rows'][0]['id'] == $id || !empty($id) ? true : false;
@@ -46,7 +119,7 @@ class MasterController extends Controller
             $respond['code'] = 400;
             $respond['data'] = 'Data not valid ' . (int)$validate_master . '-' . (int)$validate_tabel . '-' . (int)$validate_rows . '-' . (int)$validate_id;
 
-            Response::make(setOutput($respond))->send();
+            Response::make(LibraryClayController::setOutput($respond))->send();
             exit();
         }
 
@@ -54,13 +127,13 @@ class MasterController extends Controller
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
 
-        $key_lokal = config('SyncConfig.lokal.' . $tabel . '.FIELD');
-        $key_master = config('SyncConfig.master.' . $tabel . '.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.FIELD');
 
-        $tabel_lokal = config('SyncConfig.lokal.' . $tabel . '.MODEL');
-        $tabel_master = config('SyncConfig.master.' . $tabel . '.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL');
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL');
 
-        $getDataSync = getDataSync(compact('id', 'tabel_lokal', 'tabel_master', 'data_master'));
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master', 'data_master'));
         extract($getDataSync);
 
         $jml = $data_sync_lokal->count();
@@ -89,21 +162,21 @@ class MasterController extends Controller
 
 
         /*convert array master index ke key dengan id */
-        $data_array_map_master = arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+        $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
         // dd($master_array, $key_master, $key_lokal, 1, $data, $tabel, $validate_master, $validate_tabel, $validate_rows, $validate_id);
 
         if ($sync_update) {
-            $log = sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+            $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
         }
 
         /*cek data master berdasarkan id yang akan di insert*/
         if ($sync_insert) {
-            $log = sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+            $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
         }
 
-        $respon = syncLog(compact('log', 'data_array_map_master'));
+        $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
 
-        return setOutput($respon);
+        return LibraryClayController::setOutput($respon);
     }
 
     function uom(Request $request, $id = null)
@@ -112,13 +185,13 @@ class MasterController extends Controller
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
 
-        $key_lokal = config('SyncConfig.lokal.uom.FIELD');
-        $key_master = config('SyncConfig.master.uom.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.uom.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.uom.FIELD');
 
-        $tabel_lokal = config('SyncConfig.lokal.uom.MODEL');
-        $tabel_master = config('SyncConfig.master.uom.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.uom.MODEL');
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.uom.MODEL');
 
-        $getDataSync = getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
         extract($getDataSync);
 
         $jml = $data_sync_lokal->count();
@@ -149,20 +222,20 @@ class MasterController extends Controller
 
         /*convert array master index ke key dengan id */
         // dd(compact('master_array', 'key_master', 'key_lokal'));
-        $data_array_map_master = arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+        $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
 
         if ($sync_update) {
-            $log = sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+            $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
         }
 
         /*cek data master berdasarkan id yang akan di insert*/
         if ($sync_insert) {
-            $log = sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+            $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
         }
 
-        $respon = syncLog(compact('log', 'data_array_map_master'));
+        $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
 
-        return setOutput($respon);
+        return LibraryClayController::setOutput($respon);
     }
 
     function itemCode(Request $request, $id = null)
@@ -171,13 +244,13 @@ class MasterController extends Controller
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
 
-        $key_lokal = config('SyncConfig.lokal.item_code.FIELD');
-        $key_master = config('SyncConfig.master.item_code.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.item_code.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.item_code.FIELD');
 
-        $tabel_lokal = config('SyncConfig.lokal.item_code.MODEL');
-        $tabel_master = config('SyncConfig.master.item_code.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.item_code.MODEL');
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.item_code.MODEL');
 
-        $getDataSync = getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
         extract($getDataSync);
 
         $jml = $data_sync_lokal->count();
@@ -208,36 +281,38 @@ class MasterController extends Controller
 
         /*convert array master index ke key dengan id */
         // dd(compact('master_array', 'key_master', 'key_lokal'));
-        $data_array_map_master = arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+        $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
 
         if ($sync_update) {
-            $log = sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+            $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
         }
 
         /*cek data master berdasarkan id yang akan di insert*/
         if ($sync_insert) {
-            $log = sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+            $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
         }
 
-        $respon = syncLog(compact('log', 'data_array_map_master'));
+        $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
 
-        return setOutput($respon);
+        return LibraryClayController::setOutput($respon);
     }
 
     function location(Request $request, $id = null)
     {
+
         $log = [];
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
 
-        $key_lokal = config('SyncConfig.lokal.location.FIELD');
-        $key_master = config('SyncConfig.master.location.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.location.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.location.FIELD');
 
-        $tabel_lokal = config('SyncConfig.lokal.location.MODEL');
-        $tabel_master = config('SyncConfig.master.location.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.location.MODEL');
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.location.MODEL');
 
-        $getDataSync = getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
         extract($getDataSync);
+
 
         $jml = $data_sync_lokal->count();
         $jml_master = $data_sync_master->count();
@@ -267,20 +342,20 @@ class MasterController extends Controller
         }
 
         /*convert array master index ke key dengan id */
-        $data_array_map_master = arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+        $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
 
         if ($sync_update) {
-            $log = sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+            $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
         }
 
         /*cek data master berdasarkan id yang akan di insert*/
         if ($sync_insert) {
-            $log = sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+            $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
         }
 
-        $respon = syncLog(compact('log', 'data_array_map_master'));
+        $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
 
-        return setOutput($respon);
+        return LibraryClayController::setOutput($respon);
     }
 
     function project(Request $request, $id = null)
@@ -289,15 +364,15 @@ class MasterController extends Controller
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
 
-        $key_lokal = config('SyncConfig.lokal.project.FIELD');
-        $key_master = config('SyncConfig.master.project.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.project.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.project.FIELD');
 
-        $tabel_lokal = config('SyncConfig.lokal.project.MODEL');
-        $tabel_master = config('SyncConfig.master.project.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.project.MODEL');
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.project.MODEL');
 
-        $getDataSync = getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
         extract($getDataSync);
-
+        // dd($getDataSync);
         $jml = $data_sync_lokal->count();
         $jml_master = $data_sync_master->count();
 
@@ -326,20 +401,20 @@ class MasterController extends Controller
 
         /*convert array master index ke key dengan id */
         // dd(compact('master_array', 'key_master', 'key_lokal'));
-        $data_array_map_master = arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+        $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
 
         if ($sync_update) {
-            $log = sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+            $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
         }
 
         /*cek data master berdasarkan id yang akan di insert*/
         if ($sync_insert) {
-            $log = sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+            $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
         }
 
-        $respon = syncLog(compact('log', 'data_array_map_master'));
+        $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
 
-        return setOutput($respon);
+        return LibraryClayController::setOutput($respon);
     }
 
     function employee(Request $request, $id = null)
@@ -348,13 +423,13 @@ class MasterController extends Controller
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
 
-        $key_lokal = config('SyncConfig.lokal.employee.FIELD');
-        $key_master = config('SyncConfig.master.employee.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.employee.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.employee.FIELD');
 
-        $tabel_lokal = config('SyncConfig.lokal.employee.MODEL');
-        $tabel_master = config('SyncConfig.master.employee.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.employee.MODEL');
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.employee.MODEL');
 
-        $getDataSync = getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
         extract($getDataSync);
 
         $jml = $data_sync_lokal->count();
@@ -384,21 +459,21 @@ class MasterController extends Controller
         }
 
         /*convert array master index ke key dengan id */
-        $data_array_map_master = arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+        $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
 
 
         if ($sync_update) {
-            $log = sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+            $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
         }
 
         /*cek data master berdasarkan id yang akan di insert*/
         if ($sync_insert) {
-            $log = sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+            $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
         }
 
-        $respon = syncLog(compact('log', 'data_array_map_master'));
+        $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
 
-        return setOutput($respon);
+        return LibraryClayController::setOutput($respon);
     }
 
     public function saveDB($data)
@@ -447,48 +522,5 @@ class MasterController extends Controller
         };
         // dd($telegram_db, isset($data->ok), $data);
         return $telegram_db;
-    }
-
-
-    public function cekEvent($data)
-    {
-        /*event git*/
-        if (isset($data->result['repository']['name']) || isset($data->result['commits'][0]['message']) || isset($data->result['push']['changes'])) {
-            $git_branch = $data->result['repository']['name'];
-            $git_commit = isset($data->result['commits'][0]['message']) ? $data->result['commits'][0]['message'] : $data->result['push']['changes'][0]['commits'][0]['message'];
-            $git_pull = self::gitPull($git_branch, $git_commit);
-            $data->git_pull = $git_pull;
-        } else {
-            $data = '';
-        }
-
-        return $data;
-    }
-
-    /**
-     * Fungsi webhook telegram akan save semua aktivitas dari boot ke DB
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return json berisi list data aktifitas dari bot
-     */
-    public function webhook(Request $request)
-    {
-        $action = 'webhook';
-        $data = (object)[
-            'ok' => true,
-            'ip-client' => $this->getIp(),
-            'result' => $request->all(),
-        ];
-        // dd($data);
-        Log::info('user: sys url: ' . url()->current() . ' message: webhook TELEGRAM log request :' . json_encode($data));
-        $respond = self::saveDB($data);
-        Log::info('user: sys url: ' . url()->current() . ' message: webhook TELEGRAM log respond :' . $respond);
-
-
-        $data = self::cekEvent($data);
-
-
-        $respond['data'] = $data;
-        return setOutput($respond);
     }
 }
