@@ -25,14 +25,11 @@ class Location extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('location_code', 50)->nullable();
-                $table->string('location_name', 100)->nullable();
-                $table->string('location_address', 100)->nullable();
-                $table->string('location_description', 150)->nullable();
+                $table->string('loc_code', 15)->nullable();
+                $table->string('loc_name', 50)->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->dateTime('deleted_at')->nullable();
-                $table->string('group', 100)->nullable()->index('group');
             });
         }
     }
