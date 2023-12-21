@@ -17,8 +17,8 @@ Route::get('mud-view', function () {
 
 Route::prefix('api')
     ->middleware(['api'])->group(function () {
-        Route::get('get-ip',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'getIp'])
-            ->name('get-ip');
+        // Route::get('get-ip',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'getIp'])
+        //     ->name('get-ip');
 
         /*untuk webhook update dari master*/
         Route::post('/sync-master/{tabel?}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'syncTabel'])
