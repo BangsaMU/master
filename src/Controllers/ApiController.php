@@ -213,7 +213,7 @@ class ApiController extends Controller
         return response()->json($response);
     }
 
-    public function getLocationByParamsX(Request $request)
+    public function getLocationByParams(Request $request)
     {
         $search = $request->search;
 

@@ -42,7 +42,7 @@ Route::prefix('api')
             ->name('getprojectbyparams');
         Route::get('getdepartmentbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getDepartmentByParams'])
             ->name('getdepartmentbyparams');
-        Route::get('getlocationbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getLocationByParamsX'])
+        Route::get('getlocationbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getLocationByParams'])
             ->name('getlocationbyparams');
         Route::get('getemployeebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getEmployeeByParams'])
             ->name('getemployeebyparams');
