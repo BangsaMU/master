@@ -216,12 +216,20 @@ class ApiController extends Controller
     public function getLocationByParams(Request $request)
     {
         $search = $request->search;
+        $group_type = $request->group_type ?? 'office';
 
-        if ($search == '') {
-            $locations = Location::orderBy('id', 'desc')->select('id', 'loc_code', 'loc_name',)->limit($this->LIMIT)->get();
-        } else {
-            $locations = Location::orderBy('id', 'desc')->select('id', 'loc_code', 'loc_name')->orwhere('loc_code', 'like', '%' . $search . '%')->orwhere('loc_name', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+        $locations = Location::select('id', 'loc_code', 'loc_name');
+        $locations->where(function ($q) use ($group_type) {
+            $q->where('group_type', '=', $group_type);
+        });
+
+        if ($search) {
+            $locations->where(function ($q) use ($search) {
+                $q->orwhere('loc_code', 'like', '%' . $search . '%')->orwhere('loc_name', 'like', '%' . $search . '%');
+            });
         }
+
+        $locations = $locations->orderBy('id', 'desc')->limit($this->LIMIT)->get();
 
         $response = array();
         foreach ($locations as $location) {
