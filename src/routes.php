@@ -52,6 +52,8 @@ Route::prefix('api')
             ->name('getvendorbyparams');
         Route::get('getappsbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getAppsByParams'])
             ->name('getappsbyparams');
+        Route::get('getcompanybyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getCompanyByParams'])
+            ->name('getcompanybyparams');
     });
 
 Route::middleware(['web'])->group(function () {

@@ -8,23 +8,25 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 
-class Vendor extends Model
+class Company extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    public $table = "master_vendor";
+    public $table = "master_company";
     protected $guarded = [];
 
     public function __construct()
     {
         if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
+            /*buat tabel master_company*/
             Schema::create($this->table, function (Blueprint $table) {
-                $table->bigInteger('id')->primary();
-                $table->integer('loc_id', 11);
-                $table->string('vendor_code', 15)->nullable();
-                $table->string('vendor_description')->nullable();
+                $table->integer('id', true);
+                $table->string('company_code', 10)->nullable();
+                $table->string('company_name', 200)->nullable();
+                $table->string('company_short', 10)->nullable();
+                $table->string('company_attention', 100)->nullable();
+                $table->string('company_address', 300)->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->dateTime('deleted_at')->nullable();

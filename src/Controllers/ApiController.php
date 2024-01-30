@@ -25,6 +25,7 @@ use Bangsamu\Master\Models\Employee;
 use Bangsamu\Master\Models\Vendor;
 use Bangsamu\Master\Models\Brand;
 use Bangsamu\Master\Models\Apps;
+use Bangsamu\Master\Models\Company;
 
 use DataTables;
 use PDF;
@@ -39,6 +40,27 @@ class ApiController extends Controller
     function __construct()
     {
         $this->LIMIT = 5;
+    }
+
+    public function getCompanyByParams(Request $request)
+    {
+        $search = $request->search;
+
+        if ($search == '') {
+            $company = Company::orderBy('id', 'desc')->select('id', 'company_code', 'company_name')->limit($this->LIMIT)->get();
+        } else {
+            $company = Company::orderBy('id', 'desc')->select('id', 'company_code', 'company_name')->where('company_code', 'like', '%' . $search . '%')->orwhere('company_name', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+        }
+
+        $response = array();
+        foreach ($company as $item) {
+            $response[] = array(
+                "id" => $item->id,
+                "text" => $item->company_code . ' - ' . $item->company_name
+            );
+        }
+
+        return response()->json($response);
     }
 
     public function getItemCodeByParams(Request $request)
