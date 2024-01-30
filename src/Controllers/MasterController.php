@@ -17,6 +17,7 @@ use App\Models\Telegram;
 
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class MasterController extends Controller
 {
@@ -42,8 +43,9 @@ class MasterController extends Controller
         $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.FIELD');
 
         $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
-        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master'.Str::studly($tabel));
+        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master' . Str::studly($tabel));
 
+        // dd($key_lokal,$tabel_lokal, $key_master, $tabel_master);
         $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
         extract($getDataSync);
 
@@ -97,18 +99,28 @@ class MasterController extends Controller
 
     function getTabel(Request $request, $tabel, $id = null)
     {
+        $data_sync_lokal =  DB::table($tabel);
+        $key = md5($id . ':' . config('SsoConfig.main.KEY'));
+        $token = $key == $request->input('api_token');
+        // dd($data_sync_lokal,$key);
+        if ($token) {
+            $data_array = $data_sync_lokal->where('id', $id)->get()->toArray();
+            $respon['data'] = $data_array;
+        } else {
+            $respon['data']['message'] = 'Data Not Found';
+        }
 
-        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
+        return LibraryClayController::setOutput($respon);
+    }
 
-        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
-
-        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal'));
-
-        extract($getDataSync);
-
-        $jml = $data_sync_lokal->count();
-        if ($jml) {
-            $data_array = $data_sync_lokal->toArray();
+    function getMaster(Request $request, $tabel, $id = null)
+    {
+        $data_sync_lokal =  'Bangsamu\Master\Models\\' . $tabel;
+        $key = md5($id . ':' . config('SsoConfig.main.KEY'));
+        $token = $key == $request->input('api_token');
+        // dd($key);
+        if ($token) {
+            $data_array = $data_sync_lokal::where('id', $id)->get()->toArray();
             $respon['data'] = $data_array;
         } else {
             $respon['data']['message'] = 'Data Not Found';

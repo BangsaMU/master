@@ -29,6 +29,9 @@ Route::prefix('api')
         /*untuk get lokal DB*/
         Route::get('/get-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'getTabel'])
             ->name('get-tabel');
+        /*untuk get Master DB*/
+        Route::get('/getMaster-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'getMaster'])
+            ->name('get-tabel');
 
         /*list data master*/
         Route::get('getitemcodebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getItemCodeByParams'])
