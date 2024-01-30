@@ -269,16 +269,17 @@ class ApiController extends Controller
         $search = $request->search;
 
         if ($search == '') {
-            $employees = Employee::orderBy('id', 'desc')->select('id', 'employee_name')->limit($this->LIMIT)->get();
+            $employees = Employee::orderBy('id', 'desc')->select('id', 'employee_name', 'employee_job_title')->limit($this->LIMIT)->get();
         } else {
-            $employees = Employee::orderBy('id', 'desc')->select('id', 'employee_name')->where('employee_name', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $employees = Employee::orderBy('id', 'desc')->select('id', 'employee_name', 'employee_job_title')->where('employee_name', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
         }
 
         $response = array();
         foreach ($employees as $employee) {
             $response[] = array(
                 "id" => $employee->id,
-                "text" => $employee->employee_name
+                "text" => $employee->employee_name,
+                "position" => $employee->employee_job_title,
             );
         }
 
