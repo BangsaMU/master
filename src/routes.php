@@ -26,6 +26,9 @@ Route::prefix('api')
         /*untuk manual get sync ke DB master*/
         Route::get('/master-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'tabel'])
             ->name('master-tabel');
+        /*untuk get lokal DB*/
+        Route::get('/get-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'getTabel'])
+            ->name('get-tabel');
 
         /*list data master*/
         Route::get('getitemcodebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getItemCodeByParams'])

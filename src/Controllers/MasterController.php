@@ -96,6 +96,28 @@ class MasterController extends Controller
         return LibraryClayController::setOutput($respon);
     }
 
+    function getTabel(Request $request, $tabel, $id = null)
+    {
+
+        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
+
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
+
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal'));
+
+        extract($getDataSync);
+
+        $jml = $data_sync_lokal->count();
+        if ($jml) {
+            $data_array = $data_sync_lokal->toArray();
+            $respon['data'] = $data_array;
+        } else {
+            $respon['data']['message'] = 'Data Not Found';
+        }
+
+        return LibraryClayController::setOutput($respon);
+    }
+
     /**
      * fungsi synt baster datat berdasarkan param dari json
      */
