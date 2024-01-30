@@ -44,7 +44,7 @@ class MasterController extends Controller
         $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
         $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master'.Str::studly($tabel));
 
-        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_masterQ'));
         extract($getDataSync);
 
         $jml = $data_sync_lokal->count();
