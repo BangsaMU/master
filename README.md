@@ -1,6 +1,9 @@
 # sso
 
-Integrasikan CLAY dengan fitur Master data 
+Integrasikan CLAY dengan fitur Master data V 0.0.2
+
+Update:
+- add global api get tabel
 
 buat config baru di file laravel config/database.php
 
