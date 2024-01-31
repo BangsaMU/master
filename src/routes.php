@@ -31,7 +31,7 @@ Route::prefix('api')
             ->name('get-tabel');
         /*untuk get Master DB*/
         Route::get('/getMaster-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'getMaster'])
-            ->name('get-tabel');
+            ->name('get-Mastertabel');
 
         /*list data master*/
         Route::get('getitemcodebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getItemCodeByParams'])
