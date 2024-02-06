@@ -32,6 +32,7 @@ use PDF;
 use DB;
 use Carbon;
 use View;
+use Illuminate\Support\Facades\Schema;
 
 class ApiController extends Controller
 {
@@ -40,6 +41,111 @@ class ApiController extends Controller
     function __construct()
     {
         $this->LIMIT = 5;
+    }
+
+    /**
+     * @param id = primary key filter by id
+     * @param set[text] = return replace text dari filed apa
+     * @param set[field][] = array fild yg akan direturn custom
+     * @param set[field]=* retrun semua filed
+     * @param start= set awal pencarian record jika tidak ada 0
+     * @param limit= set maksimal record yang ditampilkan jika tidak ada 10
+     * @param search= data string, akan melakukan pencarian di semua kolom (filed id dihiraukan) sesuai yg di select dari param set[field] dengan where like
+     * @param search[key]=val data array, akan melakukan pencarian di filed search[key] dengan orwhere =
+     */
+    public function getTabelByParams(Request $request, $tabel)
+    {
+        // contoh select2 http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=description&search[type]=vehicle&search[description]=PJP
+        // contoh search http://meindo-teliti.test:8181/api/gethse_indicator_detailbyparams?&set[field][]=type&limit=13&start=0&search[type]=vehicle&search[indicator_method_id]=4&search[type]=samu
+        // contoh by id http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?id=45&set[text]=type&set[field][]=description&set[field][]=id
+        // contoh get list http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=type&set[field][]=description&set[field][]=id
+        /*Param serch support array dan string data yg diambil param terakhir */
+        $search = $request->search;
+
+        $set = $request->input("set");
+        $start = $request->input("start", 0);
+        $limit = $request->input("limit", 10);
+        // dd($set,$start,$limit);
+        // $field = $request->set['field'];
+        $id = $request->id;
+        // dd($field);
+        $data_lokal =  DB::table($tabel);
+        $key = md5($id . ':' . config('SsoConfig.main.KEY'));
+        // $token = $key == $request->input('api_token');
+        $token = true; //bypass test
+        $select[] = "id";
+
+
+        if ($set) {
+            $text = @$set['text'];
+            $field = @$set['field'];
+
+            if ($field == '*') {
+                // dd($field);
+                $select[] = "$tabel.*";
+            } else {
+                // dd($field);
+                if (is_array($field)) {
+                    foreach ($field as $kolom) {
+                        if (Schema::hasColumn($tabel, $kolom)) {
+                            /*validasi kolom tabel*/
+                            $select[] = "$kolom";
+                        }
+                    }
+                }
+            }
+
+            if ($set) {
+                /*validasi kolom tabel*/
+                if (Schema::hasColumn($tabel, $text)) {
+                    $select[] = "$text AS text";
+                }
+            }
+        }
+        $tabel_exist = Schema::hasTable($tabel);
+        // dd($tabel_exist);
+        if ($token && $tabel_exist) {
+            $data_array = $data_lokal->select($select);
+            if ($id) {
+                $data_array = $data_array->where('id', $id);
+            } else {
+                /*buang array by value*/
+                $del_val = 'id';
+                if (($key = array_search($del_val, $select)) !== false) {
+                    unset($select[$key]);
+                }
+                foreach ($select as $filter_kolom_as) {
+
+                    if ($field != '*') {
+                        // dd($select);
+                        $extrac_kolom = explode(' AS ', $filter_kolom_as);
+                        $filter_kolom = $extrac_kolom[0];
+                        if (is_array($search)) {
+                            foreach ($search as $keyFiled => $searchVal) {
+                                if (Schema::hasColumn($tabel, $keyFiled)) {
+                                    // dd($keyFiled, $select,!in_array($keyFiled, $select));
+                                    if (!in_array($keyFiled, $select)) {
+                                        // if (in_array($keyFiled, $select) and $filter_kolom != $keyFiled) {
+                                        $data_array = $data_array->where($keyFiled, 'like', '%' . $searchVal . '%');
+                                    } else {
+                                        $data_array = $data_array->where($filter_kolom, '=', $searchVal);
+                                    }
+                                }
+                            }
+                        } elseif ($search) {
+                            $data_array = $data_array->where($filter_kolom, 'like', '%' . $search . '%');
+                        }
+                    }
+                }
+                // dd($data_array->toSql());
+            }
+            $data_array = $data_array->offset($start)->limit($limit)->get()->toArray();
+            $respon = $data_array;
+        } else {
+            $respon = ['Data Not Found'];
+        }
+
+        return response()->json($respon);
     }
 
     public function getCompanyByParams(Request $request)

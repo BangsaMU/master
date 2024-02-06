@@ -60,6 +60,10 @@ Route::prefix('api')
             ->name('getappsbyparams');
         Route::get('getcompanybyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getCompanyByParams'])
             ->name('getcompanybyparams');
+
+        /*global select2 dari tabel*/
+        Route::get('get{tabel}byparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getTabelByParams'])
+        ->name('get{tabel}byparams');
     });
 
 Route::middleware(['web'])->group(function () {
