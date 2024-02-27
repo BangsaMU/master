@@ -302,6 +302,10 @@ class ApiController extends Controller
     public function getProjectByParams(Request $request)
     {
         $search = $request->search;
+        if($search){
+            $search = strip_tags($search);
+            $search = htmlspecialchars($search, ENT_QUOTES, 'UTF-8', false);
+        }
 
         if ($search == '') {
             $projects = Project::orderBy('id', 'desc')->select('id', 'project_code', 'project_name')->limit($this->LIMIT)->get();
