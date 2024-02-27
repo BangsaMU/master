@@ -306,7 +306,7 @@ class ApiController extends Controller
         if ($search == '') {
             $projects = Project::orderBy('id', 'desc')->select('id', 'project_code', 'project_name')->limit($this->LIMIT)->get();
         } else {
-            $projects = Project::orderBy('id', 'desc')->select('id', 'project_code', 'project_name')->where('project_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $projects = Project::orderBy('id', 'desc')->select('id', 'project_code', 'project_name')->orwhere('project_name', 'like', '%' . $search . '%')->orwhere('project_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
         }
 
         $response = array();

@@ -27,6 +27,7 @@ class Project extends Model
                 $table->integer('id', true);
                 $table->string('project_code', 100)->nullable();
                 $table->string('project_name', 116)->nullable()->unique('unique_project_name');
+                $table->string('project_remarks', 255)->nullable();
                 $table->integer('contractor_id')->nullable();
                 $table->integer('client_id')->nullable();
                 $table->dateTime('start_date')->nullable();
