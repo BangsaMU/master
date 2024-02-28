@@ -19,6 +19,7 @@ use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\ItemGroup;
 use Bangsamu\Master\Models\Category;
 use Bangsamu\Master\Models\Project;
+use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Models\Location;
 use Bangsamu\Master\Models\Department;
 use Bangsamu\Master\Models\Employee;
