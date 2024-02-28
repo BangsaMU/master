@@ -16,7 +16,7 @@ class ProjectDetail extends Model
     use HasFactory, Notifiable;
     use SoftDeletes;
 
-    public $table = "project_detail";
+    public $table = "master_project_detail";
     protected $guarded = [];
 
     public function __construct()
