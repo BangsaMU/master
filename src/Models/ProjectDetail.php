@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
-class Project extends Model
+class ProjectDetail extends Model
 {
     use HasFactory, Notifiable;
     use SoftDeletes;
 
-    public $table = "master_project";
+    public $table = "project_detail";
     protected $guarded = [];
 
     public function __construct()
@@ -25,12 +25,9 @@ class Project extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('project_code', 10)->nullable();
-                $table->string('project_name', 116)->nullable()->unique('unique_project_name');
-                $table->string('project_remarks', 255)->nullable();
-                $table->dateTime('project_start_date')->nullable();
-                $table->dateTime('project_complete_date')->nullable();
-                $table->char('internal_external', 1)->nullable();
+                $table->string('project_code_client', 10)->nullable();
+                $table->integer('company_id')->nullable();
+                $table->integer('project_id')->nullable();
                 $table->integer('user_id')->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
