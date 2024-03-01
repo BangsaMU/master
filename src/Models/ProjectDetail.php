@@ -26,6 +26,7 @@ class ProjectDetail extends Model
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
                 $table->string('project_code_client', 10)->nullable();
+                $table->string('project_name_client', 100)->nullable();
                 $table->integer('company_id')->nullable();
                 $table->integer('project_id')->nullable();
                 $table->integer('user_id')->nullable();
