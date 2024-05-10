@@ -44,6 +44,34 @@ class ApiController extends Controller
         $this->LIMIT = 5;
     }
 
+    public function getSelect($field, $tabel, $data_var)
+    {
+        extract($data_var);
+
+        $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {
+            return $res . $w[0];
+        });
+
+        foreach ($field as $kolom) {
+            /*validasi kolom tabel*/
+            if (Schema::hasColumn($tabel, $kolom)) {
+                $select[] = "$alias_tabel.$kolom";
+            }
+            /*validasi kolom tabel join*/
+            // if (is_array($join)) {
+            //     foreach ($join as $tabel_join => $id_join) {
+            //         $tabel_join_schema = explode('.', $tabel_join);
+            //         if (Schema::hasColumn($tabel_join_schema[0], $kolom)) {
+            //             $select[] = "$alias_tabel_join.$kolom";
+            //         }
+            //     }
+            // }
+            // dd($kolom, $select,$join,$tabel_join,$tabel_join_schema);
+        }
+
+        return $select;
+    }
+
     /**
      * @param id = primary key filter by id
      * @param set[text] = return replace text dari filed apa
@@ -62,24 +90,83 @@ class ApiController extends Controller
         // contoh get list http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=type&set[field][]=description&set[field][]=id
         /*Param serch support array dan string data yg diambil param terakhir */
         $search = $request->search;
+        $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {
+            return $res . $w[0];
+        });
 
         $set = $request->input("set");
+        $join = $request->input("join");
         $start = $request->input("start", 0);
         $limit = $request->input("limit", 10);
         // dd($set,$start,$limit);
         // $field = $request->set['field'];
         $id = $request->id;
         // dd($field);
-        $data_lokal =  DB::table($tabel);
+        $data_lokal =  DB::table($tabel . " as " . $alias_tabel);
         $key = md5($id . ':' . config('SsoConfig.main.KEY'));
         // $token = $key == $request->input('api_token');
         $token = true; //bypass test
-        $select[] = "id";
+        $select[] = $alias_tabel . ".id";
 
+        $data_array = $data_lokal;
 
         if ($set) {
             $text = @$set['text'];
             $field = @$set['field'];
+        }
+
+        // dd($acronym);
+        if ($join) {
+            // dd($join);
+            // $join_tabel=1;
+            foreach ($join as $tabel_join => $id_join) {
+                $tabel_join_schema = explode('.', $tabel_join); //extrak join tabel dan field
+                // array:2 [▼ // packages\bangsamu\master\src\Controllers\ApiController.php:113
+                //     0 => "master_uom"
+                //     1 => "id"
+                // ]
+                $alias_tabel_join = array_reduce(str_word_count("$tabel_join_schema[0]", 1), function ($res, $w) {
+                    return $res . $w[0];
+                });
+                // dd($alias_tabel_join,$tabel_join_schema,$tabel_join,$id_join);
+                $join_tabel[] = [
+                    'tabel' => $tabel_join_schema[0],
+                    'tabel_join' => "$alias_tabel_join.$tabel_join_schema[1]",
+                    'tabel_join_id' => $tabel_join_schema[1],
+                    'tabel_join_alias' => $alias_tabel_join,
+                    'tabel_join_reff' => $id_join,
+                ];
+            }
+
+            // dd($join_tabel,$alias_tabel_join,$tabel_join_schema,$tabel_join,$id_join);
+            // dd($join);
+
+            if (is_array(@$join_tabel)) {
+                // dd($field);
+                // dd($join_tabel);
+                // array:2 [▼ // packages\bangsamu\master\src\Controllers\ApiController.php:208
+                //     0 => array:5 [▼
+                //         "tabel" => "master_uom"
+                //         "tabel_join" => "mu.id"
+                //         "tabel_join_id" => "id"
+                //         "tabel_join_alias" => "mu"
+                //         "tabel_join_reff" => "uom_id"
+                //      ]
+                foreach ($join_tabel as $key_index => $join_val) {
+                    // $pfield_join[]='uom_name';
+                    $ptabel_join = $join_val['tabel'];
+                    // $alias_tabel = $join_val['tabel_join_alias'];
+                    $select = self::getSelect($field, $ptabel_join, compact('select'));
+                    $data_array = $data_array->join($join_val['tabel'] . ' as ' . $join_val['tabel_join_alias'], $join_val['tabel_join'], $join_val['tabel_join_reff']);
+                    // $data_array = $data_array->join($tabel_join_schema[0] . ' as ' . $alias_tabel_join, "$alias_tabel_join.$tabel_join_schema[1]", $id_join);
+                }
+            }
+        }
+
+
+        if (isset($field)) {
+            // $text = @$set['text'];
+            // $field = @$set['field'];
 
             if ($field == '*') {
                 // dd($field);
@@ -87,15 +174,11 @@ class ApiController extends Controller
             } else {
                 // dd($field);
                 if (is_array($field)) {
-                    foreach ($field as $kolom) {
-                        if (Schema::hasColumn($tabel, $kolom)) {
-                            /*validasi kolom tabel*/
-                            $select[] = "$kolom";
-                        }
-                    }
+                    $select = self::getSelect($field, $tabel, compact('select'));
                 }
             }
-
+        }
+        if (isset($set)) {
             if ($set) {
                 /*validasi kolom tabel*/
                 if (Schema::hasColumn($tabel, $text)) {
@@ -103,12 +186,13 @@ class ApiController extends Controller
                 }
             }
         }
+
         $tabel_exist = Schema::hasTable($tabel);
         // dd($tabel_exist);
         if ($token && $tabel_exist) {
-            $data_array = $data_lokal->select($select);
+            $data_array = $data_array->select($select);
             if ($id) {
-                $data_array = $data_array->where('id', $id);
+                $data_array = $data_array->where($alias_tabel . '.id', $id);
             } else {
                 /*buang array by value*/
                 $del_val = 'id';
@@ -117,7 +201,7 @@ class ApiController extends Controller
                 }
                 foreach ($select as $filter_kolom_as) {
 
-                    if ($field != '*') {
+                    if (@$field != '*') {
                         // dd($select);
                         $extrac_kolom = explode(' AS ', $filter_kolom_as);
                         $filter_kolom = $extrac_kolom[0];
@@ -140,6 +224,7 @@ class ApiController extends Controller
                 }
                 // dd($data_array->toSql());
             }
+
             $data_array = $data_array->offset($start)->limit($limit)->get()->toArray();
             $respon = $data_array;
         } else {
@@ -303,7 +388,7 @@ class ApiController extends Controller
     public function getProjectByParams(Request $request)
     {
         $search = $request->search;
-        if($search){
+        if ($search) {
             $search = strip_tags($search);
             $search = htmlspecialchars($search, ENT_QUOTES, 'UTF-8', false);
         }
