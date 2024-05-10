@@ -117,6 +117,7 @@ class ApiController extends Controller
 
         // dd($acronym);
         if ($join) {
+            // http://clay.test:8181/api/getmaster_item_codebyparams?set[field][]=uom_name&set[field][]=item_name&set[field][]=pca_name&join[master_uom.id]=uom_id&join[master_pca.id]=pca_id
             // dd($join);
             // $join_tabel=1;
             foreach ($join as $tabel_join => $id_join) {
