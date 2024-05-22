@@ -106,14 +106,21 @@ class ApiController extends Controller
         $key = md5($id . ':' . config('SsoConfig.main.KEY'));
         // $token = $key == $request->input('api_token');
         $token = true; //bypass test
-        $select[] = $alias_tabel . ".id";
-
-        $data_array = $data_lokal;
 
         if ($set) {
+            $change_id = @$set['id'];
             $text = @$set['text'];
             $field = @$set['field'];
         }
+        if ($change_id) {
+            $select[] = $alias_tabel . "." . $change_id . " AS id";
+        } else {
+            $select[] = $alias_tabel . ".id";
+        }
+
+        $data_array = $data_lokal;
+
+
 
         // dd($acronym);
         if ($join) {
@@ -185,13 +192,18 @@ class ApiController extends Controller
                 if (Schema::hasColumn($tabel, $text)) {
                     $select[] = "$text AS text";
                 }
+                /*validasi kolom tabel id*/
+                // if (Schema::hasColumn($tabel, $change_id)) {
+                //     $select[] = "$change_id AS id";
+                // }
             }
         }
 
         $tabel_exist = Schema::hasTable($tabel);
-        // dd($tabel_exist);
+        // dd($token ,$tabel_exist);
         if ($token && $tabel_exist) {
             $data_array = $data_array->select($select);
+            // dd( $select,$data_array);
             if ($id) {
                 $data_array = $data_array->where($alias_tabel . '.id', $id);
             } else {
@@ -200,11 +212,12 @@ class ApiController extends Controller
                 if (($key = array_search($del_val, $select)) !== false) {
                     unset($select[$key]);
                 }
+                // dd($field,$select);
                 foreach ($select as $filter_kolom_as) {
 
                     if (@$field != '*') {
-                        // dd($select);
                         $extrac_kolom = explode(' AS ', $filter_kolom_as);
+                        // dd($select, $extrac_kolom);
                         $filter_kolom = $extrac_kolom[0];
                         if (is_array($search)) {
                             foreach ($search as $keyFiled => $searchVal) {
