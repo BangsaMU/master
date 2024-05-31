@@ -163,7 +163,7 @@ class MasterController extends Controller
         $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
         $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.FIELD');
 
-        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL')?? $tabel;
         $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL');
 
         $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master', 'data_master'));

@@ -5,6 +5,8 @@ Integrasikan CLAY dengan fitur Master data V 0.0.2
 Update:
 - add global api get tabel
 - add global api get tabel with join 
+- add replace id tag return field &set[id]=name
+- bug fix sync tabel
 
 buat config baru di file laravel config/database.php
 
