@@ -13,7 +13,7 @@ return [
         'URL' => env('SSO_URL', 'http://sso.test'), /*harus diakhiri dengan / (slash) url untuk login SSO*/
         'CALL_BACK' => '',
     ),
-    'MASTER_TABEL' => ['location', 'project', 'project_detail', 'employee', 'item_code', 'uom'],
+    'MASTER_TABEL' => ['location', 'project', 'project_detail', 'employee', 'item_code', 'uom', 'company'],
     'master' => array(
         'employee' => [
             'MODEL' => env('TABEL_MASTER_EMPLOYEE', 'MasterEmployee'),

@@ -148,9 +148,14 @@ class MasterController extends Controller
 
 
         if (!$validate_master || !$validate_tabel || !$validate_rows || !$validate_id) {
+
+            if($validate_master==false){
+                $message = 'tabel `'.$tabel.'` tidak masuk di list MASTER_TABEL';
+            }
             $respond['status'] = 'gagal';
             $respond['code'] = 400;
             $respond['data'] = 'Data not valid ' . (int)$validate_master . '-' . (int)$validate_tabel . '-' . (int)$validate_rows . '-' . (int)$validate_id;
+            $respond['message'] = $message;
 
             Response::make(LibraryClayController::setOutput($respond))->send();
             exit();
