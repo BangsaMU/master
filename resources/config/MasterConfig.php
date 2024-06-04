@@ -15,28 +15,32 @@ return [
     ),
     'MASTER_TABEL' => ['location', 'project', 'project_detail', 'employee', 'item_code', 'uom', 'company'],
     'master' => array(
-        'employee' => [
-            'MODEL' => env('TABEL_MASTER_EMPLOYEE', 'MasterEmployee'),
-            'FIELD' => json_decode(env('SYNC_MASTER_EMPLOYEE', '["id","employee_name","employee_job_title","employee_email"]')),
+        'company' => [
+            'MODEL' => env('TABEL_MASTER_COMPANY', 'MasterCompany'),
+            // 'FIELD' => json_decode(env('SYNC_MASTER_COMPANY', '["id","employee_name","employee_job_title","employee_email"]')),
         ],
         'project' => [
             'MODEL' => env('TABEL_MASTER_PROJECT', 'MasterProject'),
-            'FIELD' => json_decode(env('SYNC_MASTER_PROJECT', '["id","project_code","project_name"]')),
+            // 'FIELD' => json_decode(env('SYNC_MASTER_PROJECT', '["id","project_code","project_name"]')),
         ],
         'location' => [
             'MODEL' => env('TABEL_MASTER_LOCATION', 'MasterLocation'),
-            'FIELD' => json_decode(env('SYNC_MASTER_LOCATION', '["loc_code","loc_name"]')),
+            // 'FIELD' => json_decode(env('SYNC_MASTER_LOCATION', '["loc_code","loc_name"]')),
         ],
         'item_code' => [
             'MODEL' => env('TABEL_MASTER_ITEM_CODE', 'MasterItemCode'),
-            'FIELD' => json_decode(env('SYNC_MASTER_ITEM_CODE', '["item_code","item_name"]')),
+            // 'FIELD' => json_decode(env('SYNC_MASTER_ITEM_CODE', '["item_code","item_name"]')),
         ],
         'uom' => [
             'MODEL' => env('TABEL_MASTER_UOM', 'MasterUom'),
-            'FIELD' => json_decode(env('SYNC_MASTER_UOM', '["id","uom_code","uom_name"]')),
+            // 'FIELD' => json_decode(env('SYNC_MASTER_UOM', '["id","uom_code","uom_name"]')),
         ],
     ),
     'lokal' => array(
+        'company' => [
+            'MODEL' => env('TABEL_MASTER_COMPANY', 'Company'),
+            // 'FIELD' => json_decode(env('SYNC_MASTER_COMPANY', '["id","employee_name","employee_job_title","employee_email"]')),
+        ],
         'employee' => [
             'MODEL' => env('TABEL_LOKAL_EMPLOYEE', 'Employee'),
             'FIELD' => json_decode(env('SYNC_LOKAL_EMPLOYEE', '["id","name","job_title","email"]')),
