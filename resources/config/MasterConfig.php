@@ -43,11 +43,11 @@ return [
         ],
         'employee' => [
             'MODEL' => env('TABEL_LOKAL_EMPLOYEE', 'Employee'),
-            'FIELD' => json_decode(env('SYNC_LOKAL_EMPLOYEE', '["id","name","job_title","email"]')),
+            // 'FIELD' => json_decode(env('SYNC_LOKAL_EMPLOYEE', '["id","name","job_title","email"]')),
         ],
         'project' => [
             'MODEL' => env('TABEL_LOKAL_PROJECT', 'Project'),
-            'FIELD' => json_decode(env('SYNC_LOKAL_PROJECT', '["id","project_code","project_name"]')),
+            // 'FIELD' => json_decode(env('SYNC_LOKAL_PROJECT', '["id","project_code","project_name"]')),
         ],
         'project_detail' => [
             'MODEL' => env('TABEL_LOKAL_PROJECT_DETAIL', 'ProjectDetail'),
@@ -55,15 +55,15 @@ return [
         ],
         'location' => [
             'MODEL' => env('TABEL_LOKAL_LOCATION', 'Location'),
-            'FIELD' => json_decode(env('SYNC_LOKAL_LOCATION', '["location_code","location_name"]')),
+            // 'FIELD' => json_decode(env('SYNC_LOKAL_LOCATION', '["location_code","location_name"]')),
         ],
         'item_code' => [
             'MODEL' => env('TABEL_LOKAL_ITEM_CODE', 'Item'),
-            'FIELD' => json_decode(env('SYNC_LOKAL_ITEM_CODE', '["item_code","item_desc"]')),
+            // 'FIELD' => json_decode(env('SYNC_LOKAL_ITEM_CODE', '["item_code","item_desc"]')),
         ],
         'uom' => [
             'MODEL' => env('TABEL_LOKAL_UOM', 'Uom'),
-            'FIELD' => json_decode(env('SYNC_LOKAL_UOM', '["id","uom_code","uom_name"]')),
+            // 'FIELD' => json_decode(env('SYNC_LOKAL_UOM', '["id","uom_code","uom_name"]')),
         ],
     )
 ];
