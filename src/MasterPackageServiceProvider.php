@@ -54,7 +54,7 @@ class MasterPackageServiceProvider extends ServiceProvider
      */
     private function loadConfig()
     {
-        $configPath = $this->packagePath('resources/config/' . $this->pkgPrefix . 'Config' . '.php');
+        $configPath = $this->packagePath('resources/config/' . ucfirst($this->pkgPrefix) . 'Config' . '.php');
         $this->mergeConfigFrom($configPath, ucfirst($this->pkgPrefix . 'Config'));
         // dd(config());
     }
