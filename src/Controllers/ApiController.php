@@ -112,7 +112,7 @@ class ApiController extends Controller
             $text = @$set['text'];
             $field = @$set['field'];
         }
-        if ($change_id) {
+        if (@$change_id) {
             $select[] = $alias_tabel . "." . $change_id . " AS id";
         } else {
             $select[] = $alias_tabel . ".id";
