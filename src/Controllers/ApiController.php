@@ -84,6 +84,7 @@ class ApiController extends Controller
      */
     public function getTabelByParams(Request $request, $tabel)
     {
+        // contoh filter or dan text resul concat http://clay.test:8181/api/getmaster_projectbyparams?set[fieldx][]=project_name&set[text]=project_code&set[text][|]=id&set[text][-]=project_code&set[text][]=project_name&ap_token=ae8f35052e0f8e687387a661ce40cc9b&_token=YPjlenwfUbYytBCsjm2fe1mIeoi8ZOHMCXm7KDPk&search[project_name]=200&search[project_code][|]=200
         // contoh select2 http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=description&search[type]=vehicle&search[description]=PJP
         // contoh search http://meindo-teliti.test:8181/api/gethse_indicator_detailbyparams?&set[field][]=type&limit=13&start=0&search[type]=vehicle&search[indicator_method_id]=4&search[type]=samu
         // contoh by id http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?id=45&set[text]=type&set[field][]=description&set[field][]=id
@@ -107,23 +108,23 @@ class ApiController extends Controller
         // $token = $key == $request->input('api_token');
         $token = true; //bypass test
 
-        if ($set) {
+        if (is_array($set)) {
             $change_id = @$set['id'];
             $text = @$set['text'];
             $field = @$set['field'];
         }
-        if (@$change_id) {
+        if (isset($change_id)) {
             $select[] = $alias_tabel . "." . $change_id . " AS id";
         } else {
-            $select[] = $alias_tabel . ".id";
+            $select[] = $alias_tabel . ".id AS id";
         }
 
         $data_array = $data_lokal;
 
 
 
-        // dd($acronym);
-        if ($join) {
+        // dd($data_array);
+        if (isset($join)) {
             // http://clay.test:8181/api/getmaster_item_codebyparams?set[field][]=uom_name&set[field][]=item_name&set[field][]=pca_name&join[master_uom.id]=uom_id&join[master_pca.id]=pca_id
             // dd($join);
             // $join_tabel=1;
@@ -186,11 +187,29 @@ class ApiController extends Controller
                 }
             }
         }
+
         if (isset($set)) {
             if ($set) {
                 /*validasi kolom tabel*/
-                if (Schema::hasColumn($tabel, $text)) {
-                    $select[] = "$text AS text";
+                if (is_array($text)) {
+                    $text_concat = 'concat(';
+                    foreach ($text as $sparator => $field_text) {
+                        $sparator = $sparator == '0' ? '' : $sparator;
+                        if (Schema::hasColumn($tabel, $field_text)) {
+                            $sparator = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
+                            $text_concat .=  $alias_tabel . '.' . $field_text .   $sparator;
+                            // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
+                        }
+                    }
+
+                    $text_concat .= ')';
+                    $selectRaw = $text_concat . " AS text";
+                    // dd($selectRaw,$text_concat, $text);
+                } else {
+                    if (Schema::hasColumn($tabel, $text)) {
+                        $select[] = "$text AS text";
+                    }
+                    $selectRaw = '';
                 }
                 /*validasi kolom tabel id*/
                 // if (Schema::hasColumn($tabel, $change_id)) {
@@ -202,7 +221,11 @@ class ApiController extends Controller
         $tabel_exist = Schema::hasTable($tabel);
         // dd($token ,$tabel_exist);
         if ($token && $tabel_exist) {
-            $data_array = $data_array->select($select);
+            $select_text = implode(',', $select);
+            $list_select = !empty($selectRaw) ? $selectRaw . ',' . $select_text : $select_text;
+            // $select=DB::raw($selectRaw);
+            // $data_array = $data_array->select($select);
+            $data_array =  $data_array->select(DB::raw($list_select));
             // dd( $select,$data_array);
             if ($id) {
                 $data_array = $data_array->where($alias_tabel . '.id', $id);
@@ -212,20 +235,26 @@ class ApiController extends Controller
                 if (($key = array_search($del_val, $select)) !== false) {
                     unset($select[$key]);
                 }
-                // dd($field,$select);
+                // dd($search,$field,$select);
                 foreach ($select as $filter_kolom_as) {
 
                     if (@$field != '*') {
                         $extrac_kolom = explode(' AS ', $filter_kolom_as);
-                        // dd($select, $extrac_kolom);
+                        // dd($search,$select, $extrac_kolom);
                         $filter_kolom = $extrac_kolom[0];
                         if (is_array($search)) {
                             foreach ($search as $keyFiled => $searchVal) {
+
                                 if (Schema::hasColumn($tabel, $keyFiled)) {
                                     // dd($keyFiled, $select,!in_array($keyFiled, $select));
                                     if (!in_array($keyFiled, $select)) {
                                         // if (in_array($keyFiled, $select) and $filter_kolom != $keyFiled) {
-                                        $data_array = $data_array->where($keyFiled, 'like', '%' . $searchVal . '%');
+                                        //cek where or atau and
+                                        if (is_array($searchVal)) {
+                                            $data_array = $data_array->oRwhere($keyFiled, 'like', '%' . array_values($searchVal)[0] . '%');
+                                        } else {
+                                            $data_array = $data_array->where($keyFiled, 'like', '%' . $searchVal . '%');
+                                        }
                                     } else {
                                         $data_array = $data_array->where($filter_kolom, '=', $searchVal);
                                     }
@@ -236,11 +265,15 @@ class ApiController extends Controller
                         }
                     }
                 }
-                // dd($data_array->toSql());
+                $query_sql = $data_array->toSql();
             }
 
             $data_array = $data_array->offset($start)->limit($limit)->get()->toArray();
             $respon = $data_array;
+            // dd($query_sql, $start, $limit, $respon);
+            if (empty($respon)) {
+                $respon = ['Data Not Found'];
+            }
         } else {
             $respon = ['Data Not Found'];
         }
