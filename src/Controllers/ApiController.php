@@ -228,7 +228,9 @@ class ApiController extends Controller
             $data_array =  $data_array->select(DB::raw($list_select));
             // dd( $select,$data_array);
             if ($id) {
-                $data_array = $data_array->where($alias_tabel . '.id', $id);
+                // $data_array = $data_array->where($alias_tabel . '.id', $id);
+                $data_array = $data_array->having('id', $id);
+                // $data_array = $data_array->find($id);
             } else {
                 /*buang array by value*/
                 $del_val = 'id';
