@@ -119,7 +119,11 @@ class ApiController extends Controller
             $field = @$set['field'];
         }
         if (isset($change_id)) {
-            $select[] = $alias_tabel . "." . $change_id . " AS id";
+            if (Schema::hasColumn($tabel, $change_id)) {
+                $select[] = $alias_tabel . "." . $change_id . " AS id";
+            } else {
+                abort(403, 'set id not valid');
+            }
         } else {
             $select[] = $alias_tabel . ".id AS id";
         }
@@ -195,6 +199,7 @@ class ApiController extends Controller
 
         if (isset($set)) {
             if ($set) {
+                $selectRaw = '';
                 /*validasi kolom tabel*/
                 if (is_array($text)) {
                     $text_concat = 'concat(';
@@ -208,13 +213,17 @@ class ApiController extends Controller
                     }
 
                     $text_concat .= ')';
-                    $selectRaw = $text_concat . " AS text";
+
+                    //validasi concat tidak kosong
+                    if ($text_concat !== 'concat()') {
+                        $selectRaw = $text_concat . " AS text";
+                    }
+                    // dd($text_concat);
                     // dd($selectRaw,$text_concat, $text);
                 } else {
                     if (Schema::hasColumn($tabel, $text)) {
                         $select[] = "$text AS text";
                     }
-                    $selectRaw = '';
                 }
                 /*validasi kolom tabel id*/
                 // if (Schema::hasColumn($tabel, $change_id)) {
@@ -243,35 +252,88 @@ class ApiController extends Controller
                     unset($select[$key]);
                 }
                 // dd($search,$field,$select);
-                foreach ($select as $filter_kolom_as) {
+                // foreach ($select as $filter_kolom_as) {
 
-                    if (@$field != '*') {
-                        $extrac_kolom = explode(' AS ', $filter_kolom_as);
-                        // dd($search,$select, $extrac_kolom);
-                        $filter_kolom = $extrac_kolom[0];
-                        if (is_array($search)) {
-                            foreach ($search as $keyFiled => $searchVal) {
+                if (@$field != '*') {
+                    // $extrac_kolom = explode(' AS ', $filter_kolom_as);
+                    // dd($search,$select, $extrac_kolom);
+                    // $filter_kolom = $extrac_kolom[0];
+                    // if (is_array($search)) {
+                    //     $data_array->where(function ($query) use ($search, $tabel) {
 
-                                if (Schema::hasColumn($tabel, $keyFiled)) {
-                                    // dd($keyFiled, $select,!in_array($keyFiled, $select));
-                                    if (!in_array($keyFiled, $select)) {
-                                        // if (in_array($keyFiled, $select) and $filter_kolom != $keyFiled) {
-                                        //cek where or atau and
-                                        if (is_array($searchVal)) {
-                                            $data_array = $data_array->oRwhere($keyFiled, 'like', '%' . array_values($searchVal)[0] . '%');
+                    //         foreach ($search as $keyFiled => $searchVal) {
+
+                    //             if (Schema::hasColumn($tabel, $keyFiled)) {
+
+                    //                 //cek where or atau and
+                    //                 if (is_array($searchVal)) {
+                    //                     //cek jika int gunakan where selian itu like
+                    //                     if (is_numeric(array_values($searchVal)[0])) {
+                    //                         $query->oRwhere($keyFiled, array_values($searchVal)[0]);
+                    //                     } else {
+                    //                         $query->oRwhere($keyFiled, 'like', '%' . array_values($searchVal)[0] . '%');
+                    //                     }
+                    //                 } else {
+                    //                     if (is_numeric($searchVal)) {
+                    //                         $query->where($keyFiled, $searchVal);
+                    //                     } else {
+                    //                         $query->where($keyFiled, 'like', '%' . $searchVal . '%');
+                    //                     }
+                    //                 }
+
+                    //                 // // dd($keyFiled, $select,!in_array($keyFiled, $select));
+                    //                 // if (!in_array($keyFiled, $select)) {
+                    //                 //     // if (in_array($keyFiled, $select) and $filter_kolom != $keyFiled) {
+                    //                 //     //cek where or atau and
+                    //                 //     if (is_array($searchVal)) {
+                    //                 //         $query->oRwhere($keyFiled, 'like', '%' . array_values($searchVal)[0] . '%');
+                    //                 //     } else {
+                    //                 //         $query->where($keyFiled, 'like', '%' . $searchVal . '%');
+                    //                 //     }
+                    //                 // } else {
+                    //                 //     $query->where($filter_kolom, '=', $searchVal);
+                    //                 // }
+                    //             }
+                    //         }
+                    //     });
+                    // } elseif ($search) {
+                    //     $data_array->where($filter_kolom, 'like', '%' . $search . '%');
+                    // }
+
+                    if (is_array($search)) {
+
+                        $data_array = $data_array->where(function ($query) use ($search, $tabel) {
+
+                            foreach ($search as $searchKey => $searchVal) {
+                                /*validasi kolom pencarian di tabel*/
+                                if (Schema::hasColumn($tabel, $searchKey)) {
+                                    //cek where or atau and
+                                    if (is_array($searchVal)) {
+                                        //cek jika int gunakan where selian itu like
+                                        if (is_numeric(array_values($searchVal)[0])) {
+                                            $query->oRwhere($searchKey, array_values($searchVal)[0]);
                                         } else {
-                                            $data_array = $data_array->where($keyFiled, 'like', '%' . $searchVal . '%');
+                                            $query->oRwhere($searchKey, 'like', '%' . array_values($searchVal)[0] . '%');
                                         }
                                     } else {
-                                        $data_array = $data_array->where($filter_kolom, '=', $searchVal);
+                                        if (is_numeric($searchVal)) {
+                                            $query->where($searchKey, $searchVal);
+                                        } else {
+                                            $query->where($searchKey, 'like', '%' . $searchVal . '%');
+                                        }
                                     }
+                                    // $query->where($whereKey, $whereVal);
+                                    // dd($where, $whereKey, $whereVal);
                                 }
                             }
-                        } elseif ($search) {
-                            $data_array = $data_array->where($filter_kolom, 'like', '%' . $search . '%');
-                        }
+                        });
+                    } elseif (is_string($search)) {
+                        $data_array = $data_array->where($search, 'like', '%' . $search . '%');
+                    } elseif (is_numeric($search)) {
+                        $data_array = $data_array->where($search, $search);
                     }
                 }
+                // }
                 if (is_array($where)) {
 
                     $data_array = $data_array->where(function ($query) use ($where, $tabel) {
@@ -297,10 +359,8 @@ class ApiController extends Controller
                                 // $query->where($whereKey, $whereVal);
                                 // dd($where, $whereKey, $whereVal);
                             }
-
                         }
                     });
-
                 }
                 $query_sql = $data_array->toSql();
             }
