@@ -30,7 +30,7 @@ use Bangsamu\Master\Models\Company;
 
 use DataTables;
 use PDF;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Carbon;
 use View;
 use Illuminate\Support\Facades\Schema;
@@ -310,17 +310,17 @@ class ApiController extends Controller
                                     //cek where or atau and
                                     if (is_array($searchVal)) {
                                         //cek jika int gunakan where selian itu like
-                                        if (is_numeric(array_values($searchVal)[0])) {
-                                            $query->oRwhere($searchKey, array_values($searchVal)[0]);
-                                        } else {
+                                        // if (is_numeric(array_values($searchVal)[0])) {
+                                        //     $query->oRwhere($searchKey, array_values($searchVal)[0]);
+                                        // } else {
                                             $query->oRwhere($searchKey, 'like', '%' . array_values($searchVal)[0] . '%');
-                                        }
+                                        // }
                                     } else {
-                                        if (is_numeric($searchVal)) {
-                                            $query->where($searchKey, $searchVal);
-                                        } else {
+                                        // if (is_numeric($searchVal)) {
+                                        //     $query->where($searchKey, $searchVal);
+                                        // } else {
                                             $query->where($searchKey, 'like', '%' . $searchVal . '%');
-                                        }
+                                        // }
                                     }
                                     // $query->where($whereKey, $whereVal);
                                     // dd($where, $whereKey, $whereVal);
