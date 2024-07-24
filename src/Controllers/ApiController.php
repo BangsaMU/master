@@ -3,43 +3,28 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Mail\Mailable;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Facades\Excel;
-
-use App\Models\FileManager;
-use Bangsamu\Master\Models\ItemCode;
-use Bangsamu\Master\Models\UoM;
-use Bangsamu\Master\Models\Pca;
-use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Models\Apps;
+use Bangsamu\Master\Models\Brand;
 use Bangsamu\Master\Models\Category;
-use Bangsamu\Master\Models\Project;
-use Bangsamu\Master\Models\ProjectDetail;
-use Bangsamu\Master\Models\Location;
+use Bangsamu\Master\Models\Company;
 use Bangsamu\Master\Models\Department;
 use Bangsamu\Master\Models\Employee;
+use Bangsamu\Master\Models\ItemCode;
+use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Models\Location;
+use Bangsamu\Master\Models\Pca;
+use Bangsamu\Master\Models\Project;
+use Bangsamu\Master\Models\UoM;
 use Bangsamu\Master\Models\Vendor;
-use Bangsamu\Master\Models\Brand;
-use Bangsamu\Master\Models\Apps;
-use Bangsamu\Master\Models\Company;
-
-use DataTables;
-use PDF;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon;
-use View;
 use Illuminate\Support\Facades\Schema;
 
 class ApiController extends Controller
 {
     protected $LIMIT;
 
-    function __construct()
+    public function __construct()
     {
         $this->LIMIT = 5;
     }
@@ -84,6 +69,8 @@ class ApiController extends Controller
      */
     public function getTabelByParams(Request $request, $tabel)
     {
+        // contoh order by
+        // http://clay.localhost:8080/api/getruning_numberbyparams?search[type_id]=47&set[text]=format_number&ap_token=f14c26fea1ba2c8df188619c4317d658&_token=KbbEthhaqxBxUkOWN1HXnCAslkQWDsXqjFAcgQnk&order[column]=format_number&order[direction]=asc&debug=1
         // contoh debug
         // http://clay.test:8181/api/getrequisition_typebyparams?_token=YPjlenwfUbYytBCsjm2fe1mIeoi8ZOHMCXm7KDPk&debug=1
         // contoh query where dan search
@@ -104,11 +91,13 @@ class ApiController extends Controller
         $join = $request->input("join");
         $start = $request->input("start", 0);
         $limit = $request->input("limit", 10);
+        $order = $request->input("order");
+        // dd($order);
         // dd($set,$start,$limit);
         // $field = $request->set['field'];
         $id = $request->id;
         // dd($field);
-        $data_lokal =  DB::table($tabel . " as " . $alias_tabel);
+        $data_lokal = DB::table($tabel . " as " . $alias_tabel);
         $key = md5($id . ':' . config('SsoConfig.main.KEY'));
         // $token = $key == $request->input('api_token');
         $token = true; //bypass test
@@ -129,8 +118,6 @@ class ApiController extends Controller
         }
 
         $data_array = $data_lokal;
-
-
 
         // dd($data_array);
         if (isset($join)) {
@@ -181,7 +168,6 @@ class ApiController extends Controller
             }
         }
 
-
         if (isset($field)) {
             // $text = @$set['text'];
             // $field = @$set['field'];
@@ -207,7 +193,7 @@ class ApiController extends Controller
                         $sparator = $sparator == '0' ? '' : $sparator;
                         if (Schema::hasColumn($tabel, $field_text)) {
                             $sparator = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
-                            $text_concat .=  $alias_tabel . '.' . $field_text .   $sparator;
+                            $text_concat .= $alias_tabel . '.' . $field_text . $sparator;
                             // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
                         }
                     }
@@ -239,7 +225,7 @@ class ApiController extends Controller
             $list_select = !empty($selectRaw) ? $selectRaw . ',' . $select_text : $select_text;
             // $select=DB::raw($selectRaw);
             // $data_array = $data_array->select($select);
-            $data_array =  $data_array->select(DB::raw($list_select));
+            $data_array = $data_array->select(DB::raw($list_select));
             // dd( $select,$data_array);
             if ($id) {
                 // $data_array = $data_array->where($alias_tabel . '.id', $id);
@@ -313,13 +299,13 @@ class ApiController extends Controller
                                         // if (is_numeric(array_values($searchVal)[0])) {
                                         //     $query->oRwhere($searchKey, array_values($searchVal)[0]);
                                         // } else {
-                                            $query->oRwhere($searchKey, 'like', '%' . array_values($searchVal)[0] . '%');
+                                        $query->oRwhere($searchKey, 'like', '%' . array_values($searchVal)[0] . '%');
                                         // }
                                     } else {
                                         // if (is_numeric($searchVal)) {
                                         //     $query->where($searchKey, $searchVal);
                                         // } else {
-                                            $query->where($searchKey, 'like', '%' . $searchVal . '%');
+                                        $query->where($searchKey, 'like', '%' . $searchVal . '%');
                                         // }
                                     }
                                     // $query->where($whereKey, $whereVal);
@@ -365,6 +351,10 @@ class ApiController extends Controller
                 $query_sql = $data_array->toSql();
             }
 
+            if ($order) {
+                $data_array->orderby($order['column'], ($order['direction'] ?? 'asc'));
+            }
+
             $builder = $data_array->offset($start)->limit($limit);
             $data_array = $builder->get()->toArray();
             $respon = $data_array;
@@ -399,7 +389,7 @@ class ApiController extends Controller
         foreach ($company as $item) {
             $response[] = array(
                 "id" => $item->id,
-                "text" => $item->company_code . ' - ' . $item->company_name
+                "text" => $item->company_code . ' - ' . $item->company_name,
             );
         }
 
@@ -420,7 +410,7 @@ class ApiController extends Controller
         foreach ($item_codes as $item) {
             $response[] = array(
                 "id" => $item->id,
-                "text" => $item->item_code
+                "text" => $item->item_code,
             );
         }
 
@@ -439,11 +429,11 @@ class ApiController extends Controller
 
         $response = array();
         foreach ($apps as $app) {
-            $app_name =  $app->name ? ': ' . $app->name : '';
+            $app_name = $app->name ? ': ' . $app->name : '';
             $response[] = array(
                 "id" => $app->id,
                 "code" => $app->app_code,
-                "text" => $app->app_code . $app_name
+                "text" => $app->app_code . $app_name,
             );
         }
 
@@ -462,11 +452,11 @@ class ApiController extends Controller
 
         $response = array();
         foreach ($uoms as $uom) {
-            $uom_name =  $uom->uom_name ? ': ' . $uom->uom_name : '';
+            $uom_name = $uom->uom_name ? ': ' . $uom->uom_name : '';
             $response[] = array(
                 "id" => $uom->id,
                 "code" => $uom->uom_code,
-                "text" => $uom->uom_code . $uom_name
+                "text" => $uom->uom_code . $uom_name,
             );
         }
 
@@ -487,7 +477,7 @@ class ApiController extends Controller
         foreach ($pcas as $pca) {
             $response[] = array(
                 "id" => $pca->id,
-                "text" => $pca->pca_code
+                "text" => $pca->pca_code,
             );
         }
 
@@ -508,7 +498,7 @@ class ApiController extends Controller
         foreach ($categories as $category) {
             $response[] = array(
                 "id" => $category->id,
-                "text" => $category->category_name
+                "text" => $category->category_name,
             );
         }
 
@@ -529,7 +519,7 @@ class ApiController extends Controller
         foreach ($itemgroups as $item_group) {
             $response[] = array(
                 "id" => $item_group->id,
-                "text" => $item_group->item_group_code
+                "text" => $item_group->item_group_code,
             );
         }
 
@@ -554,7 +544,7 @@ class ApiController extends Controller
         foreach ($projects as $project) {
             $response[] = array(
                 "id" => $project->id,
-                "text" => $project->project_code . ' - ' . $project->project_name
+                "text" => $project->project_code . ' - ' . $project->project_name,
             );
         }
 
@@ -575,7 +565,7 @@ class ApiController extends Controller
         foreach ($departments as $department) {
             $response[] = array(
                 "id" => $department->id,
-                "text" => $department->department_code
+                "text" => $department->department_code,
             );
         }
 
@@ -604,7 +594,7 @@ class ApiController extends Controller
         foreach ($locations as $location) {
             $response[] = array(
                 "id" => $location->id,
-                "text" => ($location->loc_code ? $location->loc_code . ' - ' : '') . $location->loc_name
+                "text" => ($location->loc_code ? $location->loc_code . ' - ' : '') . $location->loc_name,
             );
         }
 
@@ -647,7 +637,7 @@ class ApiController extends Controller
         foreach ($brands as $brand) {
             $response[] = array(
                 "id" => $brand->id,
-                "text" => $brand->brand_code
+                "text" => $brand->brand_code,
             );
         }
 
@@ -668,7 +658,7 @@ class ApiController extends Controller
         foreach ($vendors as $vendor) {
             $response[] = array(
                 "id" => $vendor->id,
-                "text" => $vendor->vendor_code
+                "text" => $vendor->vendor_code,
             );
         }
 
