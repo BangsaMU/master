@@ -17,6 +17,6 @@ class MasterPca extends Model
     use SoftDeletes;
 
     protected $connection = 'db_master';
-    public $table = "master_pca";
+    public $table = "master_priority";
     protected $guarded = [];
 }
