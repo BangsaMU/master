@@ -25,13 +25,8 @@ class Priority extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('project_code', 10)->nullable();
-                $table->string('project_name', 116)->nullable()->unique('unique_project_name');
-                $table->string('project_remarks', 255)->nullable();
-                $table->date('project_start_date')->nullable();
-                $table->date('project_complete_date')->nullable();
-                $table->char('internal_external', 1)->nullable();
-                $table->integer('user_id')->nullable();
+                $table->string('priority_code', 4)->nullable();
+                $table->string('priority_name', 15)->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->dateTime('deleted_at')->nullable();
