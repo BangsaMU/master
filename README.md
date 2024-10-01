@@ -7,7 +7,7 @@ Update:
 - add global api get tabel with join 
 - add replace id tag return field &set[id]=name
 - bug fix sync tabel
-- add tabel user dan priority sync
+- add tabel user dan priority sync.
 
 buat config baru di file laravel config/database.php
 
