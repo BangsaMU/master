@@ -8,6 +8,7 @@ Update:
 - add replace id tag return field &set[id]=name
 - bug fix sync tabel
 - add tabel user dan priority sync.
+- add maste prject CRUD
 
 buat config baru di file laravel config/database.php
 
