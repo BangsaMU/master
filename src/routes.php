@@ -15,6 +15,48 @@ Route::get('mud-view', function () {
 
 
 
+Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(function () {
+    // Route::get('user', [\App\Http\Controllers\Master\UserController::class, 'index'])->name('user.index');
+
+    // Route::resource('category', \App\Http\Controllers\Master\CategoryController::class);
+    // Route::post('category/import', [\App\Http\Controllers\Master\CategoryController::class, 'import'])->name('category.import');
+    // Route::get('category/importtemplate', [\App\Http\Controllers\Master\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
+
+    // Route::resource('company', \App\Http\Controllers\Master\CompanyController::class);
+    // Route::resource('department', \App\Http\Controllers\Master\DepartmentController::class);
+    // Route::post('department/import', [\App\Http\Controllers\Master\DepartmentController::class, 'import'])->name('department.import');
+
+    // Route::get('item_code/export', [\App\Http\Controllers\Master\ItemCodeController::class, 'export'])->name('item_code.export');
+    // Route::get('item_code/importtemplate', [\App\Http\Controllers\Master\ItemCodeController::class, 'importtemplate'])->name('item_code.importtemplate');
+    // Route::resource('item_code', \App\Http\Controllers\Master\ItemCodeController::class);
+    // Route::post('item_code/import', [\App\Http\Controllers\Master\ItemCodeController::class, 'import'])->name('item_code.import');
+
+    // Route::resource('item_group', \App\Http\Controllers\Master\ItemGroupController::class);
+    // Route::post('item_group/import', [\App\Http\Controllers\Master\ItemGroupController::class, 'import'])->name('item_group.import');
+
+    // Route::resource('location', \App\Http\Controllers\Master\LocationController::class);
+    // Route::post('location/import', [\App\Http\Controllers\Master\LocationController::class, 'import'])->name('location.import');
+
+    // Route::resource('pca', \App\Http\Controllers\Master\PcaController::class);
+    // Route::post('pca/import', [\App\Http\Controllers\Master\PcaController::class, 'import'])->name('pca.import');
+
+    Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
+    Route::post('project/import', [\Bangsamu\Master\Controllers\ProjectController::class, 'import'])->name('project.import');
+
+    // Route::resource('project2', \App\Http\Controllers\Master\ProjectController2::class);
+    // Route::post('project2/import', [\App\Http\Controllers\Master\ProjectController2::class, 'import'])->name('project2.import');
+
+    // Route::resource('uom', \App\Http\Controllers\Master\UomController::class);
+    // Route::post('uom/import', [\App\Http\Controllers\Master\UomController::class, 'import'])->name('uom.import');
+
+    // Route::resource('priority', \App\Http\Controllers\Master\PriorityController::class);
+
+
+    // Route::resource('mcu', \Bangsamu\Master\Controllers\McuController::class);
+    // Route::post('mcu/store-json', [\Bangsamu\Master\Controllers\McuController::class, 'storeJson'])->name('mcu.store.json');
+    // Route::post('mcu/import', [\Bangsamu\Master\Controllers\McuController::class, 'import'])->name('mcu.import');
+});
+
 Route::prefix('api')
     ->middleware(['api'])->group(function () {
         // Route::get('get-ip',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'getIp'])

@@ -3,6 +3,8 @@
 namespace Bangsamu\Master;
 
 use Illuminate\Support\ServiceProvider;
+use Jenssegers\Agent\Agent as Agent;
+use Illuminate\Support\Facades\View;
 
 class MasterPackageServiceProvider extends ServiceProvider
 {
@@ -26,6 +28,8 @@ class MasterPackageServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $agent = new Agent();
+        View::share('agent', $agent);
         //
         $this->loadConfig();
         $this->loadRoutesFrom(__DIR__ . '/routes.php');
