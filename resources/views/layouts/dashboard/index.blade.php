@@ -336,4 +336,11 @@
             });
         }
     </script>
+
+    // @if (is_array(@$data['page']['js_list']))
+    //     @foreach ($data['page']['js_list'] as $load_js)
+    //         @include('master::'.$load_js)
+    //     @endforeach
+    // @endif
+
 @endpush

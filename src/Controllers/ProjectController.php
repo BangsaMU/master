@@ -59,6 +59,8 @@ class ProjectController extends Controller
         $data['page']['id'] = $id;
         $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
 
+        $data['page']['js_list'][] = 'js.master-data';
+
         return $data;
     }
     public function view_form($data)
@@ -154,26 +156,29 @@ class ProjectController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')) {
+        if (checkPermission('is_admin')==false) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning fa fa-sync" style="color:#6c757d';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
             $data['datatable']['btn']['sync']['act'] = "syncFn('project,project_detail')";
-            // $data['datatable']['btn']['create']['id'] = 'create';
-            // $data['datatable']['btn']['create']['title'] = 'Create';
-            // $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            // $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
 
-            // $data['datatable']['btn']['import']['id'] = 'importitem';
-            // $data['datatable']['btn']['import']['title'] = 'Import Item';
-            // $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-            // $data['datatable']['btn']['import']['url'] = '#';
-            // $data['datatable']['btn']['import']['act'] = 'importFn()';
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                $data['datatable']['btn']['create']['id'] = 'create';
+                $data['datatable']['btn']['create']['title'] = 'Create';
+                $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+
+                $data['datatable']['btn']['import']['id'] = 'importitem';
+                $data['datatable']['btn']['import']['title'] = 'Import Item';
+                $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['import']['url'] = '#';
+                $data['datatable']['btn']['import']['act'] = 'importFn()';
+            }
 
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('getmaster_project/export');
+            $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_project']);
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
@@ -295,7 +300,7 @@ class ProjectController extends Controller
                 if (checkPermission('is_admin')) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
-                }else{
+                } else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
                 $nestedData['action'] = $btn;
@@ -382,7 +387,7 @@ class ProjectController extends Controller
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
-  /**
+        /**
          * formdata
          * data harus type multi array
          */
