@@ -156,7 +156,7 @@ class ProjectController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')==false) {
+        if (checkPermission('is_admin')==true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
