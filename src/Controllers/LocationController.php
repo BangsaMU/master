@@ -180,7 +180,7 @@ class LocationController extends Controller
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_project']);
+            $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_location']);
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
