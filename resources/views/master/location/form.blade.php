@@ -17,29 +17,41 @@
                     <form action="{{ $data['page']['store'] }}" method="POST">
                         @csrf
                         @if ($param)
-                            <input type="hidden" name="id" value="{{ $param->id }}">
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id"
+                                value="{{ $param->id }}">
                         @endif
 
                         <div class="form-group">
                             <label for="loc_code">Location Code</label>
-                            <input type="text" name="loc_code" id="loc_code" class="form-control"
-                                   value="{{ $param ? $param->loc_code : old('loc_code') }}" required>
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="loc_code"
+                                id="loc_code" class="form-control"
+                                value="{{ $param ? $param->loc_code : old('loc_code') }}" required>
                         </div>
                         <div class="form-group">
                             <label for="loc_name">Location Name</label>
-                            <input type="text" name="loc_name" id="loc_name" class="form-control"
-                                   value="{{ $param ? $param->loc_name : old('loc_name') }}" required>
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="loc_name"
+                                id="loc_name" class="form-control"
+                                value="{{ $param ? $param->loc_name : old('loc_name') }}" required>
                         </div>
                         <div class="form-group">
                             <label for="group_type">Group</label>
-                            <select name="group_type" id="group_type" class="form-control" required>
+                            <select {{ $data['page']['readonly'] ? 'readonly' : '' }} name="group_type" id="group_type"
+                                class="form-control" required>
                                 <option value="">Pilih Tipe Grup</option>
-                                <option value="office" {{ ($param && $param->group_type == 'office') || old('group_type') == 'office' ? 'selected' : '' }}>Office</option>
-                                <option value="warehouse" {{ ($param && $param->group_type == 'warehouse') || old('group_type') == 'warehouse' ? 'selected' : '' }}>Warehouse</option>
-                                <option value="vendor" {{ ($param && $param->group_type == 'vendor') || old('group_type') == 'vendor' ? 'selected' : '' }}>Vendor</option>
+                                <option value="office"
+                                    {{ ($param && $param->group_type == 'office') || old('group_type') == 'office' ? 'selected' : '' }}>
+                                    Office</option>
+                                <option value="warehouse"
+                                    {{ ($param && $param->group_type == 'warehouse') || old('group_type') == 'warehouse' ? 'selected' : '' }}>
+                                    Warehouse</option>
+                                <option value="vendor"
+                                    {{ ($param && $param->group_type == 'vendor') || old('group_type') == 'vendor' ? 'selected' : '' }}>
+                                    Vendor</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        @if ($data['page']['readonly'] == false)
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        @endif
                     </form>
                 </div>
             </div>

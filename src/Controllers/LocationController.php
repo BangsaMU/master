@@ -4,29 +4,30 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Module\ControllerModule;
-// use App\Imports\Master\ProjectImport;
-use Bangsamu\Master\Imports\ProjectImport;
+use App\Imports\Master\ProjectImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
-class ProjectController extends Controller
+class LocationController extends Controller
 {
     protected $readonly = false;
-    protected $sheet_name = 'Master - Project'; //nama label untuk FE
-    protected $sheet_slug = 'project'; //nama routing (slug)
+    protected $sheet_name = 'Master - location'; //nama label untuk FE
+    protected $sheet_slug = 'location'; //nama routing (slug)
     protected $view_tabel_index = array(
-        'mp.id AS No',
+        'ml.id AS No',
         // '"action" AS action',
-        'mp.project_code AS project_code',
-        'mp.project_name AS project_name',
+        'ml.loc_code AS loc_code',
+        'ml.loc_name AS loc_name',
+        'ml.group_type AS group_type',
         'null AS action',
     );
     protected $view_tabel = array(
-        'mp.id AS id',
-        'mp.project_code AS project_code',
-        'mp.project_name AS project_name',
+        'ml.id AS id',
+        'ml.loc_code AS loc_code',
+        'ml.loc_name AS loc_name',
+        'ml.group_type AS group_type',
         'null AS action',
     );
 
@@ -80,20 +81,20 @@ class ProjectController extends Controller
         if (@$default_for_info_id) {
             extract($default_for_info_id);
         }
-        $view_form['parent_id'] = [
-            'field' => 'parent_id',
-            'name' => 'parent_id',
-            'label' => 'Parent',
-            'type' => 'select2',
-            'select2_minimum' => 0, //[1-5]
-            'select2_tags' => false, //[true.false]
-            'select2_search' => [["name"]], //[field]
-            'select2_url' => url('api/getmaster_mcubyparams?set[field][]=name&set[text]=name&ap_token=' . api_token($id) . ''),
-            // 'select2_url' => url('api/getmaster_projectbyparams?set[id]=id&set[text]=name&ap_token=' . api_token($id) . ''),
-            'multi' => false,
-            'col' => 'col-12 col-md-3 mb-2',
-            'disabled' => $global_disable || $revisi_disable ? true : false,
-        ];
+        // $view_form['parent_id'] = [
+        //     'field' => 'parent_id',
+        //     'name' => 'parent_id',
+        //     'label' => 'Parent',
+        //     'type' => 'select2',
+        //     'select2_minimum' => 0, //[1-5]
+        //     'select2_tags' => false, //[true.false]
+        //     'select2_search' => [["name"]], //[field]
+        //     'select2_url' => url('api/getmaster_mcubyparams?set[field][]=name&set[text]=name&ap_token=' . api_token($id) . ''),
+        //     // 'select2_url' => url('api/getmaster_projectbyparams?set[id]=id&set[text]=name&ap_token=' . api_token($id) . ''),
+        //     'multi' => false,
+        //     'col' => 'col-12 col-md-3 mb-2',
+        //     'disabled' => $global_disable || $revisi_disable ? true : false,
+        // ];
         $view_form['name'] = [
             'field' => 'name',
             'name' => 'name',
@@ -152,7 +153,7 @@ class ProjectController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['list'] = route('master.project.index');
+        $data['page']['list'] = route('master.location.index');
         $data['page']['title'] = $sheet_name;
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
@@ -183,7 +184,7 @@ class ProjectController extends Controller
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.project.import');
+        $data['page']['import']['post'] = route('master.location.import');
         $data['page']['import']['template'] = url('/templates/projectImportTemplate.xlsx');
 
         $page_var = compact('data');
@@ -219,30 +220,30 @@ class ProjectController extends Controller
             $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
-            $order = 'mp.created_at';
+            $order = 'ml.created_at';
         }
         $dir = $request->input('order.0.dir') ?? 'desc';
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_project as mp')->whereNull('mp.deleted_at')->count();
+        $totalData = DB::table('master_location as ml')->whereNull('ml.deleted_at')->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_project as mp')
+            $data_tabel = DB::table('master_location as ml')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at')
-                ->groupby('mp.id');
+                ->whereNull('ml.deleted_at')
+                ->groupby('ml.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
             $totalFiltered = $data_tabel->get()->count();
 
             $data_tabel->offset($start)
-                ->groupby('mp.id')
+                ->groupby('ml.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start)
@@ -250,12 +251,12 @@ class ProjectController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_project as mp')
+            $datatb_request = DB::table('master_location as ml')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at')
-                ->groupby('mp.id')
+                ->whereNull('ml.deleted_at')
+                ->groupby('ml.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);
@@ -439,7 +440,7 @@ class ProjectController extends Controller
             $error = $import->getError();
             $success = $import->getSuccess();
 
-            return redirect()->route('master.project.index')->with('error_message', $error)->with('success_message', $success);
+            return redirect()->route('master.location.index')->with('error_message', $error)->with('success_message', $success);
         }
     }
 }
