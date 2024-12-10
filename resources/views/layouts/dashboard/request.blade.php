@@ -30,8 +30,7 @@
     @endif
 
     @foreach ($formdata_multi as $keydata => $formdata)
-        <form id="FormRequest{{ @$formdata->id }}" action="{{ $data['page']['store'] }}"
-            method="post">
+        <form id="FormRequest{{ @$formdata->id }}" action="{{ $data['page']['store'] }}" method="post">
             @csrf
             <div class="card card-outline card-primary">
 
@@ -85,9 +84,6 @@
         </div>
     @endif
 
-    @if (@$formdata->status_id > 0)
-        @include('master::layouts.telitisubmission')
-    @endif
 @stop
 
 @push('js')
@@ -103,31 +99,12 @@
         @endif
 
         $(document).ready(function() {
-
+            //jika buat form baru hapus lokal storage
+            @if(empty(@$formdata->id))
+                localStorage.clear();
+            @endif
         });
-        // var config_field_value = {
-        //     width: '100%',
-        //     placeholder: 'Please select type',
-        //     ajax: {
-        //         url: "{!! config('AKTConfig.master.SELECT2_MASTER') . '/api/getmeb_postsbyparams?set[text]=slug&search[type]=post' !!}",
-        //         type: "get",
-        //         dataType: 'json',
-        //         delay: 5,
-        //         data: function(params) {
-        //             return {
-        //                 _token: "{{ csrf_token() }}",
-        //                 'search[type]': params.term
-        //             };
-        //         },
-        //         processResults: function(response) {
-        //             return {
-        //                 results: response
-        //             };
-        //         },
-        //         cache: true
-        //     }
-        // };
-        // config_field_value.tags = true;
+
 
 
         @foreach ($view_form as $form)
@@ -227,59 +204,6 @@
                 select2_{{ $form['field'] }}(config_{{ $form['field'] }});
             @endif
         @endforeach
-
-
-        @isset($data['page']['parent_typexxx'])
-
-            var config_parent_id = {
-                width: '100%',
-                placeholder: 'Please select type',
-                ajax: {
-                    url: "{!! config('AKTConfig.master.SELECT2_MASTER') .
-                        '/api/getmeb_postsbyparams?set[text]=slug&search[type]=' .
-                        $data['page']['parent_type'] .
-                        '' !!}",
-                    type: "get",
-                    dataType: 'json',
-                    delay: 5,
-                    data: function(params) {
-                        return {
-                            _token: "{{ csrf_token() }}",
-                            'search[type]': params.term
-                        };
-                    },
-                    processResults: function(response) {
-                        return {
-                            results: response
-                        };
-                    },
-                    cache: true
-                }
-            };
-            config_parent_id.tags = true;
-            select2_parent_id(config_parent_id);
-
-            function select2_parent_id(config_parent_id) {
-                $('.select2-parent_id').select2(
-                        config_parent_id
-                    )
-                    .on('select2:select', function(e) {
-                        var data = e.params.data;
-                        // console.log("select2_parent_id", data);
-                        var data_id = $(this).attr('data-id');
-                        $("#input" + data_id + "_type").val(data.text);
-                        if (data_id) {
-                            // $("#input"+data_id+"type").prop('disabled', false);
-                            // if (document.getElementById('inputposition').getAttribute('data-disabled') ==
-                            //     "true") {
-                            //     $("#inputposition").prop('disabled', true);
-                            // };
-                        } else {
-                            // $("#inputposition").prop('disabled', false);
-                        }
-                    });
-            }
-        @endisset
 
 
         // config_employee_id.tags = true;

@@ -56,6 +56,9 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     // Route::post('mcu/store-json', [\Bangsamu\Master\Controllers\McuController::class, 'storeJson'])->name('mcu.store.json');
     // Route::post('mcu/import', [\Bangsamu\Master\Controllers\McuController::class, 'import'])->name('mcu.import');
 
+    Route::resource('employee', \Bangsamu\Master\Controllers\EmployeeController::class);
+    Route::post('employee/import', [\Bangsamu\Master\Controllers\EmployeeController::class, 'import'])->name('employee.import');
+
     Route::get('get{table}/export', [\Bangsamu\Master\Controllers\ExportController::class, 'export'])->name('table.export');
 
 });

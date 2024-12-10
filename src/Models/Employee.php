@@ -19,17 +19,32 @@ class Employee extends Model
     public function __construct()
     {
         if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
-            Schema::create($this->table, function (Blueprint $table) {
-                $table->integer('id', true);
-                $table->string('employee_name', 100)->nullable();
-                $table->string('employee_phone', 50)->nullable();
-                $table->string('employee_email', 50)->nullable();
-                $table->string('employee_job_title', 50)->nullable();
-                $table->dateTime('created_at')->nullable();
-                $table->dateTime('updated_at')->nullable();
+            /*buat tabel master_employee*/
+            Schema::create('master_employee', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->string('employee_name', 100)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('name');
+                $table->string('employee_job_title', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->comment('di hrd app == posisi');
+                $table->string('employee_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('email');
+                $table->string('employee_phone', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
+                $table->timestamps(); // Automatically creates `created_at` and `updated_at`
                 $table->dateTime('deleted_at')->nullable();
+                $table->string('corporate_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('unique_corporate_email');
+                $table->string('no_ktp', 17)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('unique_no_ktp');
+                $table->string('no_id_karyawan', 15)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('unique_no_id_karyawan');
+                $table->tinyInteger('status_id')->default(2);
+                $table->tinyInteger('hire_id')->nullable();
+                $table->date('tanggal_join')->nullable();
+                $table->date('tanggal_akhir_kerja')->nullable();
+                $table->date('valid_to')->nullable();
+                $table->string('keterangan', 255)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
+                $table->tinyInteger('work_location_id')->nullable();
+
+                // Indexes
+                $table->index('hire_id', 'index_hire_id');
+                $table->index('status_id', 'index_status_id');
+                $table->index('work_location_id', 'index_work_location_id');
             });
+
         }
     }
 }

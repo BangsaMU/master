@@ -22,13 +22,13 @@
                         @endif
 
                         <div class="form-group">
-                            <label for="project_code">Vessel Code</label>
+                            <label for="project_code">Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_code"
                                 id="project_code" class="form-control"
                                 value="{{ $param ? $param->project_code : old('project_code') }}" required>
                         </div>
                         <div class="form-group">
-                            <label for="project_name">Vessel Name</label>
+                            <label for="project_name">Name</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_name"
                                 id="project_name" class="form-control"
                                 value="{{ $param ? $param->project_name : old('project_name') }}" required>
