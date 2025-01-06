@@ -78,6 +78,7 @@ class ApiController extends Controller
         // contoh filter or dan text resul concat http://clay.test:8181/api/getmaster_projectbyparams?set[fieldx][]=project_name&set[text]=project_code&set[text][|]=id&set[text][-]=project_code&set[text][]=project_name&ap_token=ae8f35052e0f8e687387a661ce40cc9b&_token=YPjlenwfUbYytBCsjm2fe1mIeoi8ZOHMCXm7KDPk&search[project_name]=200&search[project_code][|]=200
         // contoh select2 http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=description&search[type]=vehicle&search[description]=PJP
         // contoh search http://meindo-teliti.test:8181/api/gethse_indicator_detailbyparams?&set[field][]=type&limit=13&start=0&search[type]=vehicle&search[indicator_method_id]=4&search[type]=samu
+        // contoh multi saerch http://mcu-meindo.localhost/api/getmaster_projectbyparams?search[project_code]=21316&search[project_code]=21305&set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token=1fa4a34a49944698769737edf2812b23&_token=ee3Hd8XalXieXGbLtJbChgiYwDax5HkDjkDEwpPR
         // contoh by id http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?id=45&set[text]=type&set[field][]=description&set[field][]=id
         // contoh get list http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=type&set[field][]=description&set[field][]=id
         /*Param serch support array dan string data yg diambil param terakhir */
@@ -299,12 +300,16 @@ class ApiController extends Controller
                                         // if (is_numeric(array_values($searchVal)[0])) {
                                         //     $query->oRwhere($searchKey, array_values($searchVal)[0]);
                                         // } else {
-                                        $query->oRwhere($searchKey, 'like', '%' . array_values($searchVal)[0] . '%');
+                                            foreach($searchVal as $searchValdata){
+                                                // dd('arrayMulti',$search,$searchVal,$searchValdata,$searchValdata);
+                                                $query->oRwhere($searchKey, 'like', '%' . $searchValdata . '%');
+                                            }
                                         // }
                                     } else {
                                         // if (is_numeric($searchVal)) {
                                         //     $query->where($searchKey, $searchVal);
                                         // } else {
+                                        // dd('arraySingle',$search,$searchVal);
                                         $query->where($searchKey, 'like', '%' . $searchVal . '%');
                                         // }
                                     }
