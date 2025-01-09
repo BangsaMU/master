@@ -86,7 +86,8 @@ class ApiController extends Controller
         $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {
             return $res . $w[0];
         });
-
+        // FIND_IN_SET(master_project.id, mcu_package.project_id)
+        $find_in_set = $request->input("find_in_set");
         $where = $request->input("where");
         $set = $request->input("set");
         $join = $request->input("join");
@@ -353,7 +354,33 @@ class ApiController extends Controller
                         }
                     });
                 }
-                $query_sql = $data_array->toSql();
+                if (is_array($find_in_set)) {
+                    $data_array = $data_array->where(function ($query) use ($find_in_set, $tabel) {
+
+                       foreach ($find_in_set as $findKey => $findVal) {
+                        // dd($tabel,$findKey);
+                           /*validasi kolom pencarian di tabel*/
+                           if (Schema::hasColumn($tabel, $findKey)) {
+                               //cek where or atau and
+                               if (is_array($findVal)) {
+                                   //cek jika int gunakan where selian itu like
+                                   if (is_numeric(array_values($findVal)[0])) {
+                                       $query->orWhereRaw('FIND_IN_SET('.array_values($findVal)[0].','.$findKey.')');
+                                   } else {
+                                       $query->orWhereRaw('FIND_IN_SET('.array_values($findVal)[0].','.$findKey.')');
+                                   }
+                               } else {
+                                   if (is_numeric($findVal)) {
+                                       $query->orWhereRaw('FIND_IN_SET('.$findVal.','.$findKey.')');
+                                   } else {
+                                       $query->orWhereRaw('FIND_IN_SET('.$findVal.','.$findKey.')');
+                                   }
+                               }
+                           }
+                       }
+                   });
+               }
+
             }
 
             if ($order) {
