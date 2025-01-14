@@ -48,11 +48,18 @@
                 <div class="col-12 alert alert-danger alert-dismissible" role="alert">
                     @if (is_array(Session::get('error')))
                         @foreach (Session::get('error') as $error)
-                            {!! $error . '<br/>' !!}
+                            @if (is_array(Session::get('error')))
+                                @foreach ($error as $keyerror => $valerror)
+                                    {!! $valerror . '<br/>' !!}
+                                @endforeach
+                            @else
+                                {!! $error . '<br/>' !!}
+                            @endif
                         @endforeach
                     @else
                         {!! Session::get('error') . '<br/>' !!}
                     @endif
+
 
                     <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 </div>
@@ -88,6 +95,11 @@
             @isset($data['page']['import'])
                 @include('master::' . $data['page']['import']['layout'])
             @endisset
+            @isset($data['page']['export'])
+                @include('master::' . $data['page']['export']['layout'])
+            @else
+                @include('master::components.formmodal')
+            @endisset
             <div class="card">
                 <div class="card-body table-responsive">
                     <div class="d-flex mb-2">
@@ -104,8 +116,6 @@
                             <button class="btn btn-sm mr-1 btn-info" data-toggle="modal"
                                 data-target="#modal_search">Search</button>
                         @endisset --}}
-
-                        @include('master::components.formmodal')
 
 
                     </div>
