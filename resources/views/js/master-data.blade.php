@@ -9,6 +9,7 @@
     });
 
     function processTabelString(tabel) {
+        console.log("processTabelString::",tabel);
         // Cek apakah ada koma dalam string
         if (tabel.includes(',')) {
             // Ubah string menjadi array menggunakan split

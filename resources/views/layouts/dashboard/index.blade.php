@@ -66,7 +66,13 @@
                 <div class="col-12 alert alert-success alert-dismissible" role="alert">
                     @if (is_array(Session::get('success')))
                         @foreach (Session::get('success') as $success)
-                            {!! $success . '<br/>' !!}
+                            @if (is_array(Session::get('success')))
+                                @foreach ($success as $keySuccess => $valSuccess)
+                                    {!! $valSuccess . '<br/>' !!}
+                                @endforeach
+                            @else
+                                {!! $success . '<br/>' !!}
+                            @endif
                         @endforeach
                     @else
                         {!! Session::get('success') . '<br/>' !!}
@@ -80,13 +86,13 @@
     <div class="row">
         <div class="col-12">
             @isset($data['page']['import'])
-                @include('master::'.$data['page']['import']['layout'])
+                @include('master::' . $data['page']['import']['layout'])
             @endisset
             <div class="card">
                 <div class="card-body table-responsive">
                     <div class="d-flex mb-2">
 
-                        {{-- @if (@$data['page']['new']['active'] == true&&!isset($data['datatable']['btn']))
+                        {{-- @if (@$data['page']['new']['active'] == true && !isset($data['datatable']['btn']))
                             <a target="_self" href="{{ $data['page']['new']['url'] }}"
                             href="{{ route($data['page']['new'] , ['parent' => @$data['page']['parent']]) }}"
                                 class="btn btn-sm mr-1 btn-primary">
@@ -140,16 +146,18 @@
 
 @push('css')
     <style>
-        table.dataTable th, table.dataTable td {
+        table.dataTable th,
+        table.dataTable td {
             white-space: nowrap;
         }
 
-        table td{
+        table td {
             font-size: 10pt !important;
             padding: 0.5rem !important;
         }
 
-        .btn-group-sm>.btn, .btn-sm {
+        .btn-group-sm>.btn,
+        .btn-sm {
             padding: 0.1rem .3rem !important;
         }
     </style>
@@ -164,8 +172,12 @@
 
     <script>
         var paramsColumnDefs = [];
+
         function setParamsDefs(columnTarget) {
-            paramsColumnDefs.push({ orderable: false, targets: columnTarget });
+            paramsColumnDefs.push({
+                orderable: false,
+                targets: columnTarget
+            });
         }
 
         var data,
@@ -290,7 +302,6 @@
     </script>
 
     <script>
-
         function notificationBeforeDelete(event, el) {
             event.preventDefault();
             Swal.fire({
@@ -337,10 +348,10 @@
         }
     </script>
 
-    // @if (is_array(@$data['page']['js_list']))
-    //     @foreach ($data['page']['js_list'] as $load_js)
-    //         @include('master::'.$load_js)
-    //     @endforeach
-    // @endif
+    @if (is_array(@$data['page']['js_list']))
+        @foreach ($data['page']['js_list'] as $load_js)
+            @include('master::' . $load_js)
+        @endforeach
+    @endif
 
 @endpush
