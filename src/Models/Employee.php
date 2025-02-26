@@ -39,12 +39,18 @@ class Employee extends Model
                 $table->string('keterangan', 255)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
                 $table->tinyInteger('work_location_id')->nullable();
 
+                // Tambahkan kolom employee_blood_type
+                $table->string('employee_blood_type', 5)
+                    ->charset('utf8mb4')
+                    ->collation('utf8mb4_general_ci')
+                    ->default('-');
+
                 // Indexes
                 $table->index('hire_id', 'index_hire_id');
                 $table->index('status_id', 'index_status_id');
                 $table->index('work_location_id', 'index_work_location_id');
+                $table->index('employee_blood_type', 'index_employee_blood_type'); // Tambahkan index untuk employee_blood_type
             });
-
         }
     }
 }

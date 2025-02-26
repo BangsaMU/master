@@ -334,8 +334,7 @@ class EmployeeController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('m_k.deleted_at')
-                ->groupby('m_k.id');
+                ->whereNull('m_k.deleted_at');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
