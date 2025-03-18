@@ -4,10 +4,10 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use DB;
-use App\Models\Company;
-use App\Models\Gallery;
-use App\Models\FileManager;
+use Illuminate\Support\Facades\DB;
+use Bangsamu\Master\Models\Company;
+use Bangsamu\Master\Models\Gallery;
+use Bangsamu\Master\Models\FileManager;
 use App\Models\HseIndicatorMethod;
 use Bangsamu\Master\Models\Employee;
 use App\Http\Controllers\ApiAttachmentsHse;
@@ -262,9 +262,13 @@ class CompanyController extends Controller
             if ($request->file('company_logo') && $company->company_logo_id) {
                 $existingGallery = Gallery::find($company->company_logo_id);
                 if ($existingGallery) {
-                    $existingPath = str_replace(url('/storage/'), '', $existingGallery->url);
-                    Storage::disk('public')->delete($existingPath);
-                    $existingGallery->delete();
+                    $existingPath = $existingGallery->path.'/'.$existingGallery->filename;
+
+                    if (Storage::disk(config('app.storage_disk_master'))->exists($existingPath)) {
+                        Storage::disk(config('app.storage_disk_master'))->delete($existingPath);
+                        $existingGallery->delete();
+                    }
+
                 }
             }
 
@@ -289,7 +293,7 @@ class CompanyController extends Controller
             $prefix = $file->getClientOriginalExtension();
             $caption = $file->getClientOriginalName();
             $url = null;
-            $path = 'app/public/gallery/' . $prefix;
+            $path = 'company/' . $prefix;
             $filename = null;
             $size = $file->getSize();
             $header_type = $file->getClientMimeType();
@@ -311,10 +315,9 @@ class CompanyController extends Controller
             ]);
 
             $filename = $gallery->id . "-" . $file->getClientOriginalName();
-            $filePath = $file->storeAs('public/gallery/' . $prefix, $filename, 'local');
-
+            $filePath = $file->storeAs('company/' . $prefix, $filename, config('app.storage_disk_master'));
             $gallery->filename = $filename;
-            $gallery->url = url('storage/gallery/' . $prefix . '/' . $filename);
+            $gallery->url = Storage::disk(config('app.storage_disk_master'))->url($path . '/' . $filename);
             $gallery->save();
 
             $company->company_logo_id = $gallery->id;
@@ -330,7 +333,7 @@ class CompanyController extends Controller
         // $sync_list_callback = config('AppConfig.CALLBACK_URL');
         // $a = callbackSyncMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
 
-        return redirect()->route('company.index')->with('success_message', $message);
+        return redirect()->route('master.' . $this->sheet_slug .'.index')->with('success_message', $message);
     }
 
     public function show($id)
