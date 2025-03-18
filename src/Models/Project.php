@@ -22,7 +22,7 @@ class Project extends Model
     public function __construct()
     {
         if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
+            /*buat tabel master_project*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
                 $table->string('project_code', 10)->nullable();
