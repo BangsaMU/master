@@ -22,6 +22,9 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     // Route::post('category/import', [\App\Http\Controllers\Master\CategoryController::class, 'import'])->name('category.import');
     // Route::get('category/importtemplate', [\App\Http\Controllers\Master\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
 
+    Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
+    Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('project.import');
+
     // Route::resource('company', \App\Http\Controllers\Master\CompanyController::class);
     // Route::resource('department', \App\Http\Controllers\Master\DepartmentController::class);
     // Route::post('department/import', [\App\Http\Controllers\Master\DepartmentController::class, 'import'])->name('department.import');

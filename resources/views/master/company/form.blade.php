@@ -17,38 +17,42 @@
                     <form action="{{ $data['page']['store'] }}" method="POST">
                         @csrf
                         @if ($param)
-                            <input type="hidden" name="id" value="{{ $param->id }}">
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
                         <div class="form-group">
                             <label for="company_code">Company Code</label>
-                            <input type="text" name="company_code" id="company_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="company_code" id="company_code" class="form-control"
                                    value="{{ $param ? $param->company_code : old('company_code') }}" required>
                         </div>
                         <div class="form-group">
                             <label for="company_name">Company Name</label>
-                            <input type="text" name="company_name" id="company_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="company_name" id="company_name" class="form-control"
                                    value="{{ $param ? $param->company_name : old('company_name') }}" required>
                         </div>
                         <div class="form-group">
                             <label for="company_short">Company Short</label>
-                            <input type="text" name="company_short" id="company_short" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="company_short" id="company_short" class="form-control"
                                    value="{{ $param ? $param->company_short : old('company_short') }}">
                         </div>
                         <div class="form-group">
                             <label for="company_attention">Company Attention</label>
-                            <input type="text" name="company_attention" id="company_attention" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="company_attention" id="company_attention" class="form-control"
                                    value="{{ $param ? $param->company_attention : old('company_attention') }}">
                         </div>
                         <div class="form-group">
                             <label for="company_address">Company Address</label>
-                            <textarea name="company_address" id="company_address" class="form-control" rows="3">{{ $param ? $param->company_address : old('company_address') }}</textarea>
+                            <textarea {{ $data['page']['readonly'] ? 'readonly' : '' }} name="company_address" id="company_address" class="form-control" rows="3">{{ $param ? $param->company_address : old('company_address') }}</textarea>
                         </div>
                         <div class="form-group">
                             <label for="company_logo">Company Logo</label>
-                            <input type="file" name="company_logo" id="company_logo" class="form-control-file">
+                            @if ($data['page']['readonly']==false)
+                              <input {{ $data['page']['readonly'] ? 'readonly' : '' }} {{ $data['page']['readonly'] ? 'readonly' : '' }} type="file" name="company_logo" id="company_logo" class="form-control-file">
+                            @endif
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        @if ($data['page']['readonly']==false)
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        @endif
                     </form>
                 </div>
             </div>

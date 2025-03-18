@@ -77,6 +77,9 @@ class ApiController extends Controller
         // http://clay.test:8181/api/gettermsbyparams?_token=YPjlenwfUbYytBCsjm2fe1mIeoi8ZOHMCXm7KDPk&debug=1&set[id]=term_id&where[term_group]=1&search[name][]=q&set[field][]=slug&set[text]=name
         // contoh filter or dan text resul concat http://clay.test:8181/api/getmaster_projectbyparams?set[fieldx][]=project_name&set[text]=project_code&set[text][|]=id&set[text][-]=project_code&set[text][]=project_name&ap_token=ae8f35052e0f8e687387a661ce40cc9b&_token=YPjlenwfUbYytBCsjm2fe1mIeoi8ZOHMCXm7KDPk&search[project_name]=200&search[project_code][|]=200
         // contoh fin in set  mcu-meindo.localhost/api/getmcu_packagebyparams?set[text]=name&limit=1&find_in_set[project_id]=2
+        // (string/integer data array) find_in_set[project_code][]=21317&find_in_set[project_code][]=21318 //list berupa array akan di loop cari di project_code exact strng / integer return 2 row jika ada
+        // (string pemisah koma) find_in_set[project_code]=21317,21318 // jika pemisah koma akan dicari semua list tersebut di project_code akan return 2 row jika ada
+        // (integer)find_in_set[project_code]=21317 //jika project_code berisi data dengan pemisah koma (20000,A21317) akan true
         // contoh select2 http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=description&search[type]=vehicle&search[description]=PJP
         // contoh search http://meindo-teliti.test:8181/api/gethse_indicator_detailbyparams?&set[field][]=type&limit=13&start=0&search[type]=vehicle&search[indicator_method_id]=4&search[type]=samu
         // contoh multi saerch http://mcu-meindo.localhost/api/getmaster_projectbyparams?search[project_code]=21316&search[project_code]=21305&set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token=1fa4a34a49944698769737edf2812b23&_token=ee3Hd8XalXieXGbLtJbChgiYwDax5HkDjkDEwpPR
@@ -302,10 +305,10 @@ class ApiController extends Controller
                                         // if (is_numeric(array_values($searchVal)[0])) {
                                         //     $query->oRwhere($searchKey, array_values($searchVal)[0]);
                                         // } else {
-                                            foreach($searchVal as $searchValdata){
-                                                // dd('arrayMulti',$search,$searchVal,$searchValdata,$searchValdata);
-                                                $query->oRwhere($searchKey, 'like', '%' . $searchValdata . '%');
-                                            }
+                                        foreach ($searchVal as $searchValdata) {
+                                            // dd('arrayMulti',$search,$searchVal,$searchValdata,$searchValdata);
+                                            $query->oRwhere($searchKey, 'like', '%' . $searchValdata . '%');
+                                        }
                                         // }
                                     } else {
                                         // if (is_numeric($searchVal)) {
@@ -358,30 +361,35 @@ class ApiController extends Controller
                 if (is_array($find_in_set)) {
                     $data_array = $data_array->where(function ($query) use ($find_in_set, $tabel) {
 
-                       foreach ($find_in_set as $findKey => $findVal) {
-                        // dd($tabel,$findKey);
-                           /*validasi kolom pencarian di tabel*/
-                           if (Schema::hasColumn($tabel, $findKey)) {
-                               //cek where or atau and
-                               if (is_array($findVal)) {
-                                   //cek jika int gunakan where selian itu like
-                                   if (is_numeric(array_values($findVal)[0])) {
-                                       $query->orWhereRaw('FIND_IN_SET('.array_values($findVal)[0].','.$findKey.')');
-                                   } else {
-                                       $query->orWhereRaw('FIND_IN_SET('.array_values($findVal)[0].','.$findKey.')');
-                                   }
-                               } else {
-                                   if (is_numeric($findVal)) {
-                                       $query->orWhereRaw('FIND_IN_SET('.$findVal.','.$findKey.')');
-                                   } else {
-                                       $query->orWhereRaw('FIND_IN_SET('.$findVal.','.$findKey.')');
-                                   }
-                               }
-                           }
-                       }
-                   });
-               }
-
+                        foreach ($find_in_set as $findKey => $findVal) {
+                            // dd($tabel,$findKey);
+                            /*validasi kolom pencarian di tabel*/
+                            if (Schema::hasColumn($tabel, $findKey)) {
+                                //cek where or atau and
+                                //    dd(1,$findVal);
+                                //    dd(array_values($findVal),array_values($findVal)[0],is_numeric(array_values($findVal)[0]),is_array($findVal),$findVal);
+                                // find_in_set[project_code][]=21317&find_in_set[project_code][]=21318
+                                if (is_array($findVal)) {
+                                    // dd(1,'array');
+                                    $query->whereIn($findKey, $findVal);
+                                } else {
+                                    // find_in_set[project_remarks]=21317
+                                    // dd(2,is_numeric($findVal));
+                                    if (is_numeric($findVal)) {
+                                        // dd(2,'numeric');
+                                        $query->orWhereRaw("FIND_IN_SET(?,$findKey)", [$findVal]);
+                                    } else {
+                                        // find_in_set[project_code]=A21317,21318
+                                        // dd(3,'list string by koma');
+                                        $query->whereRaw("FIND_IN_SET($findKey,?)", [$findVal]);
+                                        //    $query->orWhereRaw('FIND_IN_SET('.$findVal.','.$findKey.')');
+                                    }
+                                }
+                                //    dd($query->toSql());
+                            }
+                        }
+                    });
+                }
             }
 
             if ($order) {
