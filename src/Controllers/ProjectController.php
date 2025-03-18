@@ -345,7 +345,7 @@ class ProjectController extends Controller
         ]);
 
         if ($request->id) {
-            // Update existing category
+            // Update existing Project
             DB::table('master_' . $this->sheet_slug)
                 ->where('id', $request->id)
                 ->update([
@@ -356,7 +356,7 @@ class ProjectController extends Controller
 
             $message = $this->sheet_name . ' updated successfully';
         } else {
-            // Create new category
+            // Create new Project
             DB::table('master_' . $this->sheet_slug)->insert([
                 'project_code' => $request->project_code,
                 'project_name' => $request->project_name,
