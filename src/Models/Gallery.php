@@ -37,9 +37,6 @@ class Gallery extends Model
                 $table->softDeletes();
                 $table->string('hash_file', 255)->nullable();
                 $table->char('file_type', 10);
-
-                // Foreign key constraint (pastikan tabel users ada)
-                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             });
         }
     }
