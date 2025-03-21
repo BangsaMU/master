@@ -18,9 +18,9 @@ Route::get('mud-view', function () {
 Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(function () {
     // Route::get('user', [\App\Http\Controllers\Master\UserController::class, 'index'])->name('user.index');
 
-    // Route::resource('category', \App\Http\Controllers\Master\CategoryController::class);
-    // Route::post('category/import', [\App\Http\Controllers\Master\CategoryController::class, 'import'])->name('category.import');
-    // Route::get('category/importtemplate', [\App\Http\Controllers\Master\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
+    Route::resource('category', \Bangsamu\Master\Controllers\CategoryController::class);
+    Route::post('category/import', [\Bangsamu\Master\Controllers\CategoryController::class, 'import'])->name('category.import');
+    // Route::get('category/importtemplate', [\Bangsamu\Master\Controllers\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
 
     Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('project.import');
