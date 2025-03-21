@@ -4,30 +4,29 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Module\ControllerModule;
-// use App\Imports\Master\ProjectImport;
-use Bangsamu\Master\Imports\ProjectImport;
+use App\Imports\Master\PcaImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
-class ProjectController extends Controller
+class PcaController extends Controller
 {
     protected $readonly = false;
-    protected $sheet_name = 'Master - Project'; //nama label untuk FE
-    protected $sheet_slug = 'project'; //nama routing (slug)
+    protected $sheet_name = 'Master - PCA'; //nama label untuk FE
+    protected $sheet_slug = 'pca'; //nama routing (slug)
     protected $view_tabel_index = array(
         'mp.id AS No',
         // '"action" AS action',
-        'mp.project_code AS project_code',
-        'mp.project_name AS project_name',
-        'null AS action',
+        'mp.pca_code AS pca_code',
+        'mp.pca_name AS pca_name',
+        '"action" AS action',
     );
     protected $view_tabel = array(
         'mp.id AS id',
-        'mp.project_code AS project_code',
-        'mp.project_name AS project_name',
-        'null AS action',
+        'mp.pca_code AS pca_code',
+        'mp.pca_name AS pca_name',
+        '"action" AS action',
     );
 
     /**
@@ -39,9 +38,6 @@ class ProjectController extends Controller
     {
         // parent::__construct($request);
     }
-
-
-
 
     public function config($id = null, $data = null)
     {
@@ -60,81 +56,7 @@ class ProjectController extends Controller
         $data['page']['id'] = $id;
         $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
 
-        $data['page']['js_list'][] = 'js.master-data';
-
         return $data;
-    }
-    public function view_form($data)
-    {
-        $readonly = $this->readonly;
-        extract($data);
-        // dd($getRequisition->version,$id,$getRequisition->status);
-        $global_disable = $readonly == false && checkPermission('is_admin') && $id ? false : true;
-        // dd($readonly,$global_disable);
-        // dd($global_disable);
-        $revisi_disable = @$getRequisition->version > 0 ? true : false;
-        // dd($global_disable);
-        if (@$default_approval_id) {
-            extract($default_approval_id);
-        }
-        if (@$default_for_info_id) {
-            extract($default_for_info_id);
-        }
-        $view_form['parent_id'] = [
-            'field' => 'parent_id',
-            'name' => 'parent_id',
-            'label' => 'Parent',
-            'type' => 'select2',
-            'select2_minimum' => 0, //[1-5]
-            'select2_tags' => false, //[true.false]
-            'select2_search' => [["name"]], //[field]
-            'select2_url' => url('api/getmaster_mcubyparams?set[field][]=name&set[text]=name&ap_token=' . api_token($id) . ''),
-            // 'select2_url' => url('api/getmaster_projectbyparams?set[id]=id&set[text]=name&ap_token=' . api_token($id) . ''),
-            'multi' => false,
-            'col' => 'col-12 col-md-3 mb-2',
-            'disabled' => $global_disable || $revisi_disable ? true : false,
-        ];
-        $view_form['name'] = [
-            'field' => 'name',
-            'name' => 'name',
-            'label' => 'Name',
-            'type' => 'text',
-            'col' => 'col-12 col-md-4 mb-2',
-            'disabled' => $global_disable || $revisi_disable ? true : false,
-        ];
-        $view_form['project_id'] = [
-            'field' => 'project_id',
-            'name' => 'project_id',
-            'label' => 'Project*',
-            'type' => 'custom',
-            'file' => 'components.select2-custom',
-            // 'select2_minimum' => 0, //[1-5]
-            // 'select2_tags' => false, //[true.false]
-            // 'select2_search' => "project_code", //[field]
-            'select2_search' => [["project_code"], ['|' => "project_name"]], //[field]
-            // 'select2_url' => url('api/getmaster_projectbyparams?set[text]=project_code&ap_token=' . api_token($id) . ''),
-            'select2_url' => url('api/getmaster_projectbyparams?set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token=' . api_token($id) . ''),
-            // 'multi' => false,
-            'col' => 'col-12 col-md-6 mb-2',
-            'disabled' => $global_disable || $revisi_disable ? true : false,
-        ];
-
-        $view_form[90] = [
-            'field' => 'space',
-            'type' => 'space',
-            'col' => 'col-12 col-md-12 mb-2',
-        ];
-
-        $view_form[] = [
-            'field' => 'save',
-            'name' => 'save',
-            'label' => 'Save',
-            'type' => 'submit',
-            'col' => 'col-12 col-md-12 mb-2',
-            'disabled' => $global_disable ? true : false,
-        ];
-
-        return $view_form;
     }
 
     public function index(Request $request)
@@ -152,39 +74,32 @@ class ProjectController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['list'] = route('master.project.index');
+        $data['page']['list'] = route('master.pca.index');
         $data['page']['title'] = $sheet_name;
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')==true) {
-            $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('project,project_detail')";
+        if (checkPermission('is_admin')) {
+            $data['datatable']['btn']['create']['id'] = 'create';
+            $data['datatable']['btn']['create']['title'] = 'Create';
+            $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
-                $data['datatable']['btn']['create']['id'] = 'create';
-                $data['datatable']['btn']['create']['title'] = 'Create';
-                $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-                $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
-
-                $data['datatable']['btn']['import']['id'] = 'importitem';
-                $data['datatable']['btn']['import']['title'] = 'Import Item';
-                $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-                $data['datatable']['btn']['import']['url'] = '#';
-                $data['datatable']['btn']['import']['act'] = 'importFn()';
-            }
+            $data['datatable']['btn']['import']['id'] = 'importitem';
+            $data['datatable']['btn']['import']['title'] = 'Import Item';
+            $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+            $data['datatable']['btn']['import']['url'] = '#';
+            $data['datatable']['btn']['import']['act'] = 'importFn()';
 
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_project']);
+            $data['datatable']['btn']['export']['url'] = url('getmaster_pca/export');
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.project.import');
-        $data['page']['import']['template'] = url('/templates/projectImportTemplate.xlsx');
+        $data['page']['import']['post'] = route('master.pca.import');
+        $data['page']['import']['template'] = url('/templates/PCAImportTemplate.xlsx');
 
         $page_var = compact('data');
 
@@ -225,12 +140,12 @@ class ProjectController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_project as mp')->whereNull('mp.deleted_at')->count();
+        $totalData = DB::table('master_pca as mp')->whereNull('mp.deleted_at')->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_project as mp')
+            $data_tabel = DB::table('master_pca as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -250,7 +165,7 @@ class ProjectController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_project as mp')
+            $datatb_request = DB::table('master_pca as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -301,10 +216,11 @@ class ProjectController extends Controller
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
-                } else {
+                }else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
-                $nestedData['action'] = $btn;
+
+                $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;
@@ -340,26 +256,26 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'project_code' => 'required|unique:master_' . $this->sheet_slug . ',project_code' . ($request->id ? ',' . $request->id : ''),
-            'project_name' => 'required',
+            'pca_code' => 'required|unique:master_' . $this->sheet_slug . ',pca_code' . ($request->id ? ',' . $request->id : ''),
+            'pca_name' => 'required',
         ]);
 
         if ($request->id) {
-            // Update existing Project
+            // Update existing category
             DB::table('master_' . $this->sheet_slug)
                 ->where('id', $request->id)
                 ->update([
-                    'project_code' => $request->project_code,
-                    'project_name' => $request->project_name,
+                    'pca_code' => $request->pca_code,
+                    'pca_name' => $request->pca_name,
                     'updated_at' => now(),
                 ]);
 
             $message = $this->sheet_name . ' updated successfully';
         } else {
-            // Create new Project
+            // Create new category
             DB::table('master_' . $this->sheet_slug)->insert([
-                'project_code' => $request->project_code,
-                'project_name' => $request->project_name,
+                'pca_code' => $request->pca_code,
+                'pca_name' => $request->pca_name,
                 'created_at' => now(),
             ]);
 
@@ -377,7 +293,6 @@ class ProjectController extends Controller
 
     public function edit($id)
     {
-        $form_row_type = 'multi'; /*single / multi kalo single cek detail kosong redirect*/
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $data = self::config();
@@ -388,33 +303,6 @@ class ProjectController extends Controller
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
-        /**
-         * formdata
-         * data harus type multi array
-         */
-        $formdata = DB::table('master_' . $this->sheet_slug)->where('id', $id)->get();
-
-        /*redirect jika bukan multi insert*/
-        if (empty($formdata)) {
-            if ($form_row_type == 'single') {
-                return redirect()->route('module.' . $sheet_slug . '.index')->with('error_message', 'Data not found with id ' . $id . ' not found in database.');
-            } else {
-                abort(403, 'data not found');
-            }
-        }
-
-        $formdata_multi = $formdata;
-        $formdata = $formdata[0];
-        /**
-         * foreing_key buat input type hiden
-         */
-        $foreing_key['id'] = $id;
-
-        $view_form = self::view_form(compact('id'));
-
-        $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
-
-        // return view('master::layouts.dashboard.request', $page_var);
         return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
@@ -434,12 +322,12 @@ class ProjectController extends Controller
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 
-            $import = new ProjectImport;
+            $import = new PcaImport;
             Excel::import($import, $file);
             $error = $import->getError();
             $success = $import->getSuccess();
 
-            return redirect()->route('master.project.index')->with('error_message', $error)->with('success_message', $success);
+            return redirect()->route('master.pca.index')->with('error_message', $error)->with('success_message', $success);
         }
     }
 }

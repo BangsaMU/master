@@ -40,8 +40,8 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::resource('location', \Bangsamu\Master\Controllers\LocationController::class);
     Route::post('location/import', [\Bangsamu\Master\Controllers\LocationController::class, 'import'])->name('location.import');
 
-    // Route::resource('pca', \App\Http\Controllers\Master\PcaController::class);
-    // Route::post('pca/import', [\App\Http\Controllers\Master\PcaController::class, 'import'])->name('pca.import');
+    Route::resource('pca', \Bangsamu\Master\Controllers\PcaController::class);
+    Route::post('pca/import', [\Bangsamu\Master\Controllers\PcaController::class, 'import'])->name('pca.import');
 
     Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
     Route::post('project/import', [\Bangsamu\Master\Controllers\ProjectController::class, 'import'])->name('project.import');
