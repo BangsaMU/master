@@ -17,20 +17,22 @@
                     <form action="{{ $data['page']['store'] }}" method="POST">
                         @csrf
                         @if ($param)
-                            <input type="hidden" name="id" value="{{ $param->id }}">
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
                         <div class="form-group">
                             <label for="item_group_code">Item Group Code</label>
-                            <input type="text" name="item_group_code" id="item_group_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_group_code" id="item_group_code" class="form-control"
                                    value="{{ $param ? $param->item_group_code : old('item_group_code') }}" required>
                         </div>
                         <div class="form-group">
                             <label for="item_group_name">Item Group Name</label>
-                            <input type="text" name="item_group_name" id="item_group_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_group_name" id="item_group_name" class="form-control"
                                    value="{{ $param ? $param->item_group_name : old('item_group_name') }}" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        @if ($data['page']['readonly']==false)
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        @endif
                     </form>
                 </div>
             </div>

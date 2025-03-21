@@ -34,8 +34,8 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     // Route::resource('item_code', \App\Http\Controllers\Master\ItemCodeController::class);
     // Route::post('item_code/import', [\App\Http\Controllers\Master\ItemCodeController::class, 'import'])->name('item_code.import');
 
-    // Route::resource('item_group', \App\Http\Controllers\Master\ItemGroupController::class);
-    // Route::post('item_group/import', [\App\Http\Controllers\Master\ItemGroupController::class, 'import'])->name('item_group.import');
+    Route::resource('item_group', \Bangsamu\Master\Controllers\ItemGroupController::class);
+    Route::post('item_group/import', [\Bangsamu\Master\Controllers\ItemGroupController::class, 'import'])->name('item_group.import');
 
     Route::resource('location', \Bangsamu\Master\Controllers\LocationController::class);
     Route::post('location/import', [\Bangsamu\Master\Controllers\LocationController::class, 'import'])->name('location.import');
