@@ -49,8 +49,8 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     // Route::resource('project2', \App\Http\Controllers\Master\ProjectController2::class);
     // Route::post('project2/import', [\App\Http\Controllers\Master\ProjectController2::class, 'import'])->name('project2.import');
 
-    // Route::resource('uom', \App\Http\Controllers\Master\UomController::class);
-    // Route::post('uom/import', [\App\Http\Controllers\Master\UomController::class, 'import'])->name('uom.import');
+    Route::resource('uom', \Bangsamu\Master\Controllers\UomController::class);
+    Route::post('uom/import', [\Bangsamu\Master\Controllers\UomController::class, 'import'])->name('uom.import');
 
     // Route::resource('priority', \App\Http\Controllers\Master\PriorityController::class);
 
