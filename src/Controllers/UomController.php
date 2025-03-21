@@ -246,7 +246,8 @@ class UomController extends Controller
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('module.routing');
+        $data['page']['list'] = route('master.' . $sheet_slug.'.index');
+        $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
 

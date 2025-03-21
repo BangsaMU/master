@@ -157,11 +157,13 @@ class ProjectController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')==true) {
-            $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('project,project_detail')";
+        if (checkPermission('is_admin') == true) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == false) {
+                $data['datatable']['btn']['sync']['id'] = 'sync';
+                $data['datatable']['btn']['sync']['title'] = '';
+                $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+                $data['datatable']['btn']['sync']['act'] = "syncFn('project,project_detail')";
+            }
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
                 $data['datatable']['btn']['create']['id'] = 'create';
@@ -330,7 +332,8 @@ class ProjectController extends Controller
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('module.routing');
+        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
 
