@@ -59,7 +59,7 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::resource('uom', \Bangsamu\Master\Controllers\UomController::class);
     Route::post('uom/import', [\Bangsamu\Master\Controllers\UomController::class, 'import'])->name('uom.import');
 
-    // Route::resource('priority', \Bangsamu\Master\Controllers\PriorityController::class);
+    Route::resource('priority', \Bangsamu\Master\Controllers\PriorityController::class);
 
 
     // Route::resource('mcu', \Bangsamu\Master\Controllers\McuController::class);

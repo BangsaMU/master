@@ -17,20 +17,26 @@
                     <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
                         @csrf
                         @if ($param)
-                            <input type="hidden" name="id" value="{{ $param->id }}">
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
                         <div class="form-group">
                             <label for="priority_code">Priority Code</label>
-                            <input type="text" name="priority_code" id="priority_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="priority_code" id="priority_code" class="form-control"
                                    value="{{ $param ? $param->priority_code : old('priority_code') }}" required>
                         </div>
                         <div class="form-group">
                             <label for="priority_name">Priority Name</label>
-                            <input type="text" name="priority_name" id="priority_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="priority_name" id="priority_name" class="form-control"
                                    value="{{ $param ? $param->priority_name : old('priority_name') }}" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+
+                        @if ($data['page']['readonly'] == false)
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        @endif
+                        <a href="{{route('master.priority.index')}}" class="btn btn-default">
+                            Back
+                        </a>
                     </form>
                 </div>
             </div>

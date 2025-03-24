@@ -26,7 +26,7 @@ class Priority extends Model
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
                 $table->string('priority_code', 4)->nullable();
-                $table->string('priority_name', 15)->nullable();
+                $table->string('priority_name', 50)->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->dateTime('deleted_at')->nullable();
