@@ -58,7 +58,7 @@ return [
             // 'FIELD' => json_decode(env('SYNC_LOKAL_LOCATION', '["location_code","location_name"]')),
         ],
         'item_code' => [
-            'MODEL' => env('TABEL_LOKAL_ITEM_CODE', 'Item'),
+            'MODEL' => env('TABEL_LOKAL_ITEM_CODE', 'ItemCode'),
             // 'FIELD' => json_decode(env('SYNC_LOKAL_ITEM_CODE', '["item_code","item_desc"]')),
         ],
         'uom' => [
