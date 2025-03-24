@@ -162,7 +162,7 @@ class LocationController extends Controller
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('project,project_detail')";
+            $data['datatable']['btn']['sync']['act'] = "syncFn('location')";
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
                 $data['datatable']['btn']['create']['id'] = 'create';

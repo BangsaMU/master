@@ -53,6 +53,8 @@ class VendorController extends Controller
 
         $data = configDefAction($id, $data);
 
+        $data['page']['js_list'][] = 'js.master-data';
+
         $data['page']['id'] = $id;
         $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
 
@@ -80,17 +82,23 @@ class VendorController extends Controller
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
         if (checkPermission('is_admin')) {
-            $data['datatable']['btn']['create']['id'] = 'create';
-            $data['datatable']['btn']['create']['title'] = 'Create';
-            $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['sync']['id'] = 'sync';
+            $data['datatable']['btn']['sync']['title'] = '';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['act'] = "syncFn('vendor')";
 
-            $data['datatable']['btn']['import']['id'] = 'importitem';
-            $data['datatable']['btn']['import']['title'] = 'Import Item';
-            $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['import']['url'] = '#';
-            $data['datatable']['btn']['import']['act'] = 'importFn()';
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                $data['datatable']['btn']['create']['id'] = 'create';
+                $data['datatable']['btn']['create']['title'] = 'Create';
+                $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
 
+                $data['datatable']['btn']['import']['id'] = 'importitem';
+                $data['datatable']['btn']['import']['title'] = 'Import Item';
+                $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['import']['url'] = '#';
+                $data['datatable']['btn']['import']['act'] = 'importFn()';
+            }
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -330,15 +338,15 @@ class VendorController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_' . $this->sheet_slug . ' as mv')
-                    ->select(
-                        'mv.*',
-                        'mvc.vendor_contact_name',
-                        'mvc.vendor_contact_phone',
-                        'mvc.vendor_contact_email',
-                        'mvc.vendor_contact_fax',
-                    )
-                    ->leftJoin('master_vendor_contact as mvc', 'mv.id', 'mvc.vendor_id')
-                    ->where('mv.id', $id)->first();
+            ->select(
+                'mv.*',
+                'mvc.vendor_contact_name',
+                'mvc.vendor_contact_phone',
+                'mvc.vendor_contact_email',
+                'mvc.vendor_contact_fax',
+            )
+            ->leftJoin('master_vendor_contact as mvc', 'mv.id', 'mvc.vendor_id')
+            ->where('mv.id', $id)->first();
 
         return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }

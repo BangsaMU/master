@@ -51,6 +51,9 @@ class UomController extends Controller
         $data['page']['new']['active'] = true;
         $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
 
+        $data['page']['js_list'][] = 'js.master-data';
+
+
         $data = configDefAction($id, $data);
 
         $data['page']['id'] = $id;
@@ -80,16 +83,23 @@ class UomController extends Controller
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
         if (checkPermission('is_admin')) {
-            $data['datatable']['btn']['create']['id'] = 'create';
-            $data['datatable']['btn']['create']['title'] = 'Create';
-            $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['sync']['id'] = 'sync';
+            $data['datatable']['btn']['sync']['title'] = '';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['act'] = "syncFn('uom')";
 
-            $data['datatable']['btn']['import']['id'] = 'importitem';
-            $data['datatable']['btn']['import']['title'] = 'Import Item';
-            $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['import']['url'] = '#';
-            $data['datatable']['btn']['import']['act'] = 'importFn()';
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                $data['datatable']['btn']['create']['id'] = 'create';
+                $data['datatable']['btn']['create']['title'] = 'Create';
+                $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+
+                $data['datatable']['btn']['import']['id'] = 'importitem';
+                $data['datatable']['btn']['import']['title'] = 'Import Item';
+                $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['import']['url'] = '#';
+                $data['datatable']['btn']['import']['act'] = 'importFn()';
+            }
 
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
@@ -246,7 +256,7 @@ class UomController extends Controller
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('master.' . $sheet_slug.'.index');
+        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;

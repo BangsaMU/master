@@ -64,6 +64,8 @@ class ItemCodeController extends Controller
         $data['page']['new']['active'] = true;
         $data['page']['new']['url'] = route('master.item-code.create');
 
+        $data['page']['js_list'][] = 'js.master-data';
+
         $data = configDefAction($id, $data);
 
         $data['page']['id'] = $id;
@@ -92,17 +94,24 @@ class ItemCodeController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('create_master_item_code')) {
-            $data['datatable']['btn']['create']['id'] = 'create';
-            $data['datatable']['btn']['create']['title'] = 'Create';
-            $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.item-code.create');
+        if (checkPermission('is_admin')) {
+            $data['datatable']['btn']['sync']['id'] = 'sync';
+            $data['datatable']['btn']['sync']['title'] = '';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['act'] = "syncFn('item_code')";
 
-            $data['datatable']['btn']['import']['id'] = 'importitem';
-            $data['datatable']['btn']['import']['title'] = 'Import Item';
-            $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['import']['url'] = '#';
-            $data['datatable']['btn']['import']['act'] = 'importFn()';
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true || checkPermission('create_master_item_code')) {
+                $data['datatable']['btn']['create']['id'] = 'create';
+                $data['datatable']['btn']['create']['title'] = 'Create';
+                $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['create']['url'] = route('master.item-code.create');
+
+                $data['datatable']['btn']['import']['id'] = 'importitem';
+                $data['datatable']['btn']['import']['title'] = 'Import Item';
+                $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['import']['url'] = '#';
+                $data['datatable']['btn']['import']['act'] = 'importFn()';
+            }
         }
 
         if (checkPermission('is_admin') || checkPermission('read_master_data')) {
@@ -248,7 +257,7 @@ class ItemCodeController extends Controller
                 }
 
                 $nestedData['attributes'] = $nestedData['attributes']
-                    ? implode('<br>', array_map(function($key, $value) {
+                    ? implode('<br>', array_map(function ($key, $value) {
                         // Change underscores to spaces and capitalize the first letter
                         $formattedKey = ucfirst(str_replace('_', ' ', $key));
                         return "$formattedKey: $value";
@@ -301,17 +310,17 @@ class ItemCodeController extends Controller
         ]);
 
         $item_group_attributes = DB::table('master_item_group as mig')
-                                    ->where('id', $request->group_id)
-                                    ->select('item_group_attributes')
-                                    ->pluck('item_group_attributes')
-                                    ->first();
+            ->where('id', $request->group_id)
+            ->select('item_group_attributes')
+            ->pluck('item_group_attributes')
+            ->first();
 
         if ($request->id) {
             // Update existing category
             $item_code_attributes = json_decode($item_group_attributes) ?? (object) [];
             $indexI = 0;
             $attributes = $request->input('attributes');
-            foreach($item_code_attributes as $key => $detail){
+            foreach ($item_code_attributes as $key => $detail) {
                 $item_code_attributes->$key = $attributes[$indexI];
                 $indexI++;
             }
@@ -337,7 +346,7 @@ class ItemCodeController extends Controller
             $item_code_attributes = json_decode($item_group_attributes) ?? (object) [];
             $indexI = 0;
             $attributes = $request->input('attributes');
-            foreach($item_code_attributes as $key => $detail){
+            foreach ($item_code_attributes as $key => $detail) {
                 $item_code_attributes->$key = $attributes[$indexI];
                 $indexI++;
             }
@@ -445,13 +454,13 @@ class ItemCodeController extends Controller
 
         // Base query for data
         $query = DB::table('master_item_code as mic')
-                ->leftJoin('master_uom as mu', 'mu.id', '=', 'mic.uom_id')
-                ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
-                ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
-                ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
-                ->select(
-                    DB::raw(implode(',', $view_tabel_index))
-                );
+            ->leftJoin('master_uom as mu', 'mu.id', '=', 'mic.uom_id')
+            ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
+            ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
+            ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
+            ->select(
+                DB::raw(implode(',', $view_tabel_index))
+            );
 
         $totalRecords = DB::table('master_item_code as mic')->count();
         $totalFiltered = $totalRecords;
@@ -468,7 +477,7 @@ class ItemCodeController extends Controller
                     //     $query->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(mic.attributes, '$.size_2')) LIKE ?", [$search]);
                     //     $query->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(mic.attributes, '$.unit_weight')) LIKE ?", [$search]);
                     // } else {
-                        $query->orWhere($column_field, 'LIKE', $search);
+                    $query->orWhere($column_field, 'LIKE', $search);
                     // }
                 }
             }
@@ -520,10 +529,10 @@ class ItemCodeController extends Controller
                 }
 
                 $nestedData['attributes'] = $nestedData['attributes']
-                        ? implode('<br>', array_map(function($key, $value) {
-                            return "$key: $value";
-                        }, array_keys(json_decode($nestedData['attributes'], true)), json_decode($nestedData['attributes'], true)))
-                        : '';
+                    ? implode('<br>', array_map(function ($key, $value) {
+                        return "$key: $value";
+                    }, array_keys(json_decode($nestedData['attributes'], true)), json_decode($nestedData['attributes'], true)))
+                    : '';
 
 
                 $nestedData['action'] = @$btn;

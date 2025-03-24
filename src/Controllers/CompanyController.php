@@ -44,6 +44,8 @@ class CompanyController extends Controller
         $data['page']['new']['active'] = true;
         $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
 
+        $data['page']['js_list'][] = 'js.master-data';
+
         $data['page']['id'] = $id;
 
         return $data;
@@ -70,17 +72,23 @@ class CompanyController extends Controller
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
         if (checkPermission('is_admin')) {
-            $data['datatable']['btn']['create']['id'] = 'create';
-            $data['datatable']['btn']['create']['title'] = 'Create';
-            $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['sync']['id'] = 'sync';
+            $data['datatable']['btn']['sync']['title'] = '';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['act'] = "syncFn('company')";
 
-            // $data['datatable']['btn']['import']['id'] = 'importitem';
-            // $data['datatable']['btn']['import']['title'] = 'Import';
-            // $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-            // $data['datatable']['btn']['import']['url'] = '#';
-            // $data['datatable']['btn']['import']['act'] = 'importFn()';
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                $data['datatable']['btn']['create']['id'] = 'create';
+                $data['datatable']['btn']['create']['title'] = 'Create';
+                $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
 
+                // $data['datatable']['btn']['import']['id'] = 'importitem';
+                // $data['datatable']['btn']['import']['title'] = 'Import';
+                // $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+                // $data['datatable']['btn']['import']['url'] = '#';
+                // $data['datatable']['btn']['import']['act'] = 'importFn()';
+            }
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -262,13 +270,12 @@ class CompanyController extends Controller
             if ($request->file('company_logo') && $company->company_logo_id) {
                 $existingGallery = Gallery::find($company->company_logo_id);
                 if ($existingGallery) {
-                    $existingPath = $existingGallery->path.'/'.$existingGallery->filename;
+                    $existingPath = $existingGallery->path . '/' . $existingGallery->filename;
 
                     if (Storage::disk(config('app.storage_disk_master'))->exists($existingPath)) {
                         Storage::disk(config('app.storage_disk_master'))->delete($existingPath);
                         $existingGallery->delete();
                     }
-
                 }
             }
 
@@ -333,7 +340,7 @@ class CompanyController extends Controller
         // $sync_list_callback = config('AppConfig.CALLBACK_URL');
         // $a = callbackSyncMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
 
-        return redirect()->route('master.' . $this->sheet_slug .'.index')->with('success_message', $message);
+        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
     }
 
     public function show($id)
