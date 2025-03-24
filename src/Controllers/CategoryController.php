@@ -4,7 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Exports\DataExport;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Module\ControllerModule;
+
 use App\Imports\Master\CategoryImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

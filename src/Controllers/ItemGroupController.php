@@ -3,7 +3,7 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Module\ControllerModule;
+
 use Bangsamu\Master\Imports\Master\ItemGroupImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

@@ -16,7 +16,7 @@ Route::get('mud-view', function () {
 
 
 Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(function () {
-    // Route::get('user', [\App\Http\Controllers\Master\UserController::class, 'index'])->name('user.index');
+    // Route::get('user', [\Bangsamu\Master\Controllers\UserController::class, 'index'])->name('user.index');
 
     Route::resource('category', \Bangsamu\Master\Controllers\CategoryController::class);
     Route::post('category/import', [\Bangsamu\Master\Controllers\CategoryController::class, 'import'])->name('category.import');
@@ -25,20 +25,23 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('project.import');
 
-    // Route::resource('company', \App\Http\Controllers\Master\CompanyController::class);
-    // Route::resource('department', \App\Http\Controllers\Master\DepartmentController::class);
-    // Route::post('department/import', [\App\Http\Controllers\Master\DepartmentController::class, 'import'])->name('department.import');
+    // Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
+    // Route::resource('department', \Bangsamu\Master\Controllers\DepartmentController::class);
+    // Route::post('department/import', [\Bangsamu\Master\Controllers\DepartmentController::class, 'import'])->name('department.import');
 
-    // Route::get('item_code/export', [\App\Http\Controllers\Master\ItemCodeController::class, 'export'])->name('item_code.export');
-    // Route::get('item_code/importtemplate', [\App\Http\Controllers\Master\ItemCodeController::class, 'importtemplate'])->name('item_code.importtemplate');
-    // Route::resource('item_code', \App\Http\Controllers\Master\ItemCodeController::class);
-    // Route::post('item_code/import', [\App\Http\Controllers\Master\ItemCodeController::class, 'import'])->name('item_code.import');
+    Route::get('item-code/export', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'export'])->name('item-code.export');
+    Route::get('item-code/importtemplate', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'importtemplate'])->name('item-code.importtemplate');
+    Route::resource('item-code', \Bangsamu\Master\Controllers\ItemCodeController::class);
+    Route::post('item-code/import', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'import'])->name('item-code.import');
 
-    Route::resource('item_group', \Bangsamu\Master\Controllers\ItemGroupController::class);
-    Route::post('item_group/import', [\Bangsamu\Master\Controllers\ItemGroupController::class, 'import'])->name('item_group.import');
+    Route::resource('item-group', \Bangsamu\Master\Controllers\ItemGroupController::class);
+    Route::post('item-group/import', [\Bangsamu\Master\Controllers\ItemGroupController::class, 'import'])->name('item-group.import');
 
     Route::resource('location', \Bangsamu\Master\Controllers\LocationController::class);
     Route::post('location/import', [\Bangsamu\Master\Controllers\LocationController::class, 'import'])->name('location.import');
+
+    Route::resource('vendor', \Bangsamu\Master\Controllers\VendorController::class);
+    Route::post('vendor/import', [\Bangsamu\Master\Controllers\VendorController::class, 'import'])->name('vendor.import');
 
     Route::resource('pca', \Bangsamu\Master\Controllers\PcaController::class);
     Route::post('pca/import', [\Bangsamu\Master\Controllers\PcaController::class, 'import'])->name('pca.import');
@@ -46,13 +49,17 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
     Route::post('project/import', [\Bangsamu\Master\Controllers\ProjectController::class, 'import'])->name('project.import');
 
-    // Route::resource('project2', \App\Http\Controllers\Master\ProjectController2::class);
-    // Route::post('project2/import', [\App\Http\Controllers\Master\ProjectController2::class, 'import'])->name('project2.import');
+    // Route::resource('project2', \Bangsamu\Master\Controllers\ProjectController2::class);
+    // Route::post('project2/import', [\Bangsamu\Master\Controllers\ProjectController2::class, 'import'])->name('project2.import');
+
+    Route::resource('project-detail', \Bangsamu\Master\Controllers\ProjectDetailController::class);
+    Route::post('project-detail/import', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'import'])->name('project.import');
+
 
     Route::resource('uom', \Bangsamu\Master\Controllers\UomController::class);
     Route::post('uom/import', [\Bangsamu\Master\Controllers\UomController::class, 'import'])->name('uom.import');
 
-    // Route::resource('priority', \App\Http\Controllers\Master\PriorityController::class);
+    // Route::resource('priority', \Bangsamu\Master\Controllers\PriorityController::class);
 
 
     // Route::resource('mcu', \Bangsamu\Master\Controllers\McuController::class);

@@ -5,7 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use Bangsamu\Master\Exports\Master\ItemCodeExport;
 use Bangsamu\Master\Exports\Master\ItemCodeTemplateExport;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Module\ControllerModule;
+
 use Bangsamu\Master\Imports\Master\ItemCodeImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
