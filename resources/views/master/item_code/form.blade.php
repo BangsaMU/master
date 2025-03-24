@@ -14,59 +14,64 @@
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
-                    <form action="{{ $data['page']['store'] }}" method="POST">
+                    <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
                         @csrf
                         @if ($param)
-                            <input type="hidden" name="id" value="{{ $param->id }}">
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
                         <div class="form-group">
                             <label for="item_code">Item Code</label>
-                            <input type="text" name="item_code" id="item_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_code" id="item_code" class="form-control"
                                    value="{{ $param ? $param->item_code : old('item_code') }}" required placeholder="Input your Item Code">
                         </div>
                         <div class="form-group">
                             <label for="item_name">Item Name</label>
-                            <input type="text" name="item_name" id="item_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_name" id="item_name" class="form-control"
                                    value="{{ $param ? $param->item_name : old('item_name') }}" required placeholder="Input your Item Name">
                         </div>
                         <div class="form-group">
                             <label for="uom">Unit of Measurement</label>
-                            <select class="form-control @error('uom_id') is-invalid @enderror" name="uom_id" id="uom">
-                                @if(isset($param->uom_id))  
-                                    <option value="{{ $param->uom_id }}" selected>{{ $param->uom_name }}</option> 
+                            <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('uom_id') is-invalid @enderror" name="uom_id" id="uom">
+                                @if(isset($param->uom_id))
+                                    <option value="{{ $param->uom_id }}" selected>{{ $param->uom_name }}</option>
                                 @endif
                             </select>
                             @error('uom_id') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="pca">PCA</label>
-                            <select class="form-control @error('pca_id') is-invalid @enderror" name="pca_id" id="pca">
-                                @if(isset($param->pca_id))  
-                                    <option value="{{ $param->pca_id }}" selected>{{ $param->pca_name }}</option> 
+                            <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('pca_id') is-invalid @enderror" name="pca_id" id="pca">
+                                @if(isset($param->pca_id))
+                                    <option value="{{ $param->pca_id }}" selected>{{ $param->pca_name }}</option>
                                 @endif
                             </select>
                             @error('pca_id') <span class="text-danger">{{$message}}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="category">Category</label>
-                            <select class="form-control @error('category_id') is-invalid @enderror" name="category_id" id="category">
-                                @if(isset($param->category_id))  
-                                    <option value="{{ $param->category_id }}" selected>{{ $param->category_name }}</option> 
+                            <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('category_id') is-invalid @enderror" name="category_id" id="category">
+                                @if(isset($param->category_id))
+                                    <option value="{{ $param->category_id }}" selected>{{ $param->category_name }}</option>
                                 @endif
                             </select>
                             @error('category_id') <span class="text-danger">{{$message}}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="group">Item Group</label>
-                            <select class="form-control @error('group_id') is-invalid @enderror" name="group_id" id="item_group">
-                                @if(isset($param->group_id))  
-                                    <option value="{{ $param->group_id }}" selected>{{ $param->item_group_name }}</option> 
+                            <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('group_id') is-invalid @enderror" name="group_id" id="item_group">
+                                @if(isset($param->group_id))
+                                    <option value="{{ $param->group_id }}" selected>{{ $param->item_group_name }}</option>
                                 @endif
                             </select>
                             @error('group_id') <span class="text-danger">{{$message}}</span> @enderror
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        @if ($data['page']['readonly'] == false)
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        @endif
+                        <a href="{{route('master.item-code.index')}}" class="btn btn-default">
+                            Back
+                        </a>
                     </form>
                 </div>
             </div>
@@ -94,8 +99,8 @@
                 delay: 5,
                 data: function(params) {
                     return {
-                        _token: CSRF_TOKEN, 
-                        ["search["+searchParam+"]"]: params.term 
+                        _token: CSRF_TOKEN,
+                        ["search["+searchParam+"]"]: params.term
                     };
                 },
                 processResults: function(response) {

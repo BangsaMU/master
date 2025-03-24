@@ -14,7 +14,7 @@
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
-                    <form action="{{ $data['page']['store'] }}" method="POST">
+                    <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
                         @csrf
                         @if ($param)
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id"
@@ -52,6 +52,9 @@
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif
+                        <a href="{{route('master.location.index')}}" class="btn btn-default">
+                            Back
+                        </a>
                     </form>
                 </div>
             </div>
