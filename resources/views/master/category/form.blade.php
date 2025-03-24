@@ -37,6 +37,9 @@
                         @if ($data['page']['readonly']==false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif
+                        <a href="{{route('master.category.index')}}" class="btn btn-default">
+                            Back
+                        </a>
                     </form>
                 </div>
             </div>

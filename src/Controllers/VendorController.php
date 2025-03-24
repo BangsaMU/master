@@ -221,11 +221,13 @@ class VendorController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (checkPermission('is_admin')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
-                    $nestedData['action'] = @$btn;
+                } else {
+                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
+                $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;
