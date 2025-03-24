@@ -94,7 +94,7 @@ class PcaController extends Controller
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('getmaster_pca/export');
+            $data['datatable']['btn']['export']['url'] = url('master/getmaster_pca/export');
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';

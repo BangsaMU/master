@@ -97,7 +97,7 @@ class CategoryController extends Controller
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('getmaster_category/export');
+            $data['datatable']['btn']['export']['url'] = url('master/getmaster_category/export');
         }
 
 

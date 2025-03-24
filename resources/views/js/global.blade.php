@@ -69,4 +69,9 @@
     Fancybox.bind('[data-fancybox="route-slip"]', {
         // Your custom options for a specific gallery
     });
+
+    function importFn() {
+            $('#importItemDiv').toggleClass('d-none');
+            return false;
+        }
 </script>

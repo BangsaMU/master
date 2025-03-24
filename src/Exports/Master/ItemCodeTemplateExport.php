@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Master;
+namespace Bangsamu\Master\Exports\Master;
 
 use Bangsamu\Master\Models\MasterCategory;
 use Bangsamu\Master\Models\MasterItemGroup;
@@ -14,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class ItemCodeTemplateExport implements WithMultipleSheets 
+class ItemCodeTemplateExport implements WithMultipleSheets
 {
     public function sheets(): array
     {
@@ -46,15 +46,16 @@ class ItemCodeTemplate implements ShouldAutoSize, FromCollection, WithHeadings, 
     {
         return collect([
             [
-                'HYG-0004', 
-                'Insecticides, SERUNI 100 EC @ 1 Ltr, Metro Chemical', 
-                'BOT','Bottle',
+                'HYG-0004',
+                'Insecticides, SERUNI 100 EC @ 1 Ltr, Metro Chemical',
+                'BOT',
+                // 'Bottle',
                 'PCA-6300.008',
-                'VESSEL GENERAL MATERIAL',
+                // 'VESSEL GENERAL MATERIAL',
                 'A04',
-                'A04',
+                // 'A04',
                 'HSE-HYG',
-                'HSE-HYGINE'
+                // 'HSE-HYGINE'
             ],
         ]);
     }
@@ -65,13 +66,12 @@ class ItemCodeTemplate implements ShouldAutoSize, FromCollection, WithHeadings, 
             'Item Code',
             'Item Name',
             'UoM Code',
-            'UoM Name',
             'PCA Code',
-            'PCA Name',
             'Category Code',
-            'Category Name',
             'Item Group Code',
-            'Item Group Name',
+            'Size 1',
+            'Size 2',
+            'Unit Weight',
         ];
     }
 }
@@ -80,7 +80,7 @@ class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
 {
     public function title(): string
     {
-        return 'Unit of Measure (UoM) Sheet'; 
+        return 'Unit of Measure (UoM) Sheet';
     }
 
     public function styles(Worksheet $sheet)
@@ -109,7 +109,7 @@ class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
             ->get();
 
         $collections = [];
-        
+
         foreach($datas as $key => $item){
             // Create the collection
             $collections[$key] = [
@@ -117,7 +117,7 @@ class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
                 'uom_name' => $item->uom_name,
             ];
         }
-        
+
         return collect($collections);
     }
 }
@@ -126,7 +126,7 @@ class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
 {
     public function title(): string
     {
-        return 'PCA Sheet'; 
+        return 'PCA Sheet';
     }
 
     public function styles(Worksheet $sheet)
@@ -155,7 +155,7 @@ class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
             ->get();
 
         $collections = [];
-        
+
         foreach($datas as $key => $item){
             // Create the collection
             $collections[$key] = [
@@ -163,7 +163,7 @@ class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
                 'pca_name' => $item->pca_name,
             ];
         }
-        
+
         return collect($collections);
     }
 }
@@ -172,7 +172,7 @@ class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, with
 {
     public function title(): string
     {
-        return 'Category Sheet'; 
+        return 'Category Sheet';
     }
 
     public function styles(Worksheet $sheet)
@@ -201,7 +201,7 @@ class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, with
             ->get();
 
         $collections = [];
-        
+
         foreach($datas as $key => $item){
             // Create the collection
             $collections[$key] = [
@@ -209,7 +209,7 @@ class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, with
                 'category_name' => $item->category_name,
             ];
         }
-        
+
         return collect($collections);
     }
 }
@@ -218,7 +218,7 @@ class ItemGroupList implements ShouldAutoSize, FromCollection, WithHeadings, wit
 {
     public function title(): string
     {
-        return 'Item Group Sheet'; 
+        return 'Item Group Sheet';
     }
 
     public function styles(Worksheet $sheet)
@@ -247,7 +247,7 @@ class ItemGroupList implements ShouldAutoSize, FromCollection, WithHeadings, wit
             ->get();
 
         $collections = [];
-        
+
         foreach($datas as $key => $item){
             // Create the collection
             $collections[$key] = [
@@ -255,7 +255,7 @@ class ItemGroupList implements ShouldAutoSize, FromCollection, WithHeadings, wit
                 'item_group_name' => $item->item_group_name,
             ];
         }
-        
+
         return collect($collections);
     }
 }

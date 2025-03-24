@@ -4,7 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Module\ControllerModule;
-use App\Imports\Master\ItemGroupImport;
+use Bangsamu\Master\Imports\Master\ItemGroupImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +49,7 @@ class ItemGroupController extends Controller
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
+        $data['page']['new']['url'] = route('master.item-group.create');
 
         $data = configDefAction($id, $data);
 
@@ -74,7 +74,7 @@ class ItemGroupController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['list'] = route('master.' . $this->sheet_slug . '.index');
+        $data['page']['list'] = route('master.item-group.index');
         $data['page']['title'] = $sheet_name;
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
@@ -83,7 +83,7 @@ class ItemGroupController extends Controller
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['create']['url'] = route('master.item-group.create');
 
             $data['datatable']['btn']['import']['id'] = 'importitem';
             $data['datatable']['btn']['import']['title'] = 'Import Item';
@@ -94,11 +94,11 @@ class ItemGroupController extends Controller
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('getmaster_item_group/export');
+            $data['datatable']['btn']['export']['url'] = url('master/getmaster_item_group/export');
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.item_group.import');
+        $data['page']['import']['post'] = route('master.item-group.import');
         $data['page']['import']['template'] = url('/templates/ItemGroupImportTemplate.xlsx');
 
         $page_var = compact('data');
@@ -213,10 +213,10 @@ class ItemGroupController extends Controller
                 $nestedData['No'] = $DT_RowIndex;
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="' . route('master.item-group.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    $btn .= '<a href="' . route('master.item-group.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 } else {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="' . route('master.item-group.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
 
                 $nestedData['action'] = @$btn;
@@ -244,18 +244,18 @@ class ItemGroupController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.item-group.store');
         $data['page']['list'] = route('master.' . $sheet_slug.'.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master.item_group.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'item_group_code' => 'required|unique:master_' . $this->sheet_slug . ',item_group_code' . ($request->id ? ',' . $request->id : ''),
+            'item_group_code' => 'required|unique:master_item_group,item_group_code' . ($request->id ? ',' . $request->id : ''),
             'item_group_name' => 'required',
             'item_group_attributes' => 'nullable',
         ]);
@@ -297,7 +297,7 @@ class ItemGroupController extends Controller
             $message = $this->sheet_name . ' created successfully';
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+        return redirect()->route('master.item-group.index')->with('success_message', $message);
     }
 
     public function show($id)
@@ -313,19 +313,19 @@ class ItemGroupController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.item-group.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master.item_group.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
         DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
+        return redirect()->route('master.item-group.index')->with('success', $this->sheet_slug . ' deleted successfully');
     }
 
     public function import(Request $request)

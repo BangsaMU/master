@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Master;
+namespace Bangsamu\Master\Exports\Master;
 
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -27,7 +27,7 @@ class ItemCodeExport implements FromCollection, ShouldAutoSize, WithHeadings
                     )
                     ->whereNull('mic.deleted_at')
                     ->get();
-                                
+
         return $data;
     }
 

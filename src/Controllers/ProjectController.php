@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Module\ControllerModule;
 // use App\Imports\Master\ProjectImport;
 use Bangsamu\Master\Imports\ProjectImport;
+use Bangsamu\Master\Models\ProjectDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,9 @@ class ProjectController extends Controller
         'mp.id AS id',
         'mp.project_code AS project_code',
         'mp.project_name AS project_name',
+        'mp.project_start_date AS project_start_date',
+        'mp.project_complete_date AS project_complete_date',
+        'mp.project_remarks AS project_remarks',
         'null AS action',
     );
 
@@ -354,6 +358,9 @@ class ProjectController extends Controller
                 ->update([
                     'project_code' => $request->project_code,
                     'project_name' => $request->project_name,
+                    'project_remarks' => $request->project_remarks,
+                    'project_start_date' => $request->project_start_date,
+                    'project_complete_date' => $request->project_complete_date,
                     'updated_at' => now(),
                 ]);
 
@@ -415,10 +422,42 @@ class ProjectController extends Controller
 
         $view_form = self::view_form(compact('id'));
 
+
+        $view_form_list = null;
+        $view_form_listDetail = ProjectDetail::select('project_id', 'project_code_client', 'project_name_client', 'company_code', 'company_name', 'master_project_detail.id as view')->where('project_id', $id)
+            ->join('master_project as mp', 'mp.id', '=', 'master_project_detail.project_id')
+            ->join('master_company as mc', 'mc.id', '=', 'master_project_detail.company_id')
+            ->get()->toArray();
+        // dd($view_form_listDetail);
+        foreach ($view_form_listDetail as $keyPD => $valPD) {
+            foreach ($valPD as $keyD => $valD) {
+
+                // dd($view_form_listDetail, $keyPD, $valPD,$keyD,$valD);
+                if ($keyD == 'view') {
+                    $view_form_list[$keyPD][] = [
+                        'field' => $keyD,
+                        'name' => $keyD,
+                        'label' => \Str::headline($keyD),
+                        'type' => 'button',
+                        'col' => 'col-12 col-md mb-1',
+                        'url' => route('master.project-detail.edit', $valD)
+                    ];
+                } elseif (strpos('A|project_id', $keyD) === false) {
+                    $view_form_list[$keyPD][] = [
+                        'field' => $keyD,
+                        'name' => $keyD,
+                        'label' => \Str::headline($keyD),
+                        'type' => 'label',
+                        'col' => 'col-12 col-md mb-1',
+                    ];
+                }
+            }
+        }
+
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master.project.form', compact('data', 'param','view_form_list','view_form_listDetail'));
     }
 
     public function destroy($id)
