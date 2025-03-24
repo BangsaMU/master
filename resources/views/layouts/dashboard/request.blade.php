@@ -30,7 +30,7 @@
     @endif
 
     @foreach ($formdata_multi as $keydata => $formdata)
-        <form id="FormRequest{{ @$formdata->id }}" action="{{ $data['page']['store'] }}" method="post">
+        <form id="FormRequest{{ @$formdata->id }}" action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
             @csrf
             <div class="card card-outline card-primary">
 

@@ -310,6 +310,13 @@
         @endif
     @break
 
+    @case('button')
+        <div class="{{ $form['col'] }}">
+            <button onclick="actionButton(this)" data-url="{{ @$form['url'] }}" type="button"
+                class=" btn btn-primary">{{ $form['label'] }}</button>
+        </div>
+    @break
+
     @case('save')
         <div class="{{ $form['col'] }}">
             <button {{ @$form['disabled'] == true ? 'data-disabled=true disabled=true' : null }} type="submit"
@@ -389,6 +396,12 @@
             })
 
         });
+
+        function actionButton(e) {
+            let goto_url = e.getAttribute("data-url")
+            window.location.assign(goto_url)
+
+        }
 
         $(".saveButton").click(function(e) {
 

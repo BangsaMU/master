@@ -486,7 +486,7 @@
             });
         }
     </script>
-    <form action="" id="delete-form" method="post">
+    <form action="" id="delete-form" method="POST" autocomplete="off">
         @method('delete')
         @csrf
     </form>
