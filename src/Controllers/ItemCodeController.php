@@ -26,6 +26,7 @@ class ItemCodeController extends Controller
         'mc.category_name AS category',
         'mig.item_group_name AS item_group',
         'mic.attributes AS attributes',
+        'mic.app_code AS app_code',
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.size_1')) AS size_1",
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.size_2')) AS size_2",
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.unit_weight')) AS unit_weight",
@@ -222,8 +223,8 @@ class ItemCodeController extends Controller
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
 
             if ($name == "uom") {
@@ -249,7 +250,7 @@ class ItemCodeController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin') && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                     $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 } else {
@@ -500,8 +501,8 @@ class ItemCodeController extends Controller
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 

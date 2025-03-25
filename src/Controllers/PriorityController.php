@@ -193,8 +193,8 @@ class PriorityController extends Controller
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 

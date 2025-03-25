@@ -22,7 +22,7 @@ class Company extends Model
             /*buat tabel master_company*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('company_code', 10)->nullable();
+                $table->string('company_code', 10)->unique()->nullable();
                 $table->string('company_name', 200)->nullable();
                 $table->string('company_short', 10)->nullable();
                 $table->string('company_attention', 100)->nullable();

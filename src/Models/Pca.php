@@ -22,7 +22,7 @@ class Pca extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('pca_code', 20)->nullable();
+                $table->string('pca_code', 20)->unique()->nullable();
                 $table->string('pca_name', 150)->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();

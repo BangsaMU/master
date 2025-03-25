@@ -22,7 +22,7 @@ class Category extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('category_code', 25)->nullable();
+                $table->string('category_code', 25)->unique()->nullable();
                 $table->string('category_name', 50)->nullable();
                 $table->string('remark')->nullable();
                 $table->dateTime('created_at')->nullable();

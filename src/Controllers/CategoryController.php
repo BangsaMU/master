@@ -22,6 +22,7 @@ class CategoryController extends Controller
         'mc.category_code AS category_code',
         'mc.category_name AS category_name',
         'mc.remark AS remark',
+        'mc.app_code AS app_code',
         '"action" AS action',
     );
     protected $view_tabel = array(
@@ -203,8 +204,8 @@ class CategoryController extends Controller
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -226,7 +227,7 @@ class CategoryController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin') && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 } else {

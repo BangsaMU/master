@@ -19,10 +19,10 @@ class Brand extends Model
     public function __construct()
     {
         if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
+            /*buat tabel master_brand*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('brand_code', 15)->nullable();
+                $table->string('brand_code', 15)->unique()->nullable();
                 $table->string('brand_description')->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();

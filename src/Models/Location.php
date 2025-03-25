@@ -25,7 +25,7 @@ class Location extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('loc_code', 15)->nullable();
+                $table->string('loc_code', 15)->unique()->nullable();
                 $table->string('loc_name', 50)->nullable();
                 $table->enum('group_type', ['office', 'warehouse', 'vendor' ])->default('office');
                 $table->dateTime('created_at')->nullable();

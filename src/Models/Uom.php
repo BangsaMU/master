@@ -22,7 +22,7 @@ class Uom extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('uom_code', 10)->nullable();
+                $table->string('uom_code', 10)->unique()->nullable();
                 $table->string('uom_name', 25)->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();

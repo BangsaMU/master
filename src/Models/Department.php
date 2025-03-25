@@ -22,7 +22,7 @@ class Department extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('department_code', 10)->nullable();
+                $table->string('department_code', 10)->unique()->nullable();
                 $table->string('department_name', 50)->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();

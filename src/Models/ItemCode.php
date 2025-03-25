@@ -23,7 +23,7 @@ class ItemCode extends Model
             /*buat tabel master_locations*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->bigInteger('id', true);
-                $table->string('item_code', 25)->nullable();
+                $table->string('item_code', 25)->unique()->nullable();
                 $table->string('item_name')->nullable();
                 $table->integer('uom_id')->nullable();
                 $table->integer('pca_id')->nullable();
