@@ -24,19 +24,25 @@
                         <div class="form-group">
                             <label for="loc_code">Location Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="loc_code"
-                                id="loc_code" class="form-control"
+                                id="loc_code" class="form-control @error('loc_code') is-invalid @enderror "
                                 value="{{ $param ? $param->loc_code : old('loc_code') }}" required>
+                            @error('loc_code')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="loc_name">Location Name</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="loc_name"
-                                id="loc_name" class="form-control"
+                                id="loc_name" class="form-control @error('loc_name') is-invalid @enderror "
                                 value="{{ $param ? $param->loc_name : old('loc_name') }}" required>
+                            @error('loc_name')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="group_type">Group</label>
                             <select {{ $data['page']['readonly'] ? 'readonly' : '' }} name="group_type" id="group_type"
-                                class="form-control" required>
+                                class="form-control @error('group_type') is-invalid @enderror " required>
                                 <option value="">Pilih Tipe Grup</option>
                                 <option value="office"
                                     {{ ($param && $param->group_type == 'office') || old('group_type') == 'office' ? 'selected' : '' }}>
@@ -48,11 +54,14 @@
                                     {{ ($param && $param->group_type == 'vendor') || old('group_type') == 'vendor' ? 'selected' : '' }}>
                                     Vendor</option>
                             </select>
+                            @error('group_type')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif
-                        <a href="{{route('master.location.index')}}" class="btn btn-default">
+                        <a href="{{ route('master.location.index') }}" class="btn btn-default">
                             Back
                         </a>
                     </form>

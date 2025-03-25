@@ -22,13 +22,15 @@
 
                         <div class="form-group">
                             <label for="category_code">Category Code</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="category_code" id="category_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="category_code" id="category_code" class="form-control @error('category_code') is-invalid @enderror"
                                    value="{{ $param ? $param->category_code : old('category_code') }}" required>
+                            @error('category_code') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="category_name">Category Name</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="category_name" id="category_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="category_name" id="category_name" class="form-control @error('category_name') is-invalid @enderror"
                                    value="{{ $param ? $param->category_name : old('category_name') }}" required>
+                            @error('category_name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="remark">Remark</label>

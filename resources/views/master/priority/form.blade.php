@@ -22,13 +22,19 @@
 
                         <div class="form-group">
                             <label for="priority_code">Priority Code</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="priority_code" id="priority_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="priority_code" id="priority_code" class="form-control @error('priority_code') is-invalid @enderror "
                                    value="{{ $param ? $param->priority_code : old('priority_code') }}" required>
+                                   @error('priority_code')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="priority_name">Priority Name</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="priority_name" id="priority_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="priority_name" id="priority_name" class="form-control @error('priority_name') is-invalid @enderror "
                                    value="{{ $param ? $param->priority_name : old('priority_name') }}" required>
+                                   @error('priority_name')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
 
                         @if ($data['page']['readonly'] == false)

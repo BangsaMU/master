@@ -22,13 +22,19 @@
 
                         <div class="form-group">
                             <label for="department_code">Department Code</label>
-                            <input type="text" name="department_code" id="department_code" class="form-control"
-                                   value="{{ $param ? $param->department_code : old('department_code') }}" required>
+                            <input type="text" name="department_code" id="department_code" class="form-control @error('department_code') is-invalid @enderror"
+                                value="{{ $param ? $param->department_code : old('department_code') }}" required>
+                            @error('department_code')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="department_name">Department Name</label>
-                            <input type="text" name="department_name" id="department_name" class="form-control"
-                                   value="{{ $param ? $param->department_name : old('department_name') }}" required>
+                            <input type="text" name="department_name" id="department_name" class="form-control @error('department_name') is-invalid @enderror"
+                                value="{{ $param ? $param->department_name : old('department_name') }}" required>
+                            @error('department_name')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <button type="submit" class="btn btn-primary">Submit</button>
                     </form>

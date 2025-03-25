@@ -22,13 +22,19 @@
 
                         <div class="form-group">
                             <label for="pca_code">PCA Code</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="pca_code" id="pca_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="pca_code" id="pca_code" class="form-control @error('pca_code') is-invalid @enderror"
                                    value="{{ $param ? $param->pca_code : old('pca_code') }}" required>
+                                   @error('pca_code')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="pca_name">PCA Name</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="pca_name" id="pca_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="pca_name" id="pca_name" class="form-control @error('pca_name') is-invalid @enderror"
                                    value="{{ $param ? $param->pca_name : old('pca_name') }}" required>
+                                   @error('pca_name')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         @if ($data['page']['readonly']==false)
                             <button type="submit" class="btn btn-primary">Submit</button>

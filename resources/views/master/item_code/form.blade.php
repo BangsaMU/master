@@ -22,13 +22,15 @@
 
                         <div class="form-group">
                             <label for="item_code">Item Code</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_code" id="item_code" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_code" id="item_code" class="form-control @error('item_code') is-invalid @enderror "
                                    value="{{ $param ? $param->item_code : old('item_code') }}" required placeholder="Input your Item Code">
+                                   @error('item_code') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="item_name">Item Name</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_name" id="item_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_name" id="item_name" class="form-control @error('item_name') is-invalid @enderror"
                                    value="{{ $param ? $param->item_name : old('item_name') }}" required placeholder="Input your Item Name">
+                                   @error('item_name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="uom">Unit of Measurement</label>

@@ -17,20 +17,29 @@
                     <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
                         @csrf
                         @if ($param)
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id"
+                                value="{{ $param->id }}">
                         @endif
 
                         <div class="form-group">
                             <label for="uom_code">UOM Code</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="uom_code" id="uom_code" class="form-control"
-                                   value="{{ $param ? $param->uom_code : old('uom_code') }}" required>
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="uom_code"
+                                id="uom_code" class="form-control @error('uom_code') is-invalid @enderror "
+                                value="{{ $param ? $param->uom_code : old('uom_code') }}" required>
+                            @error('uom_code')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="uom_name">UOM Name</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="uom_name" id="uom_name" class="form-control"
-                                   value="{{ $param ? $param->uom_name : old('uom_name') }}" required>
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="uom_name"
+                                id="uom_name" class="form-control @error('uom_name') is-invalid @enderror "
+                                value="{{ $param ? $param->uom_name : old('uom_name') }}" required>
+                            @error('uom_name')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
-                        @if ($data['page']['readonly']==false)
+                        @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif
                     </form>

@@ -22,13 +22,19 @@
 
                         <div class="form-group">
                             <label for="project_code">Vessel Code</label>
-                            <input type="text" name="project_code" id="project_code" class="form-control"
+                            <input type="text" name="project_code" id="project_code" class="form-control @error('project_code') is-invalid @enderror "
                                    value="{{ $param ? $param->project_code : old('project_code') }}" required>
+                                   @error('project_code')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="project_name">Vessel Name</label>
-                            <input type="text" name="project_name" id="project_name" class="form-control"
+                            <input type="text" name="project_name" id="project_name" class="form-control @error('project_name') is-invalid @enderror "
                                    value="{{ $param ? $param->project_name : old('project_name') }}" required>
+                                   @error('project_name')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
                         </div>
                         <button type="submit" class="btn btn-primary">Submit</button>
                     </form>

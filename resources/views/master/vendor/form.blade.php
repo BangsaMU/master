@@ -64,25 +64,25 @@
                     <div class="card-body">
                         <div class="form-group">
                             <label for="vendor_contact_name">Vendor Contact Name</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_name" id="vendor_contact_name" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_name" id="vendor_contact_name" class="form-control @error('vendor_contact_name') is-invalid @enderror "
                                     value="{{ $param ? $param->vendor_contact_name : old('vendor_contact_name') }}">
                             @error('vendor_contact_name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="vendor_contact_phone">Vendor Contact Phone</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_phone" id="vendor_contact_phone" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_phone" id="vendor_contact_phone" class="form-control @error('vendor_contact_phone') is-invalid @enderror "
                                     value="{{ $param ? $param->vendor_contact_phone : old('vendor_contact_phone') }}">
                             @error('vendor_contact_phone') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="vendor_contact_email">Vendor Contact Email</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_email" id="vendor_contact_email" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_email" id="vendor_contact_email" class="form-control @error('vendor_contact_email') is-invalid @enderror "
                                     value="{{ $param ? $param->vendor_contact_email : old('vendor_contact_email') }}">
                             @error('vendor_contact_email') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label for="vendor_contact_fax">Vendor Contact Fax</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_fax" id="vendor_contact_fax" class="form-control"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_contact_fax" id="vendor_contact_fax" class="form-control @error('vendor_contact_fax') is-invalid @enderror "
                                     value="{{ $param ? $param->vendor_contact_fax : old('vendor_contact_fax') }}">
                             @error('vendor_contact_fax') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>

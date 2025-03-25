@@ -42,12 +42,12 @@
                         </div>
                         <div class="form-group">
                             <label for="company_address">Company Address</label>
-                            <textarea {{ $data['page']['readonly'] ? 'readonly' : '' }} name="company_address" id="company_address" class="form-control" rows="3">{{ $param ? $param->company_address : old('company_address') }}</textarea @error('company_address') is-invalid @enderror >
+                            <textarea {{ $data['page']['readonly'] ? 'readonly' : '' }} name="company_address" id="company_address" class="form-control @error('company_address') is-invalid @enderror " rows="3">{{ $param ? $param->company_address : old('company_address') }}</textarea>
                         </divcompany_address
                         <div class="form-group">
                             <label for="company_logo">Company Logo</label>
                             @if ($data['page']['readonly']==false)
-                              <input {{ $data['page']['readonly'] ? 'readonly' : '' }} {{ $data['page']['readonly'] ? 'readonly' : '' }} type="file" name="company_logo" id="company_logo" class="form-control-file" @error('company_logo') is-invalid @enderror >
+                              <input {{ $data['page']['readonly'] ? 'readonly' : '' }} {{ $data['page']['readonly'] ? 'readonly' : '' }} type="file" name="company_logo" id="company_logo" class="form-control-file @error('company_logo') is-invalid @enderror " >
                               @error('company_logo') <span class="text-danger">{{ $message }}</span> @enderror
                             @endif
                         </div>
