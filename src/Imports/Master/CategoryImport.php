@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Imports;
+namespace Bangsamu\Master\Imports\Master;
 
-use App\Models\Category;
+use Bangsamu\Master\Models\Category;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -56,7 +56,7 @@ class CategoryImport implements ToCollection, WithHeadingRow
     {
         return $this->error;
     }
-    
+
     public function getSuccess(): array
     {
         return $this->success;

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Imports;
+namespace Bangsamu\Master\Imports\Master;
 
-use App\Models\Pca;
+use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\MasterPca;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +23,7 @@ class PcaImport implements ToCollection, WithHeadingRow
                                 ->where('pca_code', $row['pca_code'])
                                 ->where('pca_name', $row['pca_name'])
                                 ->first();
-                
+
                 if(!$pca){
                     if (empty($row['pca_code'])) {
                         $text = "Row ".$row_index." PCA Code : field is required.";
@@ -52,7 +52,7 @@ class PcaImport implements ToCollection, WithHeadingRow
     {
         return $this->error;
     }
-    
+
     public function getSuccess(): array
     {
         return $this->success;

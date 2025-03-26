@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Imports;
+namespace Bangsamu\Master\Imports\Master;
 
-use App\Models\UoM;
+use Bangsamu\Master\Models\UoM;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -50,7 +50,7 @@ class UomImport implements ToCollection, WithHeadingRow
     {
         return $this->error;
     }
-    
+
     public function getSuccess(): array
     {
         return $this->success;

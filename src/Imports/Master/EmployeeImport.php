@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Imports;
+namespace Bangsamu\Master\Imports\Master;
 
-use App\Models\Employee;
+use Bangsamu\Master\Models\Employee;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use DB;
+use Illuminate\Support\Facades\DB;
 
 class EmployeeImport implements ToCollection, WithHeadingRow
 {
@@ -59,7 +59,7 @@ class EmployeeImport implements ToCollection, WithHeadingRow
     {
         return $this->error;
     }
-    
+
     public function getSuccess(): array
     {
         return $this->success;

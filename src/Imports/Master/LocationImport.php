@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Imports;
+namespace Bangsamu\Master\Imports\Master;
 
-use App\Models\Location;
+use Bangsamu\Master\Models\Location;
 use Bangsamu\Master\Models\MasterLocation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -53,7 +53,7 @@ class LocationImport implements ToCollection, WithHeadingRow, WithMultipleSheets
                             array_push($this->error,$text);
                         }
                     }
-                
+
             }
         }
     }
