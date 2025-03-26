@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Models\Location;
 
 class LocationController extends Controller
 {
@@ -158,7 +160,7 @@ class LocationController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')==true) {
+        if (checkPermission('is_admin') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
@@ -277,7 +279,7 @@ class LocationController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -331,37 +333,52 @@ class LocationController extends Controller
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('master.' . $sheet_slug.'.index');
+        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
 
-        return view('master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'project_code' => 'required|unique:master_' . $this->sheet_slug . ',project_code' . ($request->id ? ',' . $request->id : ''),
-            'project_name' => 'required',
+            'loc_code' => 'required|unique:master_' . $this->sheet_slug . ',loc_code' . ($request->id ? ',' . $request->id : ''),
+            'loc_name' => 'required',
         ]);
 
         if ($request->id) {
-            // Update existing category
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
-                    'project_code' => $request->project_code,
-                    'project_name' => $request->project_name,
-                    'updated_at' => now(),
-                ]);
+            // Update existing location
+            $location = Location::findOrFail($request->id);
+            $update = $location->update([
+                'loc_code' => $request->loc_code,
+                'loc_name' => $request->loc_name,
+                'group_type' => $request->group_type,
+            ]);
 
-            $message = $this->sheet_name . ' updated successfully';
+            if ($update && $location->wasChanged()) {
+                /*sync callback*/
+                $id =  $location->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $location->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
         } else {
-            // Create new category
+            // Create new location
             DB::table('master_' . $this->sheet_slug)->insert([
-                'project_code' => $request->project_code,
-                'project_name' => $request->project_name,
+                'loc_code' => $request->loc_code,
+                'loc_name' => $request->loc_name,
+                'group_type' => $request->group_type,
                 'created_at' => now(),
             ]);
 

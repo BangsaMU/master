@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\Master\Models\Employee;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class EmployeeController extends Controller
 {
@@ -31,7 +33,7 @@ class EmployeeController extends Controller
         'null AS action',
     );
 
-     protected $view_tabel = array(
+    protected $view_tabel = array(
         'm_k.id AS No',
         'm_k.no_id_karyawan AS no_id_karyawan',
         'm_k.employee_name AS nama',
@@ -257,7 +259,7 @@ class EmployeeController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')==true) {
+        if (checkPermission('is_admin') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
@@ -375,7 +377,7 @@ class EmployeeController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -429,7 +431,7 @@ class EmployeeController extends Controller
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('master.' . $sheet_slug.'.index');
+        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
@@ -440,28 +442,69 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'project_code' => 'required|unique:master_' . $this->sheet_slug . ',project_code' . ($request->id ? ',' . $request->id : ''),
-            'project_name' => 'required',
+            'no_ktp' => 'required|unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
+            'employee_name' => 'required',
         ]);
 
         if ($request->id) {
-            // Update existing category
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
-                    'project_code' => $request->project_code,
-                    'project_name' => $request->project_name,
-                    'updated_at' => now(),
-                ]);
-
-            $message = $this->sheet_name . ' updated successfully';
-        } else {
-            // Create new category
-            DB::table('master_' . $this->sheet_slug)->insert([
-                'project_code' => $request->project_code,
-                'project_name' => $request->project_name,
-                'created_at' => now(),
+            // Update existing employee
+            $employee = Employee::findOrFail($request->id);
+            $update = $employee->update([
+                'employee_name' => $request->employee_name,
+                'employee_job_title' => $request->employee_job_title,
+                'employee_email' => $request->employee_email,
+                'employee_phone' => $request->employee_phone,
+                'deleted_at' => $request->deleted_at,
+                'corporate_email' => $request->corporate_email,
+                'no_ktp' => $request->no_ktp,
+                'no_id_karyawan' => $request->no_id_karyawan,
+                'status_id' => $request->status_id,
+                'hire_id' => $request->hire_id,
+                'tanggal_join' => $request->tanggal_join,
+                'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
+                'valid_to' => $request->valid_to,
+                'keterangan' => $request->keterangan,
+                'work_location_id' => $request->work_location_id,
+                'employee_blood_type' => $request->employee_blood_type,
             ]);
+
+            if ($update && $employee->wasChanged()) {
+                /*sync callback*/
+                $id =  $employee->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $employee->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
+        } else {
+            // Create new employee
+            $employee = Employee::create([
+                'employee_name' => $request->employee_name,
+                'employee_job_title' => $request->employee_job_title,
+                'employee_email' => $request->employee_email,
+                'employee_phone' => $request->employee_phone,
+                'deleted_at' => $request->deleted_at,
+                'corporate_email' => $request->corporate_email,
+                'no_ktp' => $request->no_ktp,
+                'no_id_karyawan' => $request->no_id_karyawan,
+                'status_id' => $request->status_id,
+                'hire_id' => $request->hire_id,
+                'tanggal_join' => $request->tanggal_join,
+                'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
+                'valid_to' => $request->valid_to,
+                'keterangan' => $request->keterangan,
+                'work_location_id' => $request->work_location_id,
+                'employee_blood_type' => $request->employee_blood_type,
+            ]);
+
 
             $message = $this->sheet_name . ' created successfully';
         }
@@ -477,7 +520,7 @@ class EmployeeController extends Controller
 
     public function edit($id)
     {
-        $form_row_type = 'multi'; /*single / multi kalo single cek detail kosong redirect*/
+        $form_row_type = 'single'; /*single / multi kalo single cek detail kosong redirect*/
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $data = self::config();

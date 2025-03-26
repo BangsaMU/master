@@ -4,11 +4,13 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 
-use App\Imports\Master\PcaImport;
+use Bangsamu\Master\Imports\Master\PcaImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Models\Pca;
 
 class PcaController extends Controller
 {
@@ -201,7 +203,7 @@ class PcaController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -272,21 +274,35 @@ class PcaController extends Controller
         ]);
 
         if ($request->id) {
-            // Update existing category
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
-                    'pca_code' => $request->pca_code,
-                    'pca_name' => $request->pca_name,
-                    'updated_at' => now(),
-                ]);
+            // Update existing pca
+            $pca = Pca::findOrFail($request->id);
+            $update = $pca->update([
+                'pca_code' => $request->pca_code,
+                'pca_name' => $request->pca_name,
+            ]);
 
-            $message = $this->sheet_name . ' updated successfully';
+            if ($update && $pca->wasChanged()) {
+                /*sync callback*/
+                $id =  $pca->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $pca->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
         } else {
             // Create new category
             DB::table('master_' . $this->sheet_slug)->insert([
                 'pca_code' => $request->pca_code,
                 'pca_name' => $request->pca_name,
+                'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
             ]);
 

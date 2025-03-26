@@ -5,10 +5,12 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\ItemGroupImport;
+use Bangsamu\Master\Models\ItemGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class ItemGroupController extends Controller
 {
@@ -200,7 +202,7 @@ class ItemGroupController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -255,7 +257,7 @@ class ItemGroupController extends Controller
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.item-group.store');
-        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['list'] = route('master.item-group.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
@@ -284,23 +286,39 @@ class ItemGroupController extends Controller
         $item_group_attributes = json_encode($item_group_attributes);
 
         if ($request->id) {
-            // Update existing category
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
-                    'item_group_code' => $request->item_group_code,
-                    'item_group_name' => $request->item_group_name,
-                    'item_group_attributes' => $item_group_attributes,
-                    'updated_at' => now(),
-                ]);
+            // Update existing item group
+            $item_group = ItemGroup::findOrFail($request->id);
+            // dd($request->all());
+            $update = $item_group->update([
+                'item_group_code' => $request->item_group_code,
+                'item_group_name' => $request->item_group_name,
+                'item_group_attributes' => $item_group_attributes,
 
-            $message = $this->sheet_name . ' updated successfully';
+            ]);
+
+            if ($update && $item_group->wasChanged()) {
+                /*sync callback*/
+                $id =  $item_group->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $item_group->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
         } else {
-            // Create new category
+            // Create new item group
             DB::table('master_' . $this->sheet_slug)->insert([
                 'item_group_code' => $request->item_group_code,
                 'item_group_name' => $request->item_group_name,
                 'item_group_attributes' => $item_group_attributes,
+                'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
             ]);
 

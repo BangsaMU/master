@@ -14,6 +14,8 @@ use App\Http\Controllers\ApiAttachmentsHse;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class CompanyController extends Controller
 {
@@ -189,7 +191,7 @@ class CompanyController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -214,7 +216,7 @@ class CompanyController extends Controller
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
-                }else {
+                } else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
 
@@ -259,9 +261,9 @@ class CompanyController extends Controller
         ]);
 
         if ($request->id) {
-            // Update existing employee
+            // Update existing company
             $company = Company::findOrFail($request->id);
-            $company->update([
+            $update = $company->update([
                 'company_code' => $request->company_code,
                 'company_name' => $request->company_name,
                 'company_short' => $request->company_short,
@@ -281,9 +283,24 @@ class CompanyController extends Controller
                 }
             }
 
-            $message = $this->sheet_name . ' updated successfully';
+            if ($update && $company->wasChanged()) {
+                /*sync callback*/
+                $id =  $company->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $company->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
         } else {
-            // Create new employee
+            // Create new company
             $company = Company::create([
                 'company_code' => $request->company_code,
                 'company_name' => $request->company_name,
@@ -332,15 +349,6 @@ class CompanyController extends Controller
             $company->company_logo_id = $gallery->id;
             $company->save();
         }
-
-        /*sync callback*/
-        // $id =  $company->id;
-        // $sync_tabel = 'company';
-        // $sync_id = $id;
-        // $sync_row = $company->toArray();
-        // $sync_row['deleted_at'] = null;
-        // $sync_list_callback = config('AppConfig.CALLBACK_URL');
-        // $a = callbackSyncMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
 
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
     }
@@ -435,7 +443,7 @@ class CompanyController extends Controller
         $data['page']['slug'] = 'dttable_master';
         $data['page']['title'] = 'Master ' . $sheet_name;
         $data['page']['sheet_name'] = $sheet_name;
-        $data['tab-menu']['title'] = \Str::headline('Master ' . $sheet_name);
+        $data['tab-menu']['title'] = Str::headline('Master ' . $sheet_name);
 
         $user_id = auth()->user()->id;
         $form_row_type = 'multi';/*single / multi kalo single cek detail kosong redirect*/
@@ -680,208 +688,6 @@ class CompanyController extends Controller
             'message' => count($return_id) . ' Attachment berhasil di submit!',
         ];
         return $response;
-    }
-
-    public function storeOld(Request $request, $json = false)
-    {
-        $sheet_name = $this->sheet_name;
-        $sheet_slug = $this->sheet_slug;
-        // dd($request->file());
-        $request->validate([
-            'id' => 'required', //hanya bisa update cretaed dari detail
-            'company_code' => 'required',
-            'company_name' => 'required',
-            // 'internal_external' => 'required',
-        ]);
-        // dd($request);
-        $id = $request->id;
-        $company_code = $request->company_code;
-        $company_name = $request->company_name;
-        $company_short = $request->company_short;
-        $company_attention = $request->company_attention;
-        $company_address = $request->company_address;
-        // $company_remarks = $request->company_remarks;
-
-        $user_id = auth()->user()->id;
-
-        if ($request->file('attachment')) {
-            // dd('upload file');
-
-            //API uploader
-            // $ApiAttachmentsHse = new ApiAttachmentsHse;
-            $request['id_group'] = $id;
-            $gallery = self::uploadFile($request, $id);
-            // dd(9,$ApiAttachmentsHse);
-            $list_attachment = $gallery;
-            $company_logo_id = $gallery[0]['data'][0]->id;
-            // dd($list_attachment[0]['data'][0]->id);
-        }
-        //cek hse_indicator_method_id
-        if (!is_numeric(@$indicator_method_id) && isset($indicator_method_id)) {
-            // dd($indicator_method_id);
-            $data[$id]['employee_name'] = $indicator_method_id;
-            $HseIndicatorMethod = HseIndicatorMethod::create(
-                [
-                    'type' => $sheet_name,
-                    'description' => $indicator_method_id
-                ]
-            );
-            $indicator_method_id = $HseIndicatorMethod->id;
-            // HseIndicatorMethod::find($indicator_method_id)->update(['nik' => $indicator_method_id]);
-        }
-
-        //cek employee
-        if (!is_numeric(@$employee_id) && isset($employee_id)) {
-            // dd($employee_id);
-            $data[$id]['employee_name'] = $employee_id;
-            $Employee = Employee::create(
-                ['employee_name' => $employee_id]
-            );
-            $employee_id = $Employee->id;
-            Employee::find($employee_id)->update(['nik' => $employee_id]);
-        }
-        //cek position
-        if (@$position) {
-            Employee::find($employee_id)->update(['employee_job_title' => $position]);
-        }
-
-        $data_config = self::config($id);
-
-        if (is_numeric($id)) {
-            $Company = Company::find($id);
-
-            try {
-                $code = 200;
-                // dd(2,@$success_message,$company_code,$company_name,$internal_external,$company_start_date,$company_complete_date,$company_remarks);
-
-                $FileManager = FileManager::find(@$company_logo_id);
-                $Gallery = Gallery::find(@$FileManager->wgallery_id);
-                // $Company['company_logo_url'] = $Gallery->url;
-
-                $Company->update([
-                    'company_code' => $company_code,
-                    'company_name' => $company_name,
-                    'company_short' => $company_short,
-                    'company_attention' => $company_attention,
-                    'company_address' => $company_address,
-                    'company_logo_id' => @$company_logo_id,
-                    'company_logo' => @$Gallery->url,
-                ]);
-
-
-
-
-                $success_message = 'Form  <b>' . $sheet_name . '</b> updated successfully';
-            } catch (Exception $e) {
-                // dd($e->getmessage());
-                $code = 400;
-                $success_message = @$e->getprevious()->errorInfo[2] ?? $e->getmessage();
-            }
-
-            if ($json) {
-                $json_data = array(
-                    "code" => $code,
-                    "success_message" => $success_message,
-                    "redirect"    => route($data_config['ajax']['url_prefix'] . '', ['id' => $id]),
-                    "data"            => @$Company
-                );
-                return response()->json($json_data);
-            } else {
-                return redirect()->route($data_config['ajax']['url_prefix'] . '', ['id' => $id])
-                    ->with('success_message', $success_message);
-            }
-            // dd($Company);
-
-        } else {
-            try {
-                $code = 200;
-                $Company = Company::create([
-                    'company_code' => $company_code,
-                    'company_name' => $company_name,
-                    'internal_external' => $internal_external,
-                    'company_start_date' => $company_start_date,
-                    'company_complete_date' => $company_complete_date,
-                    'company_remarks' => $company_remarks,
-                ]);
-                $id = $Company->id;
-                $success_message = 'Form  <b>' . $sheet_name . '</b> created successfully';
-            } catch (Exception $e) {
-                $code = 400;
-                $id = 'new';
-                $success_message = $e->getprevious()->errorInfo[2];
-            }
-
-            if ($json) {
-                $json_data = array(
-                    "code" => $code,
-                    "success_message" => $success_message,
-                    "redirect"    => route($data_config['ajax']['url_prefix'] . '', ['id' => $id]),
-                    "data"            => @$Company ?? [],
-                );
-                return response()->json($json_data);
-            } else {
-                return redirect()->route($data_config['ajax']['url_prefix'] . '', ['id' => $id])
-                    ->with('success_message', $success_message);
-            }
-        }
-    }
-
-    public function attachment(Request $request, $id = null, $filetype = null)
-    {
-        $sheet_name = $this->sheet_name;
-        $sheet_slug = $this->sheet_slug;
-        if (!is_numeric($id)) {
-            return redirect()->route('formrequests.request')->with('status', 'Please created/save Form request!');
-        }
-
-        $filetype = '*';
-        $formdata = null;
-        $sheet_name = $this->sheet_name;
-
-        if ($id) {
-            $formdata = DB::table('hse_plan as thp')
-                ->select(
-                    'thp.id AS No',
-                    'thp.id AS id',
-                    'thp.date AS date',
-                    'thp.form_number AS incident_number',
-                    'thp.description AS description',
-                    'thp.id AS action',
-                )
-                ->where('thp.id', $id)
-                ->where('thp.deleted_at', null)
-                ->first();
-
-            if (!empty($formdata->distribusi)) {
-                $distribusi = explode(',', $formdata->distribusi);
-            }
-            if (empty($formdata)) {
-                return redirect()->route('formrequests.request')->with('error_message', 'Data attachment with id ' . $id . ' not found in database.');
-            }
-        }
-        $data['page']['title'] = 'List of Attachments';
-        $data['tab-menu']['title'] = 'List of Attachments';
-
-        if ($request->ajax()) {
-            if ($filetype == 'document') {
-                $arr_data = array_map('trim', explode(',', $tabel->document_file_name));
-            } else if ($filetype == 'image') {
-                $arr_data = array_map('trim', explode(',', $tabel->image_file_name));
-            } else if ($filetype == 'video') {
-                $arr_data = array_map('trim', explode(',', $tabel->video_file_name));
-            } else if ($filetype == 'audio') {
-                $arr_data = array_map('trim', explode(',', $tabel->voice_note_file_name));
-            }
-        }
-
-        $data = self::config($id, (array)$formdata);
-        $data['route']['details'] = route('hse-dar.' . $sheet_slug . '', ['id' => $id]);
-        $data['route']['attachments'] = route('hse-dar.' . $sheet_slug . '.attachment', ['id' => $id]);
-
-        $data['page']['title'] = 'Detail Form Request';
-        $data['tab-menu']['title'] = 'Attachment List';
-        $page_var = compact('data', 'filetype', 'id', 'formdata', 'sheet_name');
-        return view('hse-dar.attachment', $page_var); //default view attachment ke layouts.attachment
     }
 
     public function destroy(Request $request, $id = null)

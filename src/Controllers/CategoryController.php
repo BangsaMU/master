@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\Master\Models\Category;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class CategoryController extends Controller
 {
@@ -205,7 +207,7 @@ class CategoryController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -277,23 +279,35 @@ class CategoryController extends Controller
 
         if ($request->id) {
             // Update existing category
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
-                    'category_code' => $request->category_code,
-                    'category_name' => $request->category_name,
-                    'remark' => $request->remark,
-                    'updated_at' => now(),
-                ]);
-
-            $message = $this->sheet_name . ' updated successfully';
-        } else {
-            // Create new category
-            DB::table('master_' . $this->sheet_slug)->insert([
+            $category = Category::findOrFail($request->id);
+            $update = $category->update([
                 'category_code' => $request->category_code,
                 'category_name' => $request->category_name,
                 'remark' => $request->remark,
-                'created_at' => now(),
+            ]);
+
+            if ($update && $category->wasChanged()) {
+                /*sync callback*/
+                $id =  $category->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $category->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
+        } else {
+            // Create new category
+            $category = Category::create([
+                'category_code' => $request->category_code,
+                'category_name' => $request->category_name,
+                'remark' => $request->remark,
             ]);
 
             $message = $this->sheet_name . ' created successfully';

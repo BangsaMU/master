@@ -5,12 +5,16 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 
 // use App\Imports\Master\ProjectImport;
-use Bangsamu\Master\Imports\ProjectImport;
+use Bangsamu\Master\Imports\Master\ProjectImport;
 use Bangsamu\Master\Models\ProjectDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Models\Project;
+use Bangsamu\Master\Models\Company;
 
 class ProjectController extends Controller
 {
@@ -353,24 +357,50 @@ class ProjectController extends Controller
 
         if ($request->id) {
             // Update existing Project
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
-                    'project_code' => $request->project_code,
-                    'project_name' => $request->project_name,
-                    'project_remarks' => $request->project_remarks,
-                    'project_start_date' => $request->project_start_date,
-                    'project_complete_date' => $request->project_complete_date,
-                    'updated_at' => now(),
-                ]);
-
-            $message = $this->sheet_name . ' updated successfully';
-        } else {
-            // Create new Project
-            DB::table('master_' . $this->sheet_slug)->insert([
+            $project = Project::findOrFail($request->id);
+            $update = $project->update([
                 'project_code' => $request->project_code,
                 'project_name' => $request->project_name,
-                'created_at' => now(),
+                'internal_external' => $request->internal_external,
+                'project_remarks' => $request->project_remarks,
+                'project_start_date' => $request->project_start_date,
+                'project_complete_date' => $request->project_complete_date,
+            ]);
+
+            if ($update && $project->wasChanged()) {
+                /*sync callback*/
+                $id =  $project->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $project->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
+        } else {
+            // Create new Project
+            $project = Project::create([
+                'project_code' => $request->project_code,
+                'project_name' => $request->project_name,
+                'internal_external' => $request->internal_external,
+                'project_remarks' => $request->project_remarks,
+                'project_start_date' => $request->project_start_date,
+                'project_complete_date' => $request->project_complete_date,
+            ]);
+
+            // auto add project detail
+            $company = Company::where('company_code','ME')->first();
+            DB::table('master_project_detail')->insert([
+                'project_id' => $project->id,
+                'project_code_client' => $request->project_code,
+                'project_name_client' => $request->project_name,
+                'company_id' => $company->id,
             ]);
 
             $message = $this->sheet_name . ' created successfully';
@@ -437,16 +467,16 @@ class ProjectController extends Controller
                     $view_form_list[$keyPD][] = [
                         'field' => $keyD,
                         'name' => $keyD,
-                        'label' => \Str::headline($keyD),
+                        'label' => Str::headline($keyD),
                         'type' => 'button',
                         'col' => 'col-12 col-md mb-1',
-                        'url' => route('master.project-detail.edit', $valD)
+                        'url' => route($this->readonly ? 'master.project-detail.show' : 'master.project-detail.edit', $valD),
                     ];
                 } elseif (strpos('A|project_id', $keyD) === false) {
                     $view_form_list[$keyPD][] = [
                         'field' => $keyD,
                         'name' => $keyD,
-                        'label' => \Str::headline($keyD),
+                        'label' => Str::headline($keyD),
                         'type' => 'label',
                         'col' => 'col-12 col-md mb-1',
                     ];

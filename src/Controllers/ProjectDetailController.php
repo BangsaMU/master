@@ -14,6 +14,8 @@ use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class ProjectDetailController extends Controller
 {
@@ -197,7 +199,7 @@ class ProjectDetailController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -282,22 +284,37 @@ class ProjectDetailController extends Controller
                 Rule::unique('master_project_detail')->where(function ($query) use ($request) {
                     return $query->where('project_id', $request->project_id)
                         ->where('company_id', $request->company_id);
-                }),
+                })
+                ->ignore($request->id),  // ID yang sedang di-update
             ],
         ]);
 
         if ($request->id) {
-            // Update existing category
-            DB::table('master_project_detail')
-                ->where('id', $request->id)
-                ->update([
-                    'project_id' => $request->project_id,
-                    'project_code_client' => $request->project_code_client,
-                    'project_name_client' => $request->project_name_client,
-                    'company_id' => $request->company_id,
-                ]);
+            // Update existing Project Detail
+            $project_detail = ProjectDetail::findOrFail($request->id);
+            $update = $project_detail->update([
+                'project_id' => $request->project_id,
+                'project_code_client' => $request->project_code_client,
+                'project_name_client' => $request->project_name_client,
+                'company_id' => $request->company_id,
+            ]);
 
-            $message = $this->sheet_name . ' updated successfully';
+            if ($update && $project_detail->wasChanged()) {
+                /*sync callback*/
+                $id =  $project_detail->id;
+                $sync_tabel = 'master_project_detail';
+                $sync_id = $id;
+                $sync_row = $project_detail->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            } else {
+                $message = $this->sheet_name . ' no data changed';
+            }
         } else {
             // Create new category
             DB::table('master_project_detail')->insert([
@@ -401,7 +418,7 @@ class ProjectDetailController extends Controller
         $data['page']['slug'] = 'dttable_master';
         $data['page']['title'] = 'Master ' . $sheet_name;
         $data['page']['sheet_name'] = $sheet_name;
-        $data['tab-menu']['title'] = \Str::headline('Master ' . $sheet_name);
+        $data['tab-menu']['title'] = Str::headline('Master ' . $sheet_name);
 
         // $data['route']['back'] = route($data['ajax']['url_prefix'] . '', []);
 
@@ -543,214 +560,10 @@ class ProjectDetailController extends Controller
         return view('master::layouts.request', $page_var);
     }
 
-    public function configOld($id = null, $data = null)
-    {
-        $sheet_name = $this->sheet_name;
-        $sheet_slug = $this->sheet_slug;
-
-        $data['page']['folder'] = 'master';
-        $data['ajax']['url_prefix'] = $data['page']['folder'] . '/' . $sheet_slug;
-        $data['page']['sheet_slug'] = $sheet_slug;
-        $data['page']['sheet_name'] = $sheet_name;
-        $data['page']['form_number'] = @$tabel->form_number;
-        $data['page']['file']['document'] = '.pdf,.doc,.docx,.xml,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        $data['page']['file']['audio'] = 'audio/*';
-        $data['page']['file']['video'] = 'video/*';
-        $data['page']['file']['image'] = 'image/*';
-
-        // $data = configTabActionHsePlan($id, $data);
-
-        $data['page']['id'] = $id;
-        $data['modal']['view_path'] = $data['page']['folder'] . '.mastermodal';
-
-        return $data;
-    }
-
     public function storeJson(Request $request, $json = true)
     {
         // dd($request->all());
         return self::store($request, $json);
     }
 
-    public function storeOld(Request $request, $json = false)
-    {
-        $sheet_name = $this->sheet_name;
-        $sheet_slug = $this->sheet_slug;
-        // dd($request->all());
-        $request->validate([
-            // 'id' => 'required', //hanya bisa update cretaed dari detail
-            'project_code_client' => 'required',
-            'company_id' => 'required',
-        ]);
-
-        $id = $request->id;
-        $project_id = $request->project_id;
-        $project_code_client = $request->project_code_client;
-        $project_name_client = $request->project_name_client;
-        $company_id = $request->company_id;
-
-        $user_id = auth()->user()->id;
-
-        if ($request->file('attachment')) {
-            // dd('upload file');
-
-            //API uploader
-            $ApiAttachmentsHse = new ApiAttachmentsHse;
-            $request['id_group'] = $id;
-            $ApiAttachmentsHse->store($request, $id);
-            // dd(9,$ApiAttachmentsHse);
-            $list_attachment = $ApiAttachmentsHse;
-            // dd($ApiAttachmentsHse);
-        }
-        //cek hse_indicator_method_id
-        if (!is_numeric(@$indicator_method_id) && isset($indicator_method_id)) {
-            // dd($indicator_method_id);
-            $data[$id]['empdloyee_name'] = $indicator_method_id;
-            $HseIndicatorMethod = HseIndicatorMethod::create(
-                [
-                    'type' => $sheet_name,
-                    'description' => $indicator_method_id
-                ]
-            );
-            $indicator_method_id = $HseIndicatorMethod->id;
-            // HseIndicatorMethod::find($indicator_method_id)->update(['nik' => $indicator_method_id]);
-        }
-
-        //cek empdloyee
-        if (!is_numeric(@$empdloyee_id) && isset($empdloyee_id)) {
-            // dd($empdloyee_id);
-            $data[$id]['empdloyee_name'] = $empdloyee_id;
-            $Empdloyee = Empdloyee::create(
-                ['empdloyee_name' => $empdloyee_id]
-            );
-            $empdloyee_id = $Empdloyee->id;
-            Empdloyee::find($empdloyee_id)->update(['nik' => $empdloyee_id]);
-        }
-        //cek position
-        if (@$position) {
-            Empdloyee::find($empdloyee_id)->update(['empdloyee_job_title' => $position]);
-        }
-
-        $data_config = self::config($id);
-
-        if (is_numeric($id)) {
-            $ProjectDetail = ProjectDetail::find($id);
-
-            try {
-                $code = 200;
-                $ProjectDetail->update([
-                    'project_id' => $project_id,
-                    'project_code_client' => $project_code_client,
-                    'project_name_client' => $project_name_client,
-                    'company_id' => $company_id,
-                ]);
-
-                $id = $ProjectDetail->id;
-                $success_message = 'Form  <b>' . $sheet_name . '</b> updated successfully';
-            } catch (Exception $e) {
-                $code = 400;
-                $success_message = $e->getprevious()->errorInfo[2];
-            }
-
-            if ($json) {
-                $json_data = array(
-                    "code" => $code,
-                    "success_message" => $success_message,
-                    "redirect"    => route($data_config['ajax']['url_prefix'] . '', ['project_id' => $project_id, 'id' => $id]),
-                    "data"            => $ProjectDetail
-                );
-                return response()->json($json_data);
-            } else {
-                return redirect()->route($data_config['ajax']['url_prefix'] . '', ['project_id' => $project_id, 'id' => $id])
-                    ->with('success_message', $success_message);
-            }
-        } else {
-            try {
-                $code = 200;
-                $ProjectDetail = ProjectDetail::create([
-                    'project_id' => $project_id,
-                    'project_code_client' => $project_code_client,
-                    'project_name_client' => $project_name_client,
-                    'company_id' => $company_id,
-                ]);
-                $id = $ProjectDetail->id;
-                $success_message = 'Form  <b>' . $sheet_name . '</b> created successfully';
-            } catch (Exception $e) {
-                $code = 400;
-                $id = 'new';
-                $success_message = $e->getprevious()->errorInfo[2];
-            }
-
-            if ($json) {
-                $json_data = array(
-                    "code" => $code,
-                    "success_message" => $success_message,
-                    "redirect"    => route($data_config['ajax']['url_prefix'] . '', ['project_id' => $project_id, 'id' => $id]),
-                    "data"            => @$ProjectDetail ?? [],
-                );
-                return response()->json($json_data);
-            } else {
-                return redirect()->route($data_config['ajax']['url_prefix'] . '', ['project_id' => $project_id, 'id' => $id])
-                    ->with('success_message', $success_message);
-            }
-        }
-    }
-
-    public function attachment(Request $request, $id = null, $filetype = null)
-    {
-        $sheet_name = $this->sheet_name;
-        $sheet_slug = $this->sheet_slug;
-        if (!is_numeric($id)) {
-            return redirect()->route('formrequests.request')->with('status', 'Please created/save Form request!');
-        }
-
-        $filetype = '*';
-        $formdata = null;
-        $sheet_name = $this->sheet_name;
-
-        if ($id) {
-            $formdata = DB::table('hse_plan as thp')
-                ->select(
-                    'thp.id AS No',
-                    'thp.id AS id',
-                    'thp.date AS date',
-                    'thp.form_number AS incident_number',
-                    'thp.description AS description',
-                    'thp.id AS action',
-                )
-                ->where('thp.id', $id)
-                ->where('thp.deleted_at', null)
-                ->first();
-
-            if (!empty($formdata->distribusi)) {
-                $distribusi = explode(',', $formdata->distribusi);
-            }
-            if (empty($formdata)) {
-                return redirect()->route('formrequests.request')->with('error_message', 'Data attachment with id ' . $id . ' not found in database.');
-            }
-        }
-        $data['page']['title'] = 'List of Attachments';
-        $data['tab-menu']['title'] = 'List of Attachments';
-
-        if ($request->ajax()) {
-            if ($filetype == 'document') {
-                $arr_data = array_map('trim', explode(',', $tabel->document_file_name));
-            } else if ($filetype == 'image') {
-                $arr_data = array_map('trim', explode(',', $tabel->image_file_name));
-            } else if ($filetype == 'video') {
-                $arr_data = array_map('trim', explode(',', $tabel->video_file_name));
-            } else if ($filetype == 'audio') {
-                $arr_data = array_map('trim', explode(',', $tabel->voice_note_file_name));
-            }
-        }
-
-        $data = self::config($id, (array)$formdata);
-        $data['route']['details'] = route('hse-dar.' . $sheet_slug . '', ['id' => $id]);
-        $data['route']['attachments'] = route('hse-dar.' . $sheet_slug . '.attachment', ['id' => $id]);
-
-        $data['page']['title'] = 'Detail Form Request';
-        $data['tab-menu']['title'] = 'Attachment List';
-        $page_var = compact('data', 'filetype', 'id', 'formdata', 'sheet_name');
-        return view('master::hse-dar.attachment', $page_var); //default view attachment ke layouts.attachment
-    }
 }

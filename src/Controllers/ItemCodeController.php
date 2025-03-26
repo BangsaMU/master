@@ -7,10 +7,13 @@ use Bangsamu\Master\Exports\Master\ItemCodeTemplateExport;
 use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\ItemCodeImport;
+use Bangsamu\Master\Models\ItemCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+
 
 class ItemCodeController extends Controller
 {
@@ -294,6 +297,8 @@ class ItemCodeController extends Controller
         $data['page']['store'] = route('master.item-code.store');
         $data['page']['list'] = route('master.item-code.index');
         $data['page']['title'] = $sheet_name;
+        $data['page']['readonly'] = false;
+        $data['page']['attributes'] = '{"size_1":null,"size_2":null,"unit_weight":null}';
         $param = null;
 
         return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
@@ -301,6 +306,7 @@ class ItemCodeController extends Controller
 
     public function store(Request $request)
     {
+        // dd($request->all());
         $request->validate([
             'item_code' => 'required|unique:master_' . $this->sheet_slug . ',item_code' . ($request->id ? ',' . $request->id : ''),
             'item_name' => 'required',
@@ -309,7 +315,6 @@ class ItemCodeController extends Controller
             // 'category_id' => 'required',
             'group_id' => 'required',
         ]);
-
         $item_group_attributes = DB::table('master_item_group as mig')
             ->where('id', $request->group_id)
             ->select('item_group_attributes')
@@ -317,30 +322,46 @@ class ItemCodeController extends Controller
             ->first();
 
         if ($request->id) {
-            // Update existing category
+            // Update existing item code
             $item_code_attributes = json_decode($item_group_attributes) ?? (object) [];
             $indexI = 0;
             $attributes = $request->input('attributes');
-            foreach ($item_code_attributes as $key => $detail) {
-                $item_code_attributes->$key = $attributes[$indexI];
-                $indexI++;
+            if($attributes){
+                foreach ($item_code_attributes as $key => $detail) {
+                    $item_code_attributes->$key = $attributes[$key];
+                    // $indexI++;
+                }
             }
             $item_code_attributes = json_encode($item_code_attributes);
 
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
-                    'item_code' => $request->item_code,
-                    'item_name' => $request->item_name,
-                    'uom_id' => $request->uom_id,
-                    'pca_id' => $request->pca_id,
-                    'category_id' => $request->category_id,
-                    'group_id' => $request->group_id,
-                    'attributes' => $item_code_attributes,
-                    'updated_at' => now(),
-                ]);
+            $item_code = ItemCode::findOrFail($request->id);
+            // dd($request->all());
+            $update = $item_code->update([
+                'item_code' => $request->item_code,
+                'item_name' => $request->item_name,
+                'uom_id' => $request->uom_id,
+                'pca_id' => $request->pca_id,
+                'category_id' => $request->category_id,
+                'group_id' => $request->group_id,
+                'attributes' => $item_code_attributes,
+            ]);
 
-            $message = $this->sheet_name . ' updated successfully';
+            if ($update && $item_code->wasChanged()) {
+                /*sync callback*/
+                $id =  $item_code->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $item_code->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            }else{
+                $message = $this->sheet_name . ' no data changed';
+            }
         } else {
             // Create new category
 
