@@ -5,7 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 
 // use App\Imports\Master\ProjectImport;
-use Bangsamu\Master\Imports\ProjectImport;
+use Bangsamu\Master\Imports\Master\ProjectImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

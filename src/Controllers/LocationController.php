@@ -4,7 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 
-use App\Imports\Master\ProjectImport;
+use Bangsamu\Master\Imports\Master\LocationImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -453,7 +453,7 @@ class LocationController extends Controller
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 
-            $import = new ProjectImport;
+            $import = new LocationImport;
             Excel::import($import, $file);
             $error = $import->getError();
             $success = $import->getSuccess();
