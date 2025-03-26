@@ -377,10 +377,10 @@
 
         $(document).ready(function() {
 
-            $('.datepicker').datepicker({
-                gotoCurrent: true,
-                dateFormat: "yy-mm-dd",
-            });
+            // $('.datepicker').datepicker({
+            //     gotoCurrent: true,
+            //     dateFormat: "yy-mm-dd",
+            // });
 
             // var dpStart = $("#datetime").datepicker({
             //     autoclose: true,

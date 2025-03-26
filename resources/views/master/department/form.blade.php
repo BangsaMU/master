@@ -17,12 +17,14 @@
                     <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
                         @csrf
                         @if ($param)
-                            <input type="hidden" name="id" value="{{ $param->id }}">
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id"
+                                value="{{ $param->id }}">
                         @endif
 
                         <div class="form-group">
                             <label for="department_code">Department Code</label>
-                            <input type="text" name="department_code" id="department_code" class="form-control @error('department_code') is-invalid @enderror"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="department_code"
+                                id="department_code" class="form-control @error('department_code') is-invalid @enderror"
                                 value="{{ $param ? $param->department_code : old('department_code') }}" required>
                             @error('department_code')
                                 <span class="text-danger">{{ $message }}</span>
@@ -30,13 +32,19 @@
                         </div>
                         <div class="form-group">
                             <label for="department_name">Department Name</label>
-                            <input type="text" name="department_name" id="department_name" class="form-control @error('department_name') is-invalid @enderror"
+                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="department_name"
+                                id="department_name" class="form-control @error('department_name') is-invalid @enderror"
                                 value="{{ $param ? $param->department_name : old('department_name') }}" required>
                             @error('department_name')
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        @if ($data['page']['readonly'] == false)
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        @endif
+                        <a href="{{ route('master.department.index') }}" class="btn btn-default">
+                            Back
+                        </a>
                     </form>
                 </div>
             </div>

@@ -39,9 +39,12 @@
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
-                        @if ($data['page']['readonly'] == false)
+                        @if ($data['page']['readonly']==false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif
+                        <a href="{{ route('master.uom.index') }}" class="btn btn-default">
+                            Back
+                        </a>
                     </form>
                 </div>
             </div>
