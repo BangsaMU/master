@@ -253,7 +253,7 @@ class ItemCodeController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     if (checkPermission('is_admin') || checkPermission('update_item_code')) {
                         $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                     }
@@ -373,7 +373,7 @@ class ItemCodeController extends Controller
             $indexI = 0;
             $attributes = $request->input('attributes');
             // dd($item_group_attributes,$item_code_attributes,$attributes);
-            if (!empty($item_code_attributes)&&$attributes) {
+            if (!empty($item_code_attributes) && $attributes) {
                 foreach ($item_code_attributes as $key => $detail) {
                     $item_code_attributes->$key = $attributes[$indexI];
                     $indexI++;
