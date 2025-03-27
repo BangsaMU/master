@@ -253,9 +253,13 @@ class ItemCodeController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin') && $row->app_code == config('SsoConfig.main.APP_CODE')) {
-                    $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                    if (checkPermission('is_admin') || checkPermission('update_item_code')) {
+                        $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    }
+                    if (checkPermission('is_admin') || checkPermission('delete_item_code')) {
+                        $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    }
                 } else {
                     $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
@@ -368,9 +372,12 @@ class ItemCodeController extends Controller
             $item_code_attributes = json_decode($item_group_attributes) ?? (object) [];
             $indexI = 0;
             $attributes = $request->input('attributes');
-            foreach ($item_code_attributes as $key => $detail) {
-                $item_code_attributes->$key = $attributes[$indexI];
-                $indexI++;
+            // dd($item_group_attributes,$item_code_attributes,$attributes);
+            if (!empty($item_code_attributes)&&$attributes) {
+                foreach ($item_code_attributes as $key => $detail) {
+                    $item_code_attributes->$key = $attributes[$indexI];
+                    $indexI++;
+                }
             }
             $item_code_attributes = json_encode($item_code_attributes);
 
@@ -382,6 +389,7 @@ class ItemCodeController extends Controller
                 'category_id' => $request->category_id,
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
+                'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
             ]);
 
