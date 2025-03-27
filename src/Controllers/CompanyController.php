@@ -73,32 +73,33 @@ class CompanyController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')) {
+        if (checkPermission('read_company')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
             $data['datatable']['btn']['sync']['act'] = "syncFn('company')";
-
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {
-                $data['datatable']['btn']['create']['id'] = 'create';
-                $data['datatable']['btn']['create']['title'] = 'Create';
-                $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-                $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
-
-                // $data['datatable']['btn']['import']['id'] = 'importitem';
-                // $data['datatable']['btn']['import']['title'] = 'Import';
-                // $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-                // $data['datatable']['btn']['import']['url'] = '#';
-                // $data['datatable']['btn']['import']['act'] = 'importFn()';
-            }
-
-            if ((checkPermission('is_admin') || checkPermission('read_company'))) {
-                $data['datatable']['btn']['export']['id'] = 'exportdata';
-                $data['datatable']['btn']['export']['title'] = 'Export';
-                $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-                $data['datatable']['btn']['export']['url'] = url('master/getmaster_company/export');
-            }
         }
+
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {
+            $data['datatable']['btn']['create']['id'] = 'create';
+            $data['datatable']['btn']['create']['title'] = 'Create';
+            $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+
+            // $data['datatable']['btn']['import']['id'] = 'importitem';
+            // $data['datatable']['btn']['import']['title'] = 'Import';
+            // $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+            // $data['datatable']['btn']['import']['url'] = '#';
+            // $data['datatable']['btn']['import']['act'] = 'importFn()';
+        }
+
+        if ((checkPermission('is_admin') || checkPermission('read_company'))) {
+            $data['datatable']['btn']['export']['id'] = 'exportdata';
+            $data['datatable']['btn']['export']['title'] = 'Export';
+            $data['datatable']['btn']['export']['icon'] = 'btn-primary';
+            $data['datatable']['btn']['export']['url'] = url('master/getmaster_company/export');
+        }
+
 
         // $data['page']['import']['layout'] = 'layouts.import.form';
         // $data['page']['import']['post'] = route('company.import');

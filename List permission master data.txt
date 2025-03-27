@@ -1,0 +1,80 @@
+List permission master data
+
+ if( checkPermission('is_admin') || checkPermission('update_category') ){
+
+
+//cek yg punya app_code
+if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+
+if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_category'))) {
+
+
+name	guard_name
+create_apps	web
+create_brand	web
+create_category	web
+create_company	web
+create_employee	web
+create_item	web
+create_itemgroup	web
+create_location	web
+create_project	web
+create_uom	web
+create_user	web
+create_vendor	web
+delete_apps	web
+delete_brand	web
+delete_category	web
+delete_company	web
+delete_employee	web
+delete_item	web
+delete_itemgroup	web
+delete_location	web
+delete_project	web
+delete_uom	web
+delete_user	web
+delete_vendor	web
+is_admin	web
+read_apps	web
+read_brand	web
+read_category	web
+read_company	web
+read_employee	web
+read_item	web
+read_itemgroup	web
+read_location	web
+read_project	web
+read_uom	web
+read_user	web
+read_vendor	web
+tools_jobs	web
+tools_logs	web
+update_apps	web
+update_brand	web
+update_category	web
+update_company	web
+update_employee	web
+update_item	web
+update_itemgroup	web
+update_location	web
+update_project	web
+update_uom	web
+update_user	web
+update_vendor	web
+
+
+permission baru
+create_pca
+read_pca
+update_pca
+delete_pca
+
+create_priority
+read_priority
+update_priority
+delete_priority
+
+create_item_code
+read_item_code
+update_item_code
+delete_item_code
