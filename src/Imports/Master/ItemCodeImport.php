@@ -27,11 +27,12 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
 
     public function collection(Collection $rows)
     {
+        $user = config('SsoConfig.main.APP_CODE');
         $app_code = config('SsoConfig.main.APP_CODE');
         $headers = $rows[0];
         foreach ($rows as $key => $row) {
             $row_index = $key;
-            if($row->filter()->isNotEmpty() && $key > 0) {
+            if ($row->filter()->isNotEmpty() && $key > 0) {
 
                 //fix column
                 $item_code = $row[0];
@@ -42,38 +43,37 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                 $item_group_code = $row[5];
 
                 $item_code_exist = DB::table('master_item_code')
-                                ->where('item_code', $item_code)
-                                ->first();
+                    ->where('item_code', $item_code)
+                    ->first();
 
                 // if(!$item_code_exist){
-                if(true){
+                if (true) {
                     if (empty($item_code)) {
-                        $text = "Row ".$row_index." Item Code : field is required.";
-                        array_push($this->error,$text);
+                        $text = "Row " . $row_index . " Item Code : field is required.";
+                        array_push($this->error, $text);
                     } else if (empty($item_name)) {
-                        $text = "Row ".$row_index." Item Name : field is required.";
-                        array_push($this->error,$text);
+                        $text = "Row " . $row_index . " Item Name : field is required.";
+                        array_push($this->error, $text);
                     } else if (empty($uom_code)) {
-                        $text = "Row ".$row_index." UoM Code : field is required.";
-                        array_push($this->error,$text);
+                        $text = "Row " . $row_index . " UoM Code : field is required.";
+                        array_push($this->error, $text);
                     }
                     // else if (empty($row['pca_code'])) {
                     //     $text = "Row ".$row_index." PCA Code : field is required.";
                     //     array_push($this->error,$text);
                     // }
                     else if (empty($category_code)) {
-                        $text = "Row ".$row_index." Category Code : field is required.";
-                        array_push($this->error,$text);
-                    }
-                    else if (empty($item_group_code)) {
-                        $text = "Row ".$row_index." Item Group Code : field is required.";
-                        array_push($this->error,$text);
+                        $text = "Row " . $row_index . " Category Code : field is required.";
+                        array_push($this->error, $text);
+                    } else if (empty($item_group_code)) {
+                        $text = "Row " . $row_index . " Item Group Code : field is required.";
+                        array_push($this->error, $text);
                     } else {
                         try {
                             $uom = MasterUom::select('id')->where('uom_code', $uom_code)->first();
-                            if(!empty($uom)){
+                            if (!empty($uom)) {
                                 $uom_id = $uom->id;
-                            }else{
+                            } else {
                                 $create_uom = MasterUom::create([
                                     'uom_code' => $uom_code,
                                     'uom_name' => $uom_code,
@@ -86,9 +86,9 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                             $pca = MasterPca::select('id')->where('pca_code', $pca_code)->first();
                             $pca_id = 0;
                             if (!empty($pca_code)) {
-                                if(!empty($pca)){
+                                if (!empty($pca)) {
                                     $pca_id = $pca->id;
-                                }else{
+                                } else {
                                     $create_pca = MasterPca::create([
                                         'pca_code' => $pca_code,
                                         'pca_name' => $pca_code,
@@ -102,9 +102,9 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                             $category = MasterCategory::select('id')->where('category_code', $category_code)->first();
                             $category_id = 0;
                             if (!empty($category_code)) {
-                                if(!empty($category)){
+                                if (!empty($category)) {
                                     $category_id = $category->id;
-                                }else{
+                                } else {
                                     $create_category = MasterCategory::create([
                                         'category_code' => $category_code,
                                         'category_name' => $category_code,
@@ -115,23 +115,28 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 }
                             }
 
-                            $item_group = MasterItemGroup::where('app_code',$app_code)->where('item_group_code', $item_group_code)->first();
-
-                            if(!empty($item_group)){
-                                $item_group_id = $item_group->id;
-                            }else{
-                                $item_group_attributes = [];
-                                foreach ($headers as $key => $header_val) {
-                                    if ($key > 5) {
-                                        $header_val = strtolower(str_replace(' ', '_', $header_val));
-                                        $item_group_attributes[$header_val] = null;
-                                    }
+                            $item_group = MasterItemGroup::where('item_group_code', $item_group_code)->first();
+                            $item_group_attributes = [];
+                            foreach ($headers as $key => $header_val) {
+                                if ($key > 5) {
+                                    $header_val = strtolower(str_replace(' ', '_', $header_val));
+                                    $item_group_attributes[$header_val] = null;
                                 }
-
+                            }
+                            $item_group_attributes_json = json_encode($item_group_attributes);
+                            if (!empty($item_group)) {
+                                $item_group_id = $item_group->id;
+                                $item_group_attributes_curr = $item_group->item_group_attributes;
+                                if ($item_group_attributes_curr != $item_group_attributes_json) {
+                                    $item_group->update([
+                                        'item_group_attributes' => $item_group_attributes_json,
+                                    ]);
+                                }
+                            } else {
                                 $create_item_group = MasterItemGroup::create([
                                     'item_group_code' => $item_group_code,
                                     'item_group_name' => $item_group_code,
-                                    'item_group_attributes' => json_encode($item_group_attributes),
+                                    'item_group_attributes' => $item_group_attributes_json,
                                     'app_code' => $app_code,
                                 ]);
 
@@ -172,16 +177,16 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 $data
                             );
 
-                            $text = "Row ".$row_index." : ".$item_code." has been imported successfully.";
-                            array_push($this->success,$text);
+                            $text = "Row " . $row_index . " : " . $item_code . " has been imported successfully.";
+                            array_push($this->success, $text);
                         } catch (\Throwable $th) {
-                            $text = "Row ".$row_index.": Item Code created failed!".$th->getMessage();
-                            array_push($this->error,$text);
+                            $text = "Row " . $row_index . ": Item Code created failed!" . $th->getMessage();
+                            array_push($this->error, $text);
                         }
                     }
-                }else{
-                    $text = "Row ".$row_index.": Item Code already exists!";
-                    array_push($this->error,$text);
+                } else {
+                    $text = "Row " . $row_index . ": Item Code already exists!";
+                    array_push($this->error, $text);
                 }
             }
         }

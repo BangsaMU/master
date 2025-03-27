@@ -265,7 +265,7 @@ class EmployeeController extends Controller
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
             $data['datatable']['btn']['sync']['act'] = "syncFn('employee')";
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_employee'))) {
                 $data['datatable']['btn']['create']['id'] = 'create';
                 $data['datatable']['btn']['create']['title'] = 'Create';
                 $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -278,10 +278,12 @@ class EmployeeController extends Controller
                 $data['datatable']['btn']['import']['act'] = 'importFn()';
             }
 
-            $data['datatable']['btn']['export']['id'] = 'exportdata';
-            $data['datatable']['btn']['export']['title'] = 'Export';
-            $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_employee']);
+            if ((checkPermission('is_admin') || checkPermission('read_employee'))) {
+                $data['datatable']['btn']['export']['id'] = 'exportdata';
+                $data['datatable']['btn']['export']['title'] = 'Export';
+                $data['datatable']['btn']['export']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_employee']);
+            }
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
@@ -399,9 +401,13 @@ class EmployeeController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                    if (checkPermission('is_admin') || checkPermission('update_employee')) {
+                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    }
+                    if (checkPermission('is_admin') || checkPermission('delete_employee')) {
+                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    }
                 } else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
@@ -481,7 +487,7 @@ class EmployeeController extends Controller
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
                 $message = $this->sheet_name . ' updated successfully';
-            }else{
+            } else {
                 $message = $this->sheet_name . ' no data changed';
             }
         } else {

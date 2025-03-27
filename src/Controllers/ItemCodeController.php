@@ -227,7 +227,7 @@ class ItemCodeController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
 
             if ($name == "uom") {
@@ -326,7 +326,7 @@ class ItemCodeController extends Controller
             $item_code_attributes = json_decode($item_group_attributes) ?? (object) [];
             $indexI = 0;
             $attributes = $request->input('attributes');
-            if($attributes){
+            if ($attributes) {
                 foreach ($item_code_attributes as $key => $detail) {
                     $item_code_attributes->$key = $attributes[$key];
                     // $indexI++;
@@ -359,7 +359,7 @@ class ItemCodeController extends Controller
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
                 $message = $this->sheet_name . ' updated successfully';
-            }else{
+            } else {
                 $message = $this->sheet_name . ' no data changed';
             }
         } else {
@@ -523,7 +523,7 @@ class ItemCodeController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -545,9 +545,15 @@ class ItemCodeController extends Controller
 
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
-                    $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                    if (checkPermission('is_admin') || checkPermission('update_item_code')) {
+                        $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    }
+                    if (checkPermission('is_admin') || checkPermission('delete_itemgroup')) {
+                        $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    }
+                } else {
+                    $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
 
                 $nestedData['attributes'] = $nestedData['attributes']

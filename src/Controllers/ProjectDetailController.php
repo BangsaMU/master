@@ -85,7 +85,7 @@ class ProjectDetailController extends Controller
                 $data['datatable']['btn']['sync']['act'] = "syncFn('project_detail')";
             }
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project_detail'))) {
                 $data['datatable']['btn']['create']['id'] = 'create';
                 $data['datatable']['btn']['create']['title'] = 'Create';
                 $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -98,11 +98,13 @@ class ProjectDetailController extends Controller
                 $data['datatable']['btn']['import']['act'] = 'importFn()';
             }
 
-            $data['datatable']['btn']['export']['id'] = 'exportdata';
-            $data['datatable']['btn']['export']['title'] = 'Export';
-            $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_project_detail']);
-            // $data['datatable']['btn']['export']['url'] = url('master/getmaster_project_detail/export');
+            if ((checkPermission('is_admin') || checkPermission('read_project_detail'))) {
+                $data['datatable']['btn']['export']['id'] = 'exportdata';
+                $data['datatable']['btn']['export']['title'] = 'Export';
+                $data['datatable']['btn']['export']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_project_detail']);
+                // $data['datatable']['btn']['export']['url'] = url('master/getmaster_project_detail/export');
+            }
         }
 
         $page_var = compact('data');
@@ -230,9 +232,13 @@ class ProjectDetailController extends Controller
                         break;
                 }
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
-                    $btn .= '<a href="' . route('master.' . $this->sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('master.' . $this->sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                    if (checkPermission('is_admin') || checkPermission('update_project_detail')) {
+                        $btn .= '<a href="' . route('master.' . $this->sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    }
+                    if (checkPermission('is_admin') || checkPermission('delete_project_detail')) {
+                        $btn .= '<a href="' . route('master.' . $this->sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    }
                 } else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
@@ -285,7 +291,7 @@ class ProjectDetailController extends Controller
                     return $query->where('project_id', $request->project_id)
                         ->where('company_id', $request->company_id);
                 })
-                ->ignore($request->id),  // ID yang sedang di-update
+                    ->ignore($request->id),  // ID yang sedang di-update
             ],
         ]);
 
@@ -565,5 +571,4 @@ class ProjectDetailController extends Controller
         // dd($request->all());
         return self::store($request, $json);
     }
-
 }

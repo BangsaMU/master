@@ -89,7 +89,7 @@ class UomController extends Controller
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
             $data['datatable']['btn']['sync']['act'] = "syncFn('uom')";
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_uom'))) {
                 $data['datatable']['btn']['create']['id'] = 'create';
                 $data['datatable']['btn']['create']['title'] = 'Create';
                 $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -102,10 +102,12 @@ class UomController extends Controller
                 $data['datatable']['btn']['import']['act'] = 'importFn()';
             }
 
-            $data['datatable']['btn']['export']['id'] = 'exportdata';
-            $data['datatable']['btn']['export']['title'] = 'Export';
-            $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('master/getmaster_uom/export');
+            if ((checkPermission('is_admin') || checkPermission('read_uom'))) {
+                $data['datatable']['btn']['export']['id'] = 'exportdata';
+                $data['datatable']['btn']['export']['title'] = 'Export';
+                $data['datatable']['btn']['export']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['export']['url'] = url('master/getmaster_uom/export');
+            }
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
@@ -202,7 +204,7 @@ class UomController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' ||$c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -224,9 +226,13 @@ class UomController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin') && $row->app_code == config('SsoConfig.main.APP_CODE')) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                    if (checkPermission('is_admin') || checkPermission('update_uom')) {
+                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    };
+                    if (checkPermission('is_admin') || checkPermission('delete_uom')) {
+                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    }
                 } else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }

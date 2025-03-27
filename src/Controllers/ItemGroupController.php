@@ -16,7 +16,7 @@ class ItemGroupController extends Controller
 {
     protected $readonly = false;
     protected $sheet_name = 'Master - Item Group'; //nama label untuk FE
-    protected $sheet_slug = 'item_group'; //nama routing (slug)
+    protected $sheet_slug = 'item-group'; //nama routing (slug)
     protected $view_tabel_index = array(
         'mig.id AS No',
         // '"action" AS action',
@@ -90,7 +90,7 @@ class ItemGroupController extends Controller
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
             $data['datatable']['btn']['sync']['act'] = "syncFn('item_group')";
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_itemgroup'))) {
                 $data['datatable']['btn']['create']['id'] = 'create';
                 $data['datatable']['btn']['create']['title'] = 'Create';
                 $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -103,10 +103,12 @@ class ItemGroupController extends Controller
                 $data['datatable']['btn']['import']['act'] = 'importFn()';
             }
 
-            $data['datatable']['btn']['export']['id'] = 'exportdata';
-            $data['datatable']['btn']['export']['title'] = 'Export';
-            $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('master/getmaster_item_group/export');
+            if ((checkPermission('is_admin') || checkPermission('read_itemgroup'))) {
+                $data['datatable']['btn']['export']['id'] = 'exportdata';
+                $data['datatable']['btn']['export']['title'] = 'Export';
+                $data['datatable']['btn']['export']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['export']['url'] = url('master/getmaster_item_group/export');
+            }
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
@@ -224,11 +226,15 @@ class ItemGroupController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin') && $row->app_code == config('SsoConfig.main.APP_CODE')) {
-                    $btn .= '<a href="' . route('master.item-group.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('master.item-group.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                    if (checkPermission('is_admin') || checkPermission('update_itemgroup')) {
+                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    };
+                    if (checkPermission('is_admin') || checkPermission('delete_itemgroup')) {
+                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    }
                 } else {
-                    $btn .= '<a href="' . route('master.item-group.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
 
                 $nestedData['action'] = @$btn;
@@ -299,7 +305,7 @@ class ItemGroupController extends Controller
             if ($update && $item_group->wasChanged()) {
                 /*sync callback*/
                 $id =  $item_group->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_tabel = 'master_item_group';
                 $sync_id = $id;
                 $sync_row = $item_group->toArray();
                 // $sync_row['deleted_at'] = null;
@@ -309,12 +315,12 @@ class ItemGroupController extends Controller
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
                 $message = $this->sheet_name . ' updated successfully';
-            }else{
+            } else {
                 $message = $this->sheet_name . ' no data changed';
             }
         } else {
             // Create new item group
-            DB::table('master_' . $this->sheet_slug)->insert([
+            DB::table('master_item_group')->insert([
                 'item_group_code' => $request->item_group_code,
                 'item_group_name' => $request->item_group_name,
                 'item_group_attributes' => $item_group_attributes,
@@ -344,14 +350,14 @@ class ItemGroupController extends Controller
         $data['page']['store'] = route('master.item-group.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
-        $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
+        $param = DB::table('master_item_group')->where('id', $id)->first();
 
         return view('master::master.item_group.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
-        DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
+        DB::table('master_item_group')->where('id', $id)->delete();
 
         return redirect()->route('master.item-group.index')->with('success', $this->sheet_slug . ' deleted successfully');
     }
