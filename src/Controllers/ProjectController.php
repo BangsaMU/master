@@ -165,7 +165,7 @@ class ProjectController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('read_project') == true) {
+        if (checkPermission('is_admin') || checkPermission('read_project') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
@@ -309,16 +309,15 @@ class ProjectController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
-                    if (checkPermission('is_admin') || checkPermission('update_project')) {
-                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    }
-                    if (checkPermission('is_admin') || checkPermission('delete_project')) {
-                        $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
-                    }
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_project'))) {
+                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
+                if ((checkPermission('is_admin') || checkPermission('delete_project'))) {
+                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                }
+
                 $nestedData['action'] = $btn;
 
                 $data[] = $nestedData;
@@ -356,8 +355,8 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'project_code' => 'required|unique:master_' . $this->sheet_slug . ',project_code' . ($request->id ? ',' . $request->id : ''),
-            'project_name' => 'required',
+            'project_code' => 'required|string|max:10|unique:master_' . $this->sheet_slug . ',project_code' . ($request->id ? ',' . $request->id : ''),
+            'project_name' => 'required|string|max:100',
         ]);
 
         if ($request->id) {
