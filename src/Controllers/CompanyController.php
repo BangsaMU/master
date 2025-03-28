@@ -10,6 +10,7 @@ use Bangsamu\Master\Models\Gallery;
 use Bangsamu\Master\Models\FileManager;
 use App\Models\HseIndicatorMethod;
 use Bangsamu\Master\Models\Employee;
+use Bangsamu\Master\Models\Setting;
 use App\Http\Controllers\ApiAttachmentsHse;
 use Exception;
 use Illuminate\Support\Facades\Auth;
@@ -77,7 +78,7 @@ class CompanyController extends Controller
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = '';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('company')";
+            $data['datatable']['btn']['sync']['act'] = "syncFn('company,gallery')";
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {
@@ -144,7 +145,24 @@ class CompanyController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_company as mc')->whereNull('mc.deleted_at')->count();
+        $list_company = setting::where('name', 'list_include')
+            ->where('category', 'master_company')
+            ->value('value'); // Ambil langsung satu nilai
+
+        // Konversi string ke array, lalu filter elemen kosong
+        $list_company = array_filter(explode(",", $list_company));
+
+        // Jika array kosong setelah difilter, set ke null
+        $list_company = !empty($list_company) ? $list_company : null;
+
+        $totalData = DB::table('master_company as mc')
+            ->whereNull('mc.deleted_at')
+            ->when($list_company, function ($query, $codes) {
+                return $query->whereIn('mc.company_code', $codes);
+            })
+            ->count();
+
+        // $totalData = DB::table('master_company as mc')->whereNull('mc.deleted_at')->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
@@ -154,6 +172,9 @@ class CompanyController extends Controller
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->whereNull('mc.deleted_at')
+                ->when($list_company, function ($query, $codes) {
+                    return $query->whereIn('mc.company_code', $codes);
+                })
                 ->groupby('mc.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
@@ -174,6 +195,9 @@ class CompanyController extends Controller
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->whereNull('mc.deleted_at')
+                ->when($list_company, function ($query, $codes) {
+                    return $query->whereIn('mc.company_code', $codes);
+                })
                 ->groupby('mc.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
@@ -265,7 +289,7 @@ class CompanyController extends Controller
             'company_code' => 'required|unique:master_company,company_code,' . ($request->id ?? 'NULL'),
             'company_name' => 'required',
         ]);
-
+        $message='';
         if ($request->id) {
             // Update existing company
             $company = Company::findOrFail($request->id);
@@ -301,9 +325,9 @@ class CompanyController extends Controller
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message = $this->sheet_name . ' updated successfully';
+                $message .= $this->sheet_name . ' updated successfully';
             } else {
-                $message = $this->sheet_name . ' no data changed';
+                $message .= $this->sheet_name . ' no data changed';
             }
         } else {
             // Create new company
@@ -315,7 +339,7 @@ class CompanyController extends Controller
                 'company_address' => $request->company_address,
             ]);
 
-            $message = $this->sheet_name . ' created successfully';
+            $message .= $this->sheet_name . ' created successfully';
         }
 
         if ($request->file('company_logo')) {
@@ -350,8 +374,23 @@ class CompanyController extends Controller
             $filePath = $file->storeAs('company/' . $prefix, $filename, config('app.storage_disk_master'));
             $gallery->filename = $filename;
             $gallery->url = Storage::disk(config('app.storage_disk_master'))->url($path . '/' . $filename);
-            $gallery->save();
-
+            // $gallery->save();
+            if ($gallery->save()) {
+                /*sync callback*/
+                $id =  $gallery->id;
+                $sync_tabel = 'master_gallery';
+                $sync_id = $id;
+                $sync_row = $gallery->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message .= $this->sheet_name . ' Company logo updated successfully';
+            } else {
+                $message .= $this->sheet_name . '';
+            }
             $company->company_logo_id = $gallery->id;
             $company->save();
         }
