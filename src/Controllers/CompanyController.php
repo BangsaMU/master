@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Illuminate\Support\Facades\Log;
 
 class CompanyController extends Controller
 {
@@ -289,7 +290,8 @@ class CompanyController extends Controller
             'company_code' => 'required|unique:master_company,company_code,' . ($request->id ?? 'NULL'),
             'company_name' => 'required',
         ]);
-        $message='';
+        $message = '';
+
         if ($request->id) {
             // Update existing company
             $company = Company::findOrFail($request->id);
@@ -325,9 +327,9 @@ class CompanyController extends Controller
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message .= $this->sheet_name . ' updated successfully';
+                $message .= ' '.$this->sheet_name . ' updated successfully';
             } else {
-                $message .= $this->sheet_name . ' no data changed';
+                $message .= ' '.$this->sheet_name . ' no data changed';
             }
         } else {
             // Create new company
@@ -339,7 +341,7 @@ class CompanyController extends Controller
                 'company_address' => $request->company_address,
             ]);
 
-            $message .= $this->sheet_name . ' created successfully';
+            $message .= ' '.$this->sheet_name . ' created successfully';
         }
 
         if ($request->file('company_logo')) {
@@ -372,11 +374,29 @@ class CompanyController extends Controller
 
             $filename = $gallery->id . "-" . $file->getClientOriginalName();
             $filePath = $file->storeAs('company/' . $prefix, $filename, config('app.storage_disk_master'));
+            // dd($filePath);
+            if ($filePath && Storage::disk(config('app.storage_disk_master'))->exists($filePath)) {
+                // Upload sukses dan file ada di storage
+                // Log::info("Upload sukses: " . $filePath);
+
+                Log::info('user: sys url: ' . url()->current() . ' message: Upload sukses json:' . json_encode($filePath));
+            } else {
+                // Gagal upload atau file tidak ada
+                // Log::error("Gagal upload file ke: " . $filePath);
+                Log::error('user: sys url: ' . url()->current() . ' message: Upload Gagal json:' . json_encode($filePath));
+                abort(500, "Upload gagal atau file tidak ditemukan.");
+            }
+
+
             $gallery->filename = $filename;
             $gallery->url = Storage::disk(config('app.storage_disk_master'))->url($path . '/' . $filename);
-            // $gallery->save();
-            if ($gallery->save()) {
-                /*sync callback*/
+            $gallery->save();
+
+            $company->company_logo_id = $gallery->id;
+            $company->save();
+
+            if ($gallery->wasChanged()) {
+                /*sync callback gallery*/
                 $id =  $gallery->id;
                 $sync_tabel = 'master_gallery';
                 $sync_id = $id;
@@ -385,14 +405,31 @@ class CompanyController extends Controller
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
                 //update ke master DB saja
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    // dd(2,compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message .= $this->sheet_name . ' Company logo updated successfully';
+                $message .= ' '.'Gallery updated successfully';
             } else {
-                $message .= $this->sheet_name . '';
+                $message .= ' '.'Gallery no data changed';
             }
-            $company->company_logo_id = $gallery->id;
-            $company->save();
+
+            if ($company->wasChanged()) {
+                /*sync callback*/
+                $id =  $company->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $company->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message .= ' Logo '.$this->sheet_name . ' updated successfully';
+            } else {
+                $message .= ' Logo '.$this->sheet_name . ' no data changed';
+            }
+
         }
 
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
