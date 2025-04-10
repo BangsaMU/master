@@ -35,6 +35,7 @@ class ItemCode extends Model
                 $table->dateTime('deleted_at')->nullable();
                 $table->string('app_code', 10)->default('APP03');
                 $table->longText('attributes')->nullable();
+                $table->string('nav_code',25)->nullable();
 
                 $table->index('app_code', 'index_app_code');
             });
