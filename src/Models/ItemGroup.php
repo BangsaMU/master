@@ -27,6 +27,9 @@ class ItemGroup extends Model
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->dateTime('deleted_at')->nullable();
+                $table->string('app_code', 10)->default('APP03');
+
+                $table->index('app_code', 'index_app_code');
             });
         }
     }
