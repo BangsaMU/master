@@ -23,7 +23,7 @@ class Uom extends Model
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
                 $table->string('uom_code', 10)->unique()->nullable();
-                $table->string('uom_name', 25)->nullable();
+                $table->string('uom_name', 25)->unique()->nullable();
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
                 $table->dateTime('deleted_at')->nullable();
