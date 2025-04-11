@@ -262,13 +262,15 @@ class ItemCodeController extends Controller
                     $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $nestedData['attributes'] = $nestedData['attributes']
+                $attributesArray = json_decode($nestedData['attributes'], true);
+
+                $nestedData['attributes'] = is_array($attributesArray)
                     ? implode('<br>', array_map(function ($key, $value) {
-                        // Change underscores to spaces and capitalize the first letter
                         $formattedKey = ucfirst(str_replace('_', ' ', $key));
                         return "$formattedKey: $value";
-                    }, array_keys(json_decode($nestedData['attributes'], true)), json_decode($nestedData['attributes'], true)))
+                    }, array_keys($attributesArray), $attributesArray))
                     : '';
+
 
 
                 $nestedData['action'] = @$btn;
