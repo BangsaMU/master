@@ -25,7 +25,7 @@ class Project extends Model
             /*buat tabel master_project*/
             Schema::create($this->table, function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->string('project_code', 10)->nullable();
+                $table->string('project_code', 10)->unique()->nullable();
                 $table->string('project_name', 116)->nullable()->unique('unique_project_name');
                 $table->string('project_remarks', 255)->nullable();
                 $table->date('project_start_date')->nullable();

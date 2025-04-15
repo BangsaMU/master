@@ -139,7 +139,7 @@
                         style="width:100%">
                         <thead>
                             <tr class="header"></tr>
-                            <tr class="cari d-none"></tr>
+                            {{-- <tr class="cari d-none"></tr> --}}
                         </thead>
                         <tbody>
                         </tbody>
@@ -251,7 +251,7 @@
 
                 var idx = $(tableName).dataTable({
                     // order: [[0, 'desc']],
-                    responsive: true,
+                    responsive: {{config('app.RESPONSIVE_TABLE','false')}},
                     // ordering: false,
                     processing: true,
                     serverSide: true,
