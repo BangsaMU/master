@@ -251,7 +251,7 @@
 
                 var idx = $(tableName).dataTable({
                     // order: [[0, 'desc']],
-                    responsive: {{config('app.RESPONSIVE_TABLE','false')}},
+                    responsive: {{config('app.RESPONSIVE_TABLE','false')? 'true' : 'false'}},
                     // ordering: false,
                     processing: true,
                     serverSide: true,
