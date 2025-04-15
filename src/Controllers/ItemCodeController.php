@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-
+use Illuminate\Support\Str;
 
 class ItemCodeController extends Controller
 {
@@ -255,7 +255,7 @@ class ItemCodeController extends Controller
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                }else {
+                } else {
                     $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
@@ -427,7 +427,14 @@ class ItemCodeController extends Controller
 
     public function destroy($id)
     {
-        DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
+        // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
+        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+
+        if (class_exists($modelClass)) {
+            $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
+        }else{
+            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        }
 
         return redirect()->route('master.item-code.index')->with('success', $this->sheet_name . ' deleted successfully');
     }
@@ -555,7 +562,7 @@ class ItemCodeController extends Controller
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                }else {
+                } else {
                     $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {

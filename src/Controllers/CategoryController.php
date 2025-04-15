@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Models\Category;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-
+use Illuminate\Support\Str;
 class CategoryController extends Controller
 {
     protected $readonly = false;
@@ -344,7 +344,14 @@ class CategoryController extends Controller
 
     public function destroy($id)
     {
-        DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
+        // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
+        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+
+        if (class_exists($modelClass)) {
+            $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
+        }else{
+            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        }
 
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
     }
