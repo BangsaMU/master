@@ -16,18 +16,25 @@ class Department extends Model
     public $table = "master_department";
     protected $guarded = [];
 
-    public function __construct()
+    protected static $hasCheckedTable = false;
+
+    protected static function boot()
     {
-        if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
-            Schema::create($this->table, function (Blueprint $table) {
-                $table->integer('id', true);
-                $table->string('department_code', 10)->unique()->nullable();
-                $table->string('department_name', 50)->nullable();
-                $table->dateTime('created_at')->nullable();
-                $table->dateTime('updated_at')->nullable();
-                $table->dateTime('deleted_at')->nullable();
-            });
+        parent::boot();
+
+        if (!self::$hasCheckedTable) {
+            self::$hasCheckedTable = true;
+
+            if (!Schema::hasTable((new static)->getTable())) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
+                    $table->integer('id', true);
+                    $table->string('department_code', 10)->unique()->nullable();
+                    $table->string('department_name', 50)->nullable();
+                    $table->dateTime('created_at')->nullable();
+                    $table->dateTime('updated_at')->nullable();
+                    $table->dateTime('deleted_at')->nullable();
+                });
+            }
         }
     }
 }

@@ -16,22 +16,29 @@ class ItemGroup extends Model
     public $table = "master_item_group";
     protected $guarded = [];
 
-    public function __construct()
-    {
-        if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
-            Schema::create($this->table, function (Blueprint $table) {
-                $table->integer('id', true);
-                $table->string('item_group_code', 20)->unique()->nullable();
-                $table->string('item_group_name', 50)->nullable();
-                $table->dateTime('created_at')->nullable();
-                $table->dateTime('updated_at')->nullable();
-                $table->dateTime('deleted_at')->nullable();
-                $table->string('app_code', 10)->default('APP03');
-                $table->longText('item_group_attributes')->nullable();
+    protected static $hasCheckedTable = false;
 
-                $table->index('app_code', 'index_app_code');
-            });
+    protected static function boot()
+    {
+        parent::boot();
+
+        if (!self::$hasCheckedTable) {
+            self::$hasCheckedTable = true;
+
+            if (!Schema::hasTable((new static)->getTable())) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
+                    $table->integer('id', true);
+                    $table->string('item_group_code', 20)->unique()->nullable();
+                    $table->string('item_group_name', 50)->nullable();
+                    $table->dateTime('created_at')->nullable();
+                    $table->dateTime('updated_at')->nullable();
+                    $table->dateTime('deleted_at')->nullable();
+                    $table->string('app_code', 10)->default('APP03');
+                    $table->longText('item_group_attributes')->nullable();
+
+                    $table->index('app_code', 'index_app_code');
+                });
+            }
         }
     }
 }

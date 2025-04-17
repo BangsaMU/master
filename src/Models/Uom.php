@@ -16,21 +16,28 @@ class Uom extends Model
     public $table = "master_uom";
     protected $guarded = [];
 
-    public function __construct()
-    {
-        if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
-            Schema::create($this->table, function (Blueprint $table) {
-                $table->integer('id', true);
-                $table->string('uom_code', 10)->unique()->nullable();
-                $table->string('uom_name', 25)->unique()->nullable();
-                $table->dateTime('created_at')->nullable();
-                $table->dateTime('updated_at')->nullable();
-                $table->dateTime('deleted_at')->nullable();
-                $table->string('app_code', 10)->default('APP03');
+    protected static $hasCheckedTable = false;
 
-                $table->index('app_code', 'index_app_code');
-            });
+    protected static function boot()
+    {
+        parent::boot();
+
+        if (!self::$hasCheckedTable) {
+            self::$hasCheckedTable = true;
+
+            if (!Schema::hasTable((new static)->getTable())) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
+                    $table->integer('id', true);
+                    $table->string('uom_code', 10)->unique()->nullable();
+                    $table->string('uom_name', 25)->unique()->nullable();
+                    $table->dateTime('created_at')->nullable();
+                    $table->dateTime('updated_at')->nullable();
+                    $table->dateTime('deleted_at')->nullable();
+                    $table->string('app_code', 10)->default('APP03');
+
+                    $table->index('app_code', 'index_app_code');
+                });
+            }
         }
     }
 }

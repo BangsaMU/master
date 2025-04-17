@@ -21,20 +21,26 @@ class Setting extends Model
      */
     protected $guarded = [];
 
-    public function __construct()
+    protected static $hasCheckedTable = false;
+
+    protected static function boot()
     {
-        if (!Schema::hasTable($this->table)) {
-            /*buat tabel settings*/
-            Schema::create('settings', function (Blueprint $table) {
-                $table->id();
-                $table->string('name', 255);
-                $table->text('value');
-                $table->string('category', 255);
-                $table->timestamps();
-                $table->softDeletes();
-                $table->unique(['category', 'name'], 'category_name_unique');
-            });
+        parent::boot();
+
+        if (!self::$hasCheckedTable) {
+            self::$hasCheckedTable = true;
+
+            if (!Schema::hasTable((new static)->getTable())) {
+                Schema::create('settings', function (Blueprint $table) {
+                    $table->id();
+                    $table->string('name', 255);
+                    $table->text('value');
+                    $table->string('category', 255);
+                    $table->timestamps();
+                    $table->softDeletes();
+                    $table->unique(['category', 'name'], 'category_name_unique');
+                });
+            }
         }
     }
-
 }

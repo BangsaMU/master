@@ -19,22 +19,28 @@ class ProjectDetail extends Model
     public $table = "master_project_detail";
     protected $guarded = [];
 
-    public function __construct()
+    protected static $hasCheckedTable = false;
+
+    protected static function boot()
     {
-        if (!Schema::hasTable($this->table)) {
-            /*buat tabel master_locations*/
-            Schema::create($this->table, function (Blueprint $table) {
-                $table->integer('id', true);
-                $table->string('project_code_client', 10)->nullable();
-                $table->string('project_name_client', 100)->nullable();
-                $table->integer('company_id')->nullable();
-                $table->integer('project_id')->nullable();
-                $table->integer('user_id')->nullable();
-                $table->dateTime('created_at')->nullable();
-                $table->dateTime('updated_at')->nullable();
-                $table->dateTime('deleted_at')->nullable();
-            });
+        parent::boot();
+
+        if (!self::$hasCheckedTable) {
+            self::$hasCheckedTable = true;
+
+            if (!Schema::hasTable((new static)->getTable())) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
+                    $table->integer('id', true);
+                    $table->string('project_code_client', 10)->nullable();
+                    $table->string('project_name_client', 100)->nullable();
+                    $table->integer('company_id')->nullable();
+                    $table->integer('project_id')->nullable();
+                    $table->integer('user_id')->nullable();
+                    $table->dateTime('created_at')->nullable();
+                    $table->dateTime('updated_at')->nullable();
+                    $table->dateTime('deleted_at')->nullable();
+                });
+            }
         }
     }
-
 }
