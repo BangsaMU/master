@@ -23,7 +23,7 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     // Route::get('category/importtemplate', [\Bangsamu\Master\Controllers\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
 
     Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
-    Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('project.import');
+    Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('company.import');
 
     // Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     // Route::resource('department', \Bangsamu\Master\Controllers\DepartmentController::class);
@@ -53,7 +53,7 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     // Route::post('project2/import', [\Bangsamu\Master\Controllers\ProjectController2::class, 'import'])->name('project2.import');
 
     Route::resource('project-detail', \Bangsamu\Master\Controllers\ProjectDetailController::class);
-    Route::post('project-detail/import', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'import'])->name('project.import');
+    Route::post('project-detail/import', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'import'])->name('project-detail.import');
 
 
     Route::resource('uom', \Bangsamu\Master\Controllers\UomController::class);
