@@ -44,6 +44,7 @@ class Employee extends Model
                     $table->date('valid_to')->nullable();
                     $table->string('keterangan', 255)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
                     $table->tinyInteger('work_location_id')->nullable();
+                    $table->string('app_code', 10)->default('APP11');
 
                     // Tambahkan kolom employee_blood_type
                     $table->string('employee_blood_type', 5)
@@ -52,6 +53,7 @@ class Employee extends Model
                         ->default('-');
 
                     // Indexes
+                    $table->index('app_code', 'index_app_code');
                     $table->index('hire_id', 'index_hire_id');
                     $table->index('status_id', 'index_status_id');
                     $table->index('work_location_id', 'index_work_location_id');
