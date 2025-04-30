@@ -13,6 +13,11 @@ use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Models\Employee;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Support\Str;
+use Bangsamu\Master\Models\MasterStatus;
+use Carbon\Carbon;
+use Bangsamu\Master\Models\MasterLocation;
+use Bangsamu\Master\Models\MasterIncrement;
+
 class EmployeeController extends Controller
 {
     protected $readonly = false;
@@ -272,11 +277,13 @@ class EmployeeController extends Controller
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
             $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
 
-            $data['datatable']['btn']['import']['id'] = 'importitem';
-            $data['datatable']['btn']['import']['title'] = 'Import Item';
-            $data['datatable']['btn']['import']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['import']['url'] = '#';
-            $data['datatable']['btn']['import']['act'] = 'importFn()';
+            if (checkPermission('is_admin')) {
+                $data['datatable']['btn']['import']['id'] = 'importitem';
+                $data['datatable']['btn']['import']['title'] = 'Import Item';
+                $data['datatable']['btn']['import']['icon'] = 'btn-primary';
+                $data['datatable']['btn']['import']['url'] = '#';
+                $data['datatable']['btn']['import']['act'] = 'importFn()';
+            }
         }
 
         if ((checkPermission('is_admin') || checkPermission('read_employee'))) {
@@ -440,16 +447,48 @@ class EmployeeController extends Controller
         $data['page']['list'] = route('master.' . $sheet_slug . '.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
-        $param = null;
+        $param = new \stdClass();
+        $statuses = MasterStatus::select('id', DB::raw('concat(kode, " - ", status) as status'))->get();
+        $list_status = $statuses->pluck('status', 'id');
+        $param->status = $statuses;
 
-        return view('master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        // $user_location_id = auth()->user()->details()->location_id;
+        // if (!checkPermission('admin')) {
+        //     $hire_loc = MasterLocation::whereIn('id', explode(',', $user_location_id))->get();
+        // } else {
+        $list_hire_loc = MasterLocation::where('group_type', 'hrd')->get();
+        $param->hire_loc = $list_hire_loc;
+        // }
+
+        // $list_work_location = MasterLocation::all();
+        // dd($list_work_location);
+        $param->work_location = null;
+
+        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
     {
+
+        $status_id = $request->status_id;
+        $status = MasterStatus::where('id', $status_id)->first();
+        $app_code = config('SsoConfig.main.APP_CODE');
+
         $request->validate([
-            'no_ktp' => 'required|unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
+            'no_ktp' => 'required|numeric|digits:16|unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
             'employee_name' => 'required',
+            'employee_email' => "nullable|email|max:150",
+            'status_id' => 'required',
+            'employee_job_title' => 'required',
+            'hire_id' => 'required',
+            'tanggal_join'  => $status->kode == 0 ? 'nullable|date' : 'required|date',
+            // 'tanggal_akhir_kerja' => 'nullable|date|after:tanggal_join',
+            // 'valid_to' => 'required|date|after:tanggal_join',
+            'tanggal_akhir_kerja' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
+            'valid_to' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
+            'corporate_email' => "nullable|email|max:150",
+            'keterangan' => "nullable",
+            'work_location_id' => "nullable",
         ]);
 
         if ($request->id) {
@@ -496,7 +535,7 @@ class EmployeeController extends Controller
                 'employee_name' => $request->employee_name,
                 'employee_job_title' => $request->employee_job_title,
                 'employee_email' => $request->employee_email,
-                'employee_phone' => $request->employee_phone,
+                'employee_phone' => $request->employee_phone ?? '-',
                 'deleted_at' => $request->deleted_at,
                 'corporate_email' => $request->corporate_email,
                 'no_ktp' => $request->no_ktp,
@@ -509,14 +548,68 @@ class EmployeeController extends Controller
                 'keterangan' => $request->keterangan,
                 'work_location_id' => $request->work_location_id,
                 'employee_blood_type' => $request->employee_blood_type,
+                'app_code' => $app_code,
             ]);
 
 
             $message = $this->sheet_name . ' created successfully';
         }
 
+        //hanya generate jika dari app HRD
+        if($app_code == 'APP11'){
+            $unique_group = self::getUniqueFormat($request->tanggal_join, $request->hire_id, $request->status_id);
+            $no_id_karyawan = self::createNIPKaryawan($unique_group, $employee->id);
+
+            $employee->no_id_karyawan = $no_id_karyawan;
+            $employee->update();
+        }
+
+
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
     }
+
+
+    public function getUniqueFormat($tanggal_join, $hire_id, $status_id)
+    {
+        //check join year lessthan 2000
+        $date1 = Carbon::createFromFormat('Y-m-d', $tanggal_join);
+        $date2 = Carbon::createFromFormat('Y-m-d', '2000-12-12');
+        if ($date1->lt($date2)) {
+            $year = '00';
+        } else {
+            $year = Carbon::createFromFormat('Y-m-d', $tanggal_join)->format('y');
+        }
+
+        $hire_loc = MasterLocation::find($hire_id);
+        $unique_group = $status_id . $hire_loc->loc_code . $year;
+
+        return $unique_group;
+    }
+
+    public function createNIPKaryawan($unique_group, $karyawan_id)
+    {
+        $increment_data = MasterIncrement::where('unique_group', $unique_group)->max('increment');
+
+        if (!$increment_data) {
+            $increment = MasterIncrement::create([
+                'object_id' => $karyawan_id,
+                'unique_group' => $unique_group,
+                'increment' => 1,
+            ]);
+        } else {
+            $increment = MasterIncrement::create([
+                'object_id' => $karyawan_id,
+                'unique_group' => $unique_group,
+                'increment' => $increment_data + 1,
+            ]);
+        }
+
+        $no_urut_karyawan = str_pad($increment->increment, 5, "0", STR_PAD_LEFT);
+        $no_id_karyawan = $unique_group . $no_urut_karyawan;
+
+        return $no_id_karyawan;
+    }
+
 
     public function show($id)
     {
@@ -535,7 +628,25 @@ class EmployeeController extends Controller
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
-        $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
+        // $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
+
+        $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'ml.loc_name as work_location_name')
+            ->leftJoin('master_location as ml', 'ml.id', '=', 'master_employee.work_location_id')
+            ->where('master_employee.id', $id)
+            ->first();
+
+        $param->work_location_id = session()->getOldInput('work_location_id') ?? $param->work_location_id;
+
+        $statuses = MasterStatus::select('id', DB::raw('concat(kode, " - ", status) as status'))->get();
+        $list_status = $statuses->pluck('status', 'id');
+        $param->status = $statuses;
+
+        $list_hire_loc = MasterLocation::where('group_type', 'hrd')->get();
+        $param->hire_loc = $list_hire_loc;
+
+        $list_work_location = MasterLocation::select('id', 'loc_code', 'loc_name')->where('id', $param->work_location_id)->limit(10)->get();
+        // dd($list_work_location,$param->work_location_id);
+        $param->work_location = $list_work_location;
 
         /**
          * formdata
@@ -563,7 +674,7 @@ class EmployeeController extends Controller
 
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
-        return view('master::layouts.dashboard.request', $page_var);
+        // return view('master::layouts.dashboard.request', $page_var);
         return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
@@ -574,8 +685,8 @@ class EmployeeController extends Controller
 
         if (class_exists($modelClass)) {
             $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
-        }else{
-            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        } else {
+            abort(403, 'Gagal hapus:: ' . $modelClass . class_exists($modelClass));
         }
 
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
