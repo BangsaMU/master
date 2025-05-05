@@ -336,8 +336,18 @@ class EmployeeController extends Controller
         $dir = $request->input('order.0.dir') ?? 'desc';
 
         $array_data_maping = $view_tabel_index;
+        // APP11 = HRD app
+        $totalData = DB::table('master_employee as m_k')
+            ->where(function ($query) use ($user_id) {
+                if (checkPermission('is_admin')) {
+                    //bisa liat semua employee
+                } else {
+                    //hanya app hrd meindo
+                    $query->where('m_k.app_code', 'APP11');
+                }
+            })->whereNull('m_k.deleted_at')->count();
 
-        $totalData = DB::table('master_employee as m_k')->whereNull('m_k.deleted_at')->count();
+
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
@@ -346,7 +356,14 @@ class EmployeeController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('m_k.deleted_at');
+                ->where(function ($query) use ($user_id) {
+                    if (checkPermission('is_admin')) {
+                        //bisa liat semua employee
+                    } else {
+                        //hanya app hrd meindo
+                        $query->where('m_k.app_code', 'APP11');
+                    }
+                })->whereNull('m_k.deleted_at');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -365,7 +382,14 @@ class EmployeeController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('m_k.deleted_at')
+                ->where(function ($query) use ($user_id) {
+                    if (checkPermission('is_admin')) {
+                        //bisa liat semua employee
+                    } else {
+                        //hanya app hrd meindo
+                        $query->where('m_k.app_code', 'APP11');
+                    }
+                })->whereNull('m_k.deleted_at')
                 ->groupby('m_k.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
@@ -471,11 +495,27 @@ class EmployeeController extends Controller
     {
 
         $status_id = $request->status_id;
-        $status = MasterStatus::where('id', $status_id)->first();
+        $status = MasterStatus::when($request->status_id !== null, function ($query) use ($request) {
+            return $query->where('id', $request->status_id);
+        }, function ($query) {
+            return $query->where('kode', 0);
+        })
+            ->first();
         $app_code = config('SsoConfig.main.APP_CODE');
 
         $request->validate([
-            'no_ktp' => 'required|numeric|digits:16|unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
+            // 'no_ktp' => 'required|numeric|digits:16|unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
+            'no_ktp' => [
+                'required',
+                'numeric',
+                'digits:16',
+                'unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
+                function ($attribute, $value, $fail) {
+                    if (!LibraryClayController::isValidNIK($value)) {
+                        $fail('Format NIK tidak valid atau tidak sesuai kode wilayah/tanggal.');
+                    }
+                },
+            ],
             'employee_name' => 'required',
             'employee_email' => "nullable|email|max:150",
             'status_id' => 'required',
@@ -556,7 +596,7 @@ class EmployeeController extends Controller
         }
 
         //hanya generate jika dari app HRD
-        if($app_code == 'APP11'){
+        if ($app_code == 'APP11') {
             $unique_group = self::getUniqueFormat($request->tanggal_join, $request->hire_id, $request->status_id);
             $no_id_karyawan = self::createNIPKaryawan($unique_group, $employee->id);
 
@@ -564,6 +604,27 @@ class EmployeeController extends Controller
             $employee->update();
         }
 
+        if ($employee) {
+            $sync_row = $employee->toArray();
+
+            if (!empty($sync_row)) {
+                /*sync callback*/
+                $id =  $employee->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && config('database.connections.db_master.database') !== 'meindo_master') {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            } else {
+                $message = $this->sheet_name . ' has no data to sync';
+            }
+        } else {
+            $message = $this->sheet_name . ' no data changed';
+        }
 
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
     }

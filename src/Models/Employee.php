@@ -28,7 +28,7 @@ class Employee extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create('master_employee', function (Blueprint $table) {
                     $table->bigIncrements('id');
-                    $table->string('employee_name', 100)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('name');
+                    $table->string('employee_name', 100)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
                     $table->string('employee_job_title', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->comment('di hrd app == posisi');
                     $table->string('employee_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('email');
                     $table->string('employee_phone', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
