@@ -16,6 +16,7 @@
                 <div class="card-body">
                     <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
                         @csrf
+
                         @if ($param)
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id"
                                 id="id" value="{{ isset($param->id) ? $param->id : old('id') }}">
