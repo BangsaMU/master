@@ -31,7 +31,7 @@ class Employee extends Model
                     $table->string('employee_name', 100)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
                     $table->string('employee_job_title', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->comment('di hrd app == posisi');
                     $table->string('employee_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('email');
-                    $table->string('corporate_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci')->unique('unique_corporate_email');
+                    $table->string('corporate_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');//->unique('unique_corporate_email'); unik dihapus karena banyak email corp yg ga unik
                     $table->string('employee_phone', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_general_ci');
                     $table->string('employee_department', 155)->nullable();
                     $table->timestamps(); // Automatically creates `created_at` and `updated_at`
@@ -49,8 +49,7 @@ class Employee extends Model
 
                     // Tambahkan kolom employee_blood_type
                     $table->string('employee_blood_type', 5)
-                        ->charset('utf8mb4')
-                        ->collation('utf8mb4_general_ci')
+                        ->nullable()
                         ->default('-');
 
                     $table->string('employee_project', 10)->nullable();
