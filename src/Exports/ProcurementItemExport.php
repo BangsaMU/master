@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports;
+namespace Bangsamu\Master\Exports;
 
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
 use DB;
 use Carbon\Carbon;
 
-class ProcurementItemExport implements WithMultipleSheets 
+class ProcurementItemExport implements WithMultipleSheets
 {
     public function sheets(): array
     {
@@ -29,7 +29,7 @@ class ProcurementItemTemplate implements ShouldAutoSize, FromCollection, WithHea
 {
     public function title(): string
     {
-        return 'Import Template Sheet'; 
+        return 'Import Template Sheet';
     }
 
     public function styles(Worksheet $sheet)
@@ -64,7 +64,7 @@ class ProcurementItemList implements ShouldAutoSize, FromCollection, WithHeading
 {
     public function title(): string
     {
-        return 'Item Code Sheet'; 
+        return 'Item Code Sheet';
     }
 
     public function styles(Worksheet $sheet)
@@ -111,7 +111,7 @@ class ProcurementItemList implements ShouldAutoSize, FromCollection, WithHeading
             ->get();
 
         $collections = [];
-        
+
         foreach($datas as $key => $item){
             // Create the collection
             $collections[$key] = [
@@ -124,8 +124,8 @@ class ProcurementItemList implements ShouldAutoSize, FromCollection, WithHeading
                 'item_group' => $item->item_group,
             ];
         }
-        
+
         return collect($collections);
-            
+
     }
 }

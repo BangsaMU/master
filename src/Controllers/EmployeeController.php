@@ -32,7 +32,7 @@ class EmployeeController extends Controller
         'm_k.hire_id AS hire',
         'm_k.status_id AS status',
         'm_k.tanggal_join AS tanggal_join',
-        'm_k.valid_to AS valid_to',
+        'm_k.tanggal_akhir_kontrak AS tanggal_akhir_kontrak',
         'm_k.tanggal_akhir_kerja AS tanggal_akhir_kerja',
         'm_k.keterangan AS keterangan',
         'null AS action',
@@ -47,7 +47,7 @@ class EmployeeController extends Controller
         'm_k.hire_id AS hire',
         'm_k.status_id AS status',
         'm_k.tanggal_join AS tanggal_join',
-        'm_k.valid_to AS valid_to',
+        'm_k.tanggal_akhir_kontrak AS tanggal_akhir_kontrak',
         'm_k.tanggal_akhir_kerja AS tanggal_akhir_kerja',
         'm_k.keterangan AS keterangan',
         'null AS action',
@@ -192,9 +192,9 @@ class EmployeeController extends Controller
             'col' => 'col-12 col-md-4 mb-2',
             'disabled' => $global_disable || $revisi_disable ? true : false,
         ];
-        $view_form['valid_to'] = [
-            'field' => 'valid_to',
-            'name' => 'valid_to',
+        $view_form['tanggal_akhir_kontrak'] = [
+            'field' => 'tanggal_akhir_kontrak',
+            'name' => 'tanggal_akhir_kontrak',
             'label' => 'Tanggal Akhir Kontrak',
             'type' => 'text',
             'col' => 'col-12 col-md-4 mb-2',
@@ -266,8 +266,8 @@ class EmployeeController extends Controller
 
         if (checkPermission('read_employee') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('employee')";
         }
 
@@ -488,7 +488,7 @@ class EmployeeController extends Controller
         // dd($list_work_location);
         $param->work_location = null;
 
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -523,9 +523,9 @@ class EmployeeController extends Controller
             'hire_id' => 'required',
             'tanggal_join'  => $status->kode == 0 ? 'nullable|date' : 'required|date',
             // 'tanggal_akhir_kerja' => 'nullable|date|after:tanggal_join',
-            // 'valid_to' => 'required|date|after:tanggal_join',
+            // 'tanggal_akhir_kontrak' => 'required|date|after:tanggal_join',
             'tanggal_akhir_kerja' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
-            'valid_to' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
+            'tanggal_akhir_kontrak' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
             'corporate_email' => "nullable|email|max:150",
             'keterangan' => "nullable",
             'work_location_id' => "nullable",
@@ -547,7 +547,7 @@ class EmployeeController extends Controller
                 'hire_id' => $request->hire_id,
                 'tanggal_join' => $request->tanggal_join,
                 'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
-                'valid_to' => $request->valid_to,
+                'tanggal_akhir_kontrak' => $request->tanggal_akhir_kontrak,
                 'keterangan' => $request->keterangan,
                 'work_location_id' => $request->work_location_id,
                 'employee_blood_type' => $request->employee_blood_type,
@@ -584,7 +584,7 @@ class EmployeeController extends Controller
                 'hire_id' => $request->hire_id,
                 'tanggal_join' => $request->tanggal_join,
                 'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
-                'valid_to' => $request->valid_to,
+                'tanggal_akhir_kontrak' => $request->tanggal_akhir_kontrak,
                 'keterangan' => $request->keterangan,
                 'work_location_id' => $request->work_location_id,
                 'employee_blood_type' => $request->employee_blood_type,
@@ -736,7 +736,7 @@ class EmployeeController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function destroy($id)

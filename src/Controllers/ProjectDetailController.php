@@ -79,9 +79,9 @@ class ProjectDetailController extends Controller
 
         if (checkPermission('is_admin') || checkPermission('read_project_detail') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('project_detail')";
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
+            $data['datatable']['btn']['sync']['act'] = "syncFn('project,company,project_detail')";
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project_detail'))) {
@@ -270,7 +270,7 @@ class ProjectDetailController extends Controller
         $data['page']['readonly'] = false;
         $param = null;
 
-        return view('master::master.project-detail.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -364,7 +364,7 @@ class ProjectDetailController extends Controller
             )
             ->first();
         // dd($param);
-        return view('master::master.project-detail.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function insertNew(Request $request, $query, $id = null)

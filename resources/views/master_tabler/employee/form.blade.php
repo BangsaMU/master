@@ -1,4 +1,4 @@
-@extends('adminlte::page')
+@extends('layouts.tabler')
 
 @section('title', @$data['page']['title'])
 
@@ -9,12 +9,13 @@
 @section('content')
     <div class="row">
         <div class="col-12 col-sm-8">
-            <div class="card card-outline card-primary">
+            <div class="card">
+                <div class="card-status-top bg-blue"></div>
                 <div class="card-header font-weight-bold">
-                    {{ $data['page']['title'] }} Form
+                    <span class="card-title">{{ $data['page']['title'] }} Form</span>
                 </div>
                 <div class="card-body">
-                    <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
+                    <form action="{{ $data['page']['store'] }}" method="POST" autocomplete="off" class="space-y">
                         @csrf
 
                         @if ($param)
@@ -23,9 +24,9 @@
                         @endif
 
 
-                        <div class="form-group row">
+                        <div class="row row-cols-2 g-2">
                             <div class="col">
-                                <label for="employee_name">Nama Lengkap</label>
+                                <label class="form-label" for="employee_name">Nama Lengkap</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                                     class="form-control @error('employee_name') is-invalid @enderror" id="employee_name"
                                     placeholder="Nama Lengkap" name="employee_name"
@@ -36,7 +37,7 @@
                                 @enderror
                             </div>
                             <div class="col">
-                                <label for="employee_email">Email</label>
+                                <label class="form-label" for="employee_email">Email</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="employee_email"
                                     class="form-control @error('employee_email') is-invalid @enderror" id="employee_email"
                                     placeholder="Email" name="employee_email"
@@ -47,9 +48,9 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="row row-cols-2 g-2">
                             <div class="col">
-                                <label for="corporate_email">Email Corporate</label>
+                                <label class="form-label" for="corporate_email">Email Corporate</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="corporate_email"
                                     class="form-control @error('corporate_email') is-invalid @enderror" id="corporate_email"
                                     placeholder="Email Corporate" name="corporate_email"
@@ -59,7 +60,7 @@
                                 @enderror
                             </div>
                             <div class="col">
-                                <label for="no_ktp">No KTP</label>
+                                <label class="form-label" for="no_ktp">No KTP</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                                     class="form-control @error('no_ktp') is-invalid @enderror" id="no_ktp"
                                     placeholder="No KTP" name="no_ktp"
@@ -70,10 +71,10 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="row row-cols-2 g-2">
 
                             <div class="col">
-                                <label for="status_id">Status</label>
+                                <label class="form-label" for="status_id">Status</label>
 
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="status_id"
                                     value="{{ old('status_id') !== null ? old('status_id') : @$param->status_id }}">
@@ -96,7 +97,7 @@
                                 @enderror
                             </div>
                             <div class="col">
-                                <label for="employee_job_title">Posisi (Jabatan)</label>
+                                <label class="form-label" for="employee_job_title">Posisi (Jabatan)</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                                     class="form-control @error('employee_job_title') is-invalid @enderror"
                                     id="employee_job_title" placeholder="Posisi" name="employee_job_title"
@@ -108,10 +109,10 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="row row-cols-2 g-2">
 
                             <div class="col">
-                                <label for="hire_id">Hire Lokasi</label>
+                                <label class="form-label" for="hire_id">Hire Lokasi</label>
                                 @if (isset($param))
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="hire_id"
                                         value="{{ isset($param->hire_id) ? $param->hire_id : old('hire_id') }}">
@@ -139,7 +140,7 @@
                                 @enderror
                             </div>
                             <div class="col">
-                                <label for="tanggal_join">Tanggal Join</label>
+                                <label class="form-label" for="tanggal_join">Tanggal Join</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
                                     class="form-control @error('tanggal_join') is-invalid @enderror" id="tanggal_join"
                                     placeholder="Tanggal Join" name="tanggal_join"
@@ -151,9 +152,9 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="row row-cols-2 g-2">
                             <div class="col">
-                                <label for="tanggal_akhir_kerja">Tanggal Akhir Kerja</label>
+                                <label class="form-label" for="tanggal_akhir_kerja">Tanggal Akhir Kerja</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
                                     class="form-control @error('tanggal_akhir_kerja') is-invalid @enderror"
                                     id="tanggal_akhir_kerja" placeholder="Last Working Date" name="tanggal_akhir_kerja"
@@ -163,7 +164,7 @@
                                 @enderror
                             </div>
                             <div class="col">
-                                <label for="tanggal_akhir_kontrak">Tanggal Akhir Kontrak</label>
+                                <label class="form-label" for="tanggal_akhir_kontrak">Tanggal Akhir Kontrak</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
                                     class="form-control @error('tanggal_akhir_kontrak') is-invalid @enderror" id="tanggal_akhir_kontrak"
                                     placeholder="Tanggal AKhir Kontrak" name="tanggal_akhir_kontrak"
@@ -174,9 +175,9 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
-                            <div class="col-6">
-                                <label for="inputWorkLocation">Lokasi Kerja</label>
+                        <div class="row row-cols-2 g-2">
+                            <div>
+                                <label class="form-label" for="inputWorkLocation">Lokasi Kerja</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden"
                                     name="work_location_id"
                                     value="{{ isset($param->work_location_id) ? $param->work_location_id : old('work_location_id') }}">
@@ -200,8 +201,8 @@
                                 @enderror
                             </div>
 
-                            <div class="col-6">
-                                <label for="keterangan">Keterangan</label>
+                            <div>
+                                <label class="form-label" for="keterangan">Keterangan</label>
                                 <textarea {{ $data['page']['readonly'] ? 'disabled' : '' }}
                                     class="form-control @error('keterangan') is-invalid @enderror" id="keterangan" placeholder="Keterangan"
                                     name="keterangan">{{ isset($param->keterangan) ? $param->keterangan : old('keterangan') }} </textarea>
@@ -209,11 +210,13 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
+                        </div>
 
-                            <div class="col-6">
-                                <label for="employee_blood_type">Golongan Darah</label>
+                        <div class="row row-cols-2 g-2">
+                            <div>
+                                <label class="form-label" for="employee_blood_type">Golongan Darah</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off"
-                                    class="form-control " name="employee_blood_type" data-id=""
+                                    class="form-select " name="employee_blood_type" data-id=""
                                     id="input_employee_blood_type">
                                     <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == '-') selected="" @endif value="-"> - </option>
                                     <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'A') selected="" @endif value="A"> A </option>
@@ -233,17 +236,9 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
-
-
-
-
-
-                        </div>
-
-                        <div class="form-group row">
                             @if (@$param)
-                                <div class="col-6">
-                                    <label for="no_id_karyawan">No ID Karyawan</label>
+                                <div>
+                                    <label class="form-label" for="no_id_karyawan">No ID Karyawan</label>
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                                         class="form-control @error('no_id_karyawan') is-invalid @enderror"
                                         id="no_id_karyawan" placeholder="No KTP" name="no_id_karyawan"

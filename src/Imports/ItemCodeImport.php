@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Imports;
+namespace Bangsamu\Master\Imports;
 
 use App\Models\ItemCode;
 use App\Models\ItemGroup;
@@ -33,7 +33,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
         // $i = 1;
         // foreach($rows as $key => $row){
         //     if($key >= 1 && ($row != null)){
-                
+
         //         $item_code = $row[0];
         //         $item_name = $row[1];
         //         $remarks = $row[10];
@@ -55,7 +55,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
         //                 $text = "Row ".$i." : PCA ".$row[4]." not found. Please check the data.";
         //                 array_push($this->error,$text);
         //             }else{
-        //                 $pca = $check_pca->id; 
+        //                 $pca = $check_pca->id;
         //             }
         //         }
 
@@ -65,7 +65,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
         //                 $text = "Row ".$i." : Category ".$row[6]." not found. Please check the data.";
         //                 array_push($this->error,$text);
         //             }else{
-        //                 $category = $check_category->id; 
+        //                 $category = $check_category->id;
         //             }
         //         }
 
@@ -75,7 +75,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
         //                 $text = "Row ".$i." : Item Group ".$row[8]." not found. Please check the data.";
         //                 array_push($this->error,$text);
         //             }else{
-        //                 $item_group = $check_item_group->id; 
+        //                 $item_group = $check_item_group->id;
         //             }
         //         }
 
@@ -130,7 +130,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
             if($row->filter()->isNotEmpty()) {
-                
+
                 if (empty($row['item_code'])) {
                     $text = "Row ".$row_index." Item Code : field is required.";
                     array_push($this->error,$text);
@@ -177,10 +177,10 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                     'uom_code' => $row['uom_code'],
                                     'uom_name' => $row['uom_name'] ?? $row['uom_code'],
                                 ]);
-    
+
                                 $uom_id = $create_uom->id;
                             }
-    
+
                             $pca = Pca::select('id')->where('pca_code', $row['pca_code'])->first();
                             if(!empty($pca)){
                                 $pca_id = $pca->id;
@@ -189,10 +189,10 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                     'pca_code' => $row['pca_code'],
                                     'pca_name' => $row['pca_name'] ?? $row['pca_code'],
                                 ]);
-    
+
                                 $pca_id = $create_pca->id;
                             }
-    
+
                             $category = Category::select('id')->where('category_code', $row['category_code'])->first();
                             if(!empty($category)){
                                 $category_id = $category->id;
@@ -201,10 +201,10 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                     'category_code' => $row['category_code'],
                                     'category_name' => $row['category_name'] ?? $row['category_code'],
                                 ]);
-    
+
                                 $category_id = $create_category->id;
                             }
-    
+
                             $item_group = ItemGroup::select('id')->where('item_group_code', $row['item_group_code'])->first();
                             if(!empty($item_group)){
                                 $item_group_id = $item_group->id;
@@ -213,7 +213,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                     'item_group_code' => $row['item_group_code'],
                                     'item_group_name' => $row['item_group_name'] ?? $row['item_group_code'],
                                 ]);
-    
+
                                 $item_group_id = $create_item_group->id;
                             }
 
@@ -233,7 +233,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 $itemcodepicture->folder_url = $row['url'];
                                 $itemcodepicture->save();
                             }
-    
+
                             $text = "Row ".$row_index." : ".$row['item_code']." has been imported successfully.";
                             array_push($this->success,$text);
                         } catch (\Throwable $th) {
@@ -247,7 +247,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                 }
             }
         }
-        
+
     }
 
     public function fixDate($date){
@@ -269,7 +269,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
     {
         return $this->error;
     }
-    
+
     public function getSuccess(): array
     {
         return $this->success;

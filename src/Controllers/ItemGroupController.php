@@ -86,8 +86,8 @@ class ItemGroupController extends Controller
 
         if (checkPermission('is_admin') || checkPermission('read_itemgroup')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('item_group')";
         }
 
@@ -266,7 +266,7 @@ class ItemGroupController extends Controller
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
-        return view('master::master.item_group.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.item_group.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -351,7 +351,7 @@ class ItemGroupController extends Controller
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_item_group')->where('id', $id)->first();
 
-        return view('master::master.item_group.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.item_group.form', compact('data', 'param'));
     }
 
     public function destroy($id)

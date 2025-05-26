@@ -89,8 +89,8 @@ class CategoryController extends Controller
 
         if (checkPermission('is_admin') || checkPermission('read_category')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('category')";
         }
 
@@ -272,7 +272,7 @@ class CategoryController extends Controller
         $data['page']['title'] = $sheet_name;
         $param = null;
 
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -339,7 +339,7 @@ class CategoryController extends Controller
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function destroy($id)

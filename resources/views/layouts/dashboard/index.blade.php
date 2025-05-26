@@ -1,10 +1,16 @@
-@extends('adminlte::page')
+@extends((config('app.themes') == '_tabler' ? 'layouts.tabler' : 'adminlte::page'))
 
 @section('title', 'Page List')
 
 @section('content_header')
     @include('master::layouts.dashboard.navbar', ['data' => @$data])
 @stop
+
+@if (config('app.themes') == '_tabler')
+    @section('header')
+        @include('master::layouts.dashboard.navbar', ['data' => @$data])
+    @endsection
+@endif
 
 @section('content')
 

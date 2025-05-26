@@ -100,9 +100,9 @@ class ItemCodeController extends Controller
 
         if (checkPermission('is_admin') || checkPermission('read_item_code')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('item_code')";
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
+            $data['datatable']['btn']['sync']['act'] = "syncFn('pca,item-group,item_code')";
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true  && (checkPermission('is_admin') || checkPermission('create_item_code'))) {
@@ -305,7 +305,7 @@ class ItemCodeController extends Controller
         $data['page']['attributes'] = '{"size_1":null,"size_2":null,"unit_weight":null}';
         $param = null;
 
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -422,7 +422,7 @@ class ItemCodeController extends Controller
         $param->category_name = DB::table('master_category')->where('id', $param->category_id)->value('category_name');
         $param->item_group_name = DB::table('master_item_group')->where('id', $param->group_id)->value('item_group_name');
         // dd($param);
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function destroy($id)

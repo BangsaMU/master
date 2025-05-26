@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Imports;
+namespace Bangsamu\Master\Imports;
 
 use App\Models\ItemGroup;
 use Bangsamu\Master\Models\MasterItemGroup;
@@ -54,7 +54,7 @@ class ItemGroupImport implements ToCollection, WithHeadingRow
     {
         return $this->error;
     }
-    
+
     public function getSuccess(): array
     {
         return $this->success;

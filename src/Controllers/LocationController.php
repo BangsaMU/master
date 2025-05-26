@@ -162,8 +162,8 @@ class LocationController extends Controller
 
         if (checkPermission('is_admin') || checkPermission('read_location') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('location')";
         }
 
@@ -344,7 +344,7 @@ class LocationController extends Controller
         $data['page']['title'] = $sheet_name;
         $param = null;
 
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -440,7 +440,7 @@ class LocationController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function destroy($id)

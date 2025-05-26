@@ -31,7 +31,7 @@ class Setting extends Model
             self::$hasCheckedTable = true;
 
             if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create('settings', function (Blueprint $table) {
+                Schema::create('setting', function (Blueprint $table) {
                     $table->id();
                     $table->string('name', 255);
                     $table->text('value');

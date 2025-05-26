@@ -1,4 +1,4 @@
-@extends('adminlte::page')
+@extends((config('app.themes') == '_tabler' ? 'layouts.tabler' : 'adminlte::page'))
 @section('title', $data['page']['title'])
 
 @section('content_header')

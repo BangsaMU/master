@@ -33,7 +33,7 @@ class Location extends Model
                     $table->integer('id', true);
                     $table->string('loc_code', 15)->unique()->nullable();
                     $table->string('loc_name', 50)->nullable();
-                    $table->enum('group_type', ['office', 'warehouse', 'vendor'])->default('office');
+                    $table->enum('group_type', ['office', 'warehouse', 'vendor', 'clinic', 'ohih', 'mcu', 'hrd'])->default('office');
                     $table->dateTime('created_at')->nullable();
                     $table->dateTime('updated_at')->nullable();
                     $table->dateTime('deleted_at')->nullable();

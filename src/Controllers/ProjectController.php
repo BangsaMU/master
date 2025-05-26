@@ -167,8 +167,8 @@ class ProjectController extends Controller
 
         if (checkPermission('is_admin') || checkPermission('read_project') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('project,project_detail')";
         }
 
@@ -237,6 +237,7 @@ class ProjectController extends Controller
         $array_data_maping = $view_tabel_index;
 
         $totalData = DB::table('master_project as mp')->whereNull('mp.deleted_at')->count();
+
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
@@ -272,7 +273,6 @@ class ProjectController extends Controller
                 ->offset($start);
 
             $datatb_request = $datatb_request->get();
-
             $data_tabel = $datatb_request;
         }
 
@@ -349,7 +349,7 @@ class ProjectController extends Controller
         $data['page']['title'] = $sheet_name;
         $param = null;
 
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -491,7 +491,7 @@ class ProjectController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        return view('master::master.project.form', compact('data', 'param', 'view_form_list', 'view_form_listDetail'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param', 'view_form_list', 'view_form_listDetail'));
     }
 
     public function destroy($id)

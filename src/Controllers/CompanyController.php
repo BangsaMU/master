@@ -77,8 +77,8 @@ class CompanyController extends Controller
 
         if (checkPermission('is_admin') || checkPermission('read_company')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
-            $data['datatable']['btn']['sync']['title'] = '';
-            $data['datatable']['btn']['sync']['icon'] = 'btn-warning far fa-copy " style="color:#6c757d';
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('company,gallery')";
         }
 
@@ -278,10 +278,11 @@ class CompanyController extends Controller
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
         $data['page']['title'] = $sheet_name;
+        $data['page']['readonly'] = $this->readonly;
         $param = null;
 
         // return view('master::master.company.form', compact('data', 'param'));
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -462,7 +463,7 @@ class CompanyController extends Controller
 
         // dd($param);
         // return view('company.form', compact('data', 'param'));
-        return view('master::master.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function insertNew(Request $request, $query, $id = null)
