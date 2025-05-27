@@ -34,7 +34,7 @@
             type: "get",
             dataType: "json",
             data: {
-                "_token": "{{ csrf_token() }}",
+                "_token": "{{ \Bangsamu\LibraryClay\Controllers\LibraryClayController::api_token(null) }}",
             },
             success: function(data) {
                 console.log('samu data:', data);
@@ -45,12 +45,12 @@
                     Swal.fire("Done!", data.success, "success");
                     $.LoadingOverlay('hide', true);
                 } else {
-                    Swal.fire("Error!", "", "Delete tidak berhasil!");
+                    Swal.fire("Error!", data.message, "error");
                     $.LoadingOverlay('hide', true);
                 }
             },
             error: function() {
-                Swal.fire("Error!", "", "Delete tidak berhasil!");
+                    Swal.fire("Error!", data.message, "warning");
                 $.LoadingOverlay('hide', true);
             }
         });
