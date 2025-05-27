@@ -11,13 +11,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Bangsamu\LibraryClay\Traits\Loggable;
 
 
-use Bangsamu\LibraryClay\Traits\Loggable;
-
 class VendorContract extends Model
 {
     use HasFactory;
     use SoftDeletes;
-    use Loggable;
     use Loggable;
 
     public $table = "master_vendor_contact";

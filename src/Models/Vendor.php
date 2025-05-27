@@ -9,15 +9,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 
 use Bangsamu\LibraryClay\Traits\Loggable;
-
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
 class Vendor extends Model
 {
     use HasFactory;
     use SoftDeletes;
-    use Loggable;
     use Loggable;
 
     public $table = "master_vendor";
