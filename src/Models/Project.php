@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class Project extends Model
 {
     use HasFactory, Notifiable;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_project";
     protected $guarded = [];
@@ -30,7 +34,8 @@ class Project extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->integer('id', true);
+
+                    $table->bigIncrements('id');
                     $table->string('project_code', 10)->unique()->nullable();
                     $table->string('project_name', 116)->nullable()->unique('unique_project_name');
                     $table->string('project_remarks', 255)->nullable();

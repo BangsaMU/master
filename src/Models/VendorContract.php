@@ -10,15 +10,17 @@ use Illuminate\Database\Schema\Blueprint;
 
 use Bangsamu\LibraryClay\Traits\Loggable;
 
-use Illuminate\Support\Facades\DB;
 
-class Increment extends Model
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+class VendorContract extends Model
 {
     use HasFactory;
     use SoftDeletes;
     use Loggable;
+    use Loggable;
 
-    public $table = "master_increment";
+    public $table = "master_vendor_contact";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -32,17 +34,15 @@ class Increment extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->bigIncrements('id');
-                    $table->string('unique_group', 20)->charset('utf8mb4')->collation('utf8mb4_general_ci');
-                    $table->unsignedInteger('increment')->default(1);
-                    $table->dateTime('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
-                    $table->unsignedBigInteger('object_id')->default(0);
-                    $table->unsignedBigInteger('object_sub_id')->default(0);
-                    $table->string('app_code', 10)->default('APP03');
 
-                    $table->index('object_id', 'Index_1');
+                    $table->bigIncrements('id');
+                    $table->unsignedBigInteger('vendor_id')->nullable();
+                    $table->string('vendor_contact_name', 100)->nullable();
+                    $table->string('vendor_contact_phone', 100)->nullable();
+                    $table->string('vendor_contact_email', 100)->nullable();
+                    $table->string('vendor_contact_fax', 100)->nullable();
+                    $table->timestamps(); // Automatically creates `created_at` and `updated_at`
+                    $table->dateTime('deleted_at')->nullable();
                 });
             }
         }

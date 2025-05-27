@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class Priority extends Model
 {
     use HasFactory, Notifiable;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_priority";
     protected $guarded = [];
@@ -30,7 +34,8 @@ class Priority extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->integer('id', true);
+
+                    $table->bigIncrements('id');
                     $table->string('priority_code', 4)->nullable();
                     $table->string('priority_name', 50)->nullable();
                     $table->dateTime('created_at')->nullable();

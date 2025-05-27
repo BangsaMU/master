@@ -7,11 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+
+use Bangsamu\LibraryClay\Traits\Loggable;
+
 use Illuminate\Support\Facades\DB;
 
 class Apps extends Model
 {
     use HasFactory, SoftDeletes;
+    use Loggable;
 
     public $table = "master_apps";
     protected $guarded = [];

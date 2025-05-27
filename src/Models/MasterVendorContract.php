@@ -14,13 +14,13 @@ use Illuminate\Database\Schema\Blueprint;
 use Bangsamu\LibraryClay\Traits\Loggable;
 
 
-class MasterItemGroup extends Model
+class MasterVendorContract extends Model
 {
     use HasFactory, Notifiable;
     use SoftDeletes;
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_item_group";
+    public $table = "master_vendor_contact";
     protected $guarded = [];
 }

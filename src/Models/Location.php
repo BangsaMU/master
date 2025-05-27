@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class Location extends Model
 {
     use HasFactory, Notifiable;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_location";
     protected $guarded = [];
@@ -30,7 +34,8 @@ class Location extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->integer('id', true);
+
+                    $table->bigIncrements('id');
                     $table->string('loc_code', 15)->unique()->nullable();
                     $table->string('loc_name', 50)->nullable();
                     $table->enum('group_type', ['office', 'warehouse', 'vendor', 'clinic', 'ohih', 'mcu', 'hrd'])->default('office');

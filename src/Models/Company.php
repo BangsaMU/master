@@ -8,10 +8,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class Company extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_company";
     protected $guarded = [];
@@ -27,7 +31,8 @@ class Company extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->integer('id', true);
+
+                    $table->bigIncrements('id');
                     $table->string('company_code', 10)->unique()->nullable();
                     $table->string('company_name', 200)->nullable();
                     $table->string('company_short', 10)->nullable();

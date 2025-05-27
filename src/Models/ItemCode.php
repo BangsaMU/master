@@ -8,10 +8,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class ItemCode extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_item_code";
     protected $primaryKey = 'id';

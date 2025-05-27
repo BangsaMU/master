@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+
+use Bangsamu\LibraryClay\Traits\Loggable;
+
 use Illuminate\Support\Facades\DB;
 
 use App\Jobs\SyncMasterJob;
@@ -15,6 +18,7 @@ class FileManager extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_file_manager";
     protected $guarded = [];

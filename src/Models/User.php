@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class User extends Model
 {
     use HasFactory, Notifiable;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_user";
     protected $guarded = [];
@@ -30,7 +34,8 @@ class User extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->integer('id', true);
+
+                    $table->bigIncrements('id');
                     $table->string('email', 255)->nullable()->unique(); // email column with UNIQUE constraint
                     $table->string('password', 150)->nullable(); // password column
                     $table->string('name', 25); // name column (NOT NULL)

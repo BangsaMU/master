@@ -8,10 +8,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class ItemGroup extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_item_group";
     protected $guarded = [];
@@ -27,7 +31,8 @@ class ItemGroup extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->integer('id', true);
+
+                    $table->bigIncrements('id');
                     $table->string('item_group_code', 20)->unique()->nullable();
                     $table->string('item_group_name', 50)->nullable();
                     $table->dateTime('created_at')->nullable();

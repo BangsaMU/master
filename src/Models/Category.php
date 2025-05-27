@@ -8,10 +8,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
+
+
 class Category extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use Loggable;
 
     public $table = "master_category";
     protected $guarded = [];
@@ -27,7 +31,8 @@ class Category extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->integer('id', true);
+
+                    $table->bigIncrements('id');
                     $table->string('category_code', 25)->unique()->nullable();
                     $table->string('category_name', 50)->nullable();
                     $table->string('remark')->nullable();
