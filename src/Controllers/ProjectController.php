@@ -400,12 +400,20 @@ class ProjectController extends Controller
 
             // auto add project detail
             $company = Company::where('company_code', 'ME')->first();
-            DB::table('master_project_detail')->insert([
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug('project_detail');
+            $modelClass::create([
                 'project_id' => $project->id,
                 'project_code_client' => $request->project_code,
                 'project_name_client' => $request->project_name,
                 'company_id' => $company->id,
-            ]);
+            ]); // ini akan trigger Loggable
+
+            // DB::table('master_project_detail')->insert([
+            //     'project_id' => $project->id,
+            //     'project_code_client' => $request->project_code,
+            //     'project_name_client' => $request->project_name,
+            //     'company_id' => $company->id,
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

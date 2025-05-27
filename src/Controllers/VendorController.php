@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+
 class VendorController extends Controller
 {
     protected $readonly = false;
@@ -277,10 +279,12 @@ class VendorController extends Controller
         ]);
 
         if ($request->id) {
-            // Update existing category
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
+            // Update existing vendor
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
+            $model = $modelClass::find($request->id);
+
+            if ($model) {
+                $model->update([
                     'vendor_code' => $request->vendor_code,
                     'vendor_description' => $request->vendor_description,
                     'vendor_address' => $request->vendor_address,
@@ -288,18 +292,51 @@ class VendorController extends Controller
                     'vendor_fax' => $request->vendor_fax,
                     'vendor_email' => $request->vendor_email,
                     'updated_at' => now(),
-                ]);
+                ]); // ini akan trigger Loggable
+            }else {
+                abort(404, 'Model not found');
+            }
 
 
-            DB::table('master_vendor_contact')->updateOrInsert(
-                ['vendor_id' => $request->id],
-                [
-                    'vendor_contact_name' => $request->vendor_contact_name,
-                    'vendor_contact_phone' => $request->vendor_contact_phone,
-                    'vendor_contact_email' => $request->vendor_contact_email,
-                    'vendor_contact_fax' => $request->vendor_contact_fax,
-                ]
-            );
+            // DB::table('master_' . $this->sheet_slug)
+            //     ->where('id', $request->id)
+            //     ->update([
+            //         'vendor_code' => $request->vendor_code,
+            //         'vendor_description' => $request->vendor_description,
+            //         'vendor_address' => $request->vendor_address,
+            //         'vendor_phone' => $request->vendor_phone,
+            //         'vendor_fax' => $request->vendor_fax,
+            //         'vendor_email' => $request->vendor_email,
+            //         'updated_at' => now(),
+            //     ]);
+
+            // Update existing vendor_contract
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug('vendor_contract'); // misalnya "Vendor"
+            $model = $modelClass::find($request->id);
+
+            if ($model) {
+                $model->updateOrCreate(
+                    ['vendor_id' => $request->id],
+                    [
+                        'vendor_contact_name'  => $request->vendor_contact_name,
+                        'vendor_contact_phone' => $request->vendor_contact_phone,
+                        'vendor_contact_email' => $request->vendor_contact_email,
+                        'vendor_contact_fax'   => $request->vendor_contact_fax,
+                    ]
+                ); // ini akan trigger Loggable
+            }else {
+                abort(404, 'Model not found');
+            }
+
+            // DB::table('master_vendor_contact')->updateOrInsert(
+            //     ['vendor_id' => $request->id],
+            //     [
+            //         'vendor_contact_name' => $request->vendor_contact_name,
+            //         'vendor_contact_phone' => $request->vendor_contact_phone,
+            //         'vendor_contact_email' => $request->vendor_contact_email,
+            //         'vendor_contact_fax' => $request->vendor_contact_fax,
+            //     ]
+            // );
 
             $message = $this->sheet_name . ' updated successfully';
         } else {
@@ -314,8 +351,10 @@ class VendorController extends Controller
                 'created_at' => now(),
             ]);
 
-            DB::table('master_vendor_contact')->updateOrInsert(
-                ['vendor_id' => $vendor_id],
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug('vendor_contact');
+
+            $modelClass::updateOrCreate(
+                ['vendor_id' => $vendor_id], // kondisi pencarian
                 [
                     'vendor_contact_name' => $request->vendor_contact_name,
                     'vendor_contact_phone' => $request->vendor_contact_phone,
@@ -323,6 +362,16 @@ class VendorController extends Controller
                     'vendor_contact_fax' => $request->vendor_contact_fax,
                 ]
             );
+
+            // DB::table('master_vendor_contact')->updateOrInsert(
+            //     ['vendor_id' => $vendor_id],
+            //     [
+            //         'vendor_contact_name' => $request->vendor_contact_name,
+            //         'vendor_contact_phone' => $request->vendor_contact_phone,
+            //         'vendor_contact_email' => $request->vendor_contact_email,
+            //         'vendor_contact_fax' => $request->vendor_contact_fax,
+            //     ]
+            // );
 
             $message = $this->sheet_name . ' created successfully';
         }

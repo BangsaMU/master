@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 class UomController extends Controller
 {
     protected $readonly = false;
@@ -277,24 +278,47 @@ class UomController extends Controller
             'uom_name' => 'required',
         ]);
 
+
         if ($request->id) {
-            // Update existing category
-            DB::table('master_' . $this->sheet_slug)
-                ->where('id', $request->id)
-                ->update([
+            // Update existing model
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
+            $model = $modelClass::find($request->id);
+
+            if ($model) {
+                $model->update([
                     'uom_code' => $request->uom_code,
                     'uom_name' => $request->uom_name,
                     'updated_at' => now(),
-                ]);
+                ]); // ini akan trigger Loggable
+            }else {
+                abort(404, 'Model not found');
+            }
+
+            // Update existing category
+            // DB::table('master_' . $this->sheet_slug)
+            //     ->where('id', $request->id)
+            //     ->update([
+            //         'uom_code' => $request->uom_code,
+            //         'uom_name' => $request->uom_name,
+            //         'updated_at' => now(),
+            //     ]);
 
             $message = $this->sheet_name . ' updated successfully';
         } else {
             // Create new category
-            DB::table('master_' . $this->sheet_slug)->insert([
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
+
+            $modelClass::create([
                 'uom_code' => $request->uom_code,
                 'uom_name' => $request->uom_name,
                 'created_at' => now(),
-            ]);
+            ]); // ini akan trigger Loggable
+
+            // DB::table('master_' . $this->sheet_slug)->insert([
+            //     'uom_code' => $request->uom_code,
+            //     'uom_name' => $request->uom_name,
+            //     'created_at' => now(),
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

@@ -318,13 +318,22 @@ class ProjectDetailController extends Controller
                 $message = $this->sheet_name . ' no data changed';
             }
         } else {
-            // Create new category
-            DB::table('master_project_detail')->insert([
+            // Create new master_project_detail
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug('project_detail');
+
+            $modelClass::create([
                 'project_id' => $request->project_id,
                 'project_code_client' => $request->project_code_client,
                 'project_name_client' => $request->project_name_client,
                 'company_id' => $request->company_id,
             ]);
+
+            // DB::table('master_project_detail')->insert([
+            //     'project_id' => $request->project_id,
+            //     'project_code_client' => $request->project_code_client,
+            //     'project_name_client' => $request->project_name_client,
+            //     'company_id' => $request->company_id,
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

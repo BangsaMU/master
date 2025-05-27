@@ -381,12 +381,22 @@ class LocationController extends Controller
             }
         } else {
             // Create new location
-            DB::table('master_' . $this->sheet_slug)->insert([
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
+
+            $modelClass::create([
                 'loc_code' => $request->loc_code,
                 'loc_name' => $request->loc_name,
                 'group_type' => $request->group_type,
                 'created_at' => now(),
             ]);
+
+
+            // DB::table('master_' . $this->sheet_slug)->insert([
+            //     'loc_code' => $request->loc_code,
+            //     'loc_name' => $request->loc_name,
+            //     'group_type' => $request->group_type,
+            //     'created_at' => now(),
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

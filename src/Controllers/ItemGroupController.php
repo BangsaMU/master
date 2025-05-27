@@ -319,13 +319,23 @@ class ItemGroupController extends Controller
             }
         } else {
             // Create new item group
-            DB::table('master_item_group')->insert([
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug('item_group');
+
+            $modelClass::create([
                 'item_group_code' => $request->item_group_code,
                 'item_group_name' => $request->item_group_name,
                 'item_group_attributes' => $item_group_attributes,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
-            ]);
+            ]); // ini akan trigger Loggable
+
+            // DB::table('master_item_group')->insert([
+            //     'item_group_code' => $request->item_group_code,
+            //     'item_group_name' => $request->item_group_name,
+            //     'item_group_attributes' => $item_group_attributes,
+            //     'app_code' => config('SsoConfig.main.APP_CODE'),
+            //     'created_at' => now(),
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

@@ -305,12 +305,21 @@ class PcaController extends Controller
             }
         } else {
             // Create new category
-            DB::table('master_' . $this->sheet_slug)->insert([
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
+
+            $modelClass::create([
                 'pca_code' => $request->pca_code,
                 'pca_name' => $request->pca_name,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
-            ]);
+            ]); // ini akan trigger Loggable
+
+            // DB::table('master_' . $this->sheet_slug)->insert([
+            //     'pca_code' => $request->pca_code,
+            //     'pca_name' => $request->pca_name,
+            //     'app_code' => config('SsoConfig.main.APP_CODE'),
+            //     'created_at' => now(),
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

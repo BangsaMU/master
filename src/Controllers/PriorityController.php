@@ -296,11 +296,19 @@ class PriorityController extends Controller
             }
         } else {
             // Create new priority
-            DB::table('master_' . $this->sheet_slug)->insert([
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
+
+            $modelClass::create([
                 'priority_code' => $request->priority_code,
                 'priority_name' => $request->priority_name,
                 'created_at' => now(),
-            ]);
+            ]); // ini akan trigger Loggable
+
+            // DB::table('master_' . $this->sheet_slug)->insert([
+            //     'priority_code' => $request->priority_code,
+            //     'priority_name' => $request->priority_name,
+            //     'created_at' => now(),
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

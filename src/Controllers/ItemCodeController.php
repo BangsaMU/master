@@ -332,7 +332,9 @@ class ItemCodeController extends Controller
             $attributes = $request->input('attributes');
             if ($attributes) {
                 foreach ($item_code_attributes as $key => $detail) {
-                    $item_code_attributes->$key = $attributes[$key];
+                    if (array_key_exists($key, $attributes)) {
+                        $item_code_attributes->$key = $attributes[$key];
+                    }
                     // $indexI++;
                 }
             }
@@ -381,7 +383,9 @@ class ItemCodeController extends Controller
             }
             $item_code_attributes = json_encode($item_code_attributes);
 
-            DB::table('master_' . $this->sheet_slug)->insert([
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
+
+            $modelClass::create([
                 'item_code' => $request->item_code,
                 'item_name' => $request->item_name,
                 'uom_id' => $request->uom_id,
@@ -391,7 +395,19 @@ class ItemCodeController extends Controller
                 'attributes' => $item_code_attributes,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
-            ]);
+            ]); // ini akan trigger Loggable
+
+            // DB::table('master_' . $this->sheet_slug)->insert([
+            //     'item_code' => $request->item_code,
+            //     'item_name' => $request->item_name,
+            //     'uom_id' => $request->uom_id,
+            //     'pca_id' => $request->pca_id,
+            //     'category_id' => $request->category_id,
+            //     'group_id' => $request->group_id,
+            //     'attributes' => $item_code_attributes,
+            //     'app_code' => config('SsoConfig.main.APP_CODE'),
+            //     'created_at' => now(),
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }

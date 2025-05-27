@@ -38,6 +38,17 @@ class MasterController extends Controller
         $log = [];
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
+        $_token = $request->_token;
+        // $token = LibraryClayController::api_token(null);
+        $validate_token = LibraryClayController::validate_token(null,$_token);
+
+        if($validate_token==false){
+            $respon['status'] = 'gagal';
+            $respon['code'] = 400;
+            $respon['data'] = '';
+            $respon['message'] = 'Token not valid';
+            return LibraryClayController::setOutput($respon);
+        }
 
         $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
         $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.FIELD');
@@ -45,7 +56,7 @@ class MasterController extends Controller
         $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
         $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master' . Str::studly($tabel));
 
-        // dd($key_lokal,$tabel_lokal, $key_master, $tabel_master);
+        // dd($request->_token,$key_lokal,$tabel_lokal, $key_master, $tabel_master);
         $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
         extract($getDataSync);
 
