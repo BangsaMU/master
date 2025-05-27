@@ -73,7 +73,7 @@
                 confirmButtonColor: '#3d9970',
                 cancelButtonColor: '#3085d6',
                 confirmButtonText: 'Ya',
-                showLoaderOnConfirm: true,
+                showLoaderOnConfirm: false,
             })
             .then((result) => {
                 if (result.isConfirmed) {
