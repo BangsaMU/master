@@ -169,7 +169,7 @@ class ProjectController extends Controller
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('project,project_detail')";
+            $data['datatable']['btn']['sync']['act'] = "syncFn('project,company,project_detail')";
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project'))) {
