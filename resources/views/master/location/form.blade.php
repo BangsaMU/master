@@ -44,15 +44,14 @@
                             <select {{ $data['page']['readonly'] ? 'readonly' : '' }} name="group_type" id="group_type"
                                 class="form-control @error('group_type') is-invalid @enderror " required>
                                 <option value="">Pilih Tipe Grup</option>
-                                <option value="office"
-                                    {{ ($param && $param->group_type == 'office') || old('group_type') == 'office' ? 'selected' : '' }}>
-                                    Office</option>
-                                <option value="warehouse"
-                                    {{ ($param && $param->group_type == 'warehouse') || old('group_type') == 'warehouse' ? 'selected' : '' }}>
-                                    Warehouse</option>
-                                <option value="vendor"
-                                    {{ ($param && $param->group_type == 'vendor') || old('group_type') == 'vendor' ? 'selected' : '' }}>
-                                    Vendor</option>
+
+                                @foreach ($data['page']['list_group_type'] as $group_type )
+                                    <option value="{{$group_type}}"
+                                        {{ ($param && $param->group_type == $group_type) || old('group_type') == $group_type ? 'selected' : '' }}>
+                                        {{$group_type}}
+                                    </option>
+                                @endforeach
+
                             </select>
                             @error('group_type')
                                 <span class="text-danger">{{ $message }}</span>

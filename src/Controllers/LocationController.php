@@ -12,6 +12,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Location;
 use Illuminate\Support\Str;
+use Bangsamu\Master\Models\Setting;
+
 class LocationController extends Controller
 {
     protected $readonly = false;
@@ -231,7 +233,23 @@ class LocationController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_location as ml')->whereNull('ml.deleted_at')->count();
+        $list_location = Setting::where('name', 'group_type')
+            ->where('category', 'master_location')
+            ->value('value'); // Ambil langsung satu nilai
+
+        // Konversi string ke array, lalu filter elemen kosong
+        $list_location = array_filter(explode(",", $list_location));
+
+        // Jika array kosong setelah difilter, set ke null
+        $list_location = !empty($list_location) ? $list_location : null;
+
+        $totalData = DB::table('master_location as ml')
+            ->whereNull('ml.deleted_at')
+            ->when($list_location, function ($query, $group_type) {
+                return $query->whereIn('ml.group_type', $group_type);
+            })
+            ->count();
+
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
@@ -241,6 +259,9 @@ class LocationController extends Controller
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->whereNull('ml.deleted_at')
+                ->when($list_location, function ($query, $group_type) {
+                    return $query->whereIn('ml.group_type', $group_type);
+                })
                 ->groupby('ml.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
@@ -261,6 +282,9 @@ class LocationController extends Controller
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->whereNull('ml.deleted_at')
+                ->when($list_location, function ($query, $group_type) {
+                    return $query->whereIn('ml.group_type', $group_type);
+                })
                 ->groupby('ml.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
@@ -342,6 +366,29 @@ class LocationController extends Controller
         $data['page']['list'] = route('master.' . $sheet_slug . '.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
+
+        // Ambil semua enum dari kolom group_type
+        $data['page']['list_group_type'] = LibraryClayController::get_enum_values('master_location', 'group_type');
+
+        // Ambil setting
+        $list_location = Setting::where('name', 'group_type')
+            ->where('category', 'master_location')
+            ->value('value');
+
+        // Konversi string ke array dan filter kosong
+        $list_location = array_filter(explode(",", $list_location));
+
+        // Jika kosong, jadikan null
+        $list_location = !empty($list_location) ? $list_location : null;
+
+        // Cocokkan hanya yang ada di kedua array
+        if ($list_location !== null) {
+            $data['page']['list_group_type'] = array_values(array_intersect(
+                $data['page']['list_group_type'],
+                $list_location
+            ));
+        }
+
         $param = null;
 
         return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
@@ -421,6 +468,30 @@ class LocationController extends Controller
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
+
+        // Ambil semua enum dari kolom group_type
+        $data['page']['list_group_type'] = LibraryClayController::get_enum_values('master_location', 'group_type');
+
+        // Ambil setting
+        $list_location = Setting::where('name', 'group_type')
+            ->where('category', 'master_location')
+            ->value('value');
+
+        // Konversi string ke array dan filter kosong
+        $list_location = array_filter(explode(",", $list_location));
+
+        // Jika kosong, jadikan null
+        $list_location = !empty($list_location) ? $list_location : null;
+
+        // Cocokkan hanya yang ada di kedua array
+        if ($list_location !== null) {
+            $data['page']['list_group_type'] = array_values(array_intersect(
+                $data['page']['list_group_type'],
+                $list_location
+            ));
+        }
+
+
         $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
         /**
