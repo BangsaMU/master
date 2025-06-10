@@ -33,7 +33,7 @@ class Increment extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->bigIncrements('id');
-                    $table->string('unique_group', 20)->charset('utf8mb4')->collation('utf8mb4_general_ci');
+                    $table->string('unique_group', 20)->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
                     $table->unsignedInteger('increment')->default(1);
                     $table->dateTime('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
                     $table->dateTime('updated_at')->nullable();

@@ -42,8 +42,8 @@ class FileManager extends Model
                     $table->timestamp('deleted_at')->nullable();
                     $table->unsignedBigInteger('wgallery_id');
                     $table->unsignedBigInteger('user_id');
-                    $table->enum('attachment_type', ['evidence', 'action'])->nullable()->collation('utf8mb4_general_ci');
-                    $table->string('app', 255)->default('teliti')->collation('utf8mb4_general_ci');
+                    $table->enum('attachment_type', ['evidence', 'action'])->nullable()->collation('utf8mb4_unicode_ci');
+                    $table->string('app', 255)->default('teliti')->collation('utf8mb4_unicode_ci');
                 });
             }
         }

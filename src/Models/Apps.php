@@ -41,7 +41,7 @@ class Apps extends Model
                     $table->string('app_icon', 100)->nullable();
 
                     $table->charset = 'utf8mb4';
-                    $table->collation = 'utf8mb4_general_ci';
+                    $table->collation = 'utf8mb4_unicode_ci';
                 });
             }
         }
