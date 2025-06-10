@@ -235,7 +235,9 @@ class ApiController extends Controller
 
             if (empty($request->deleted_at)) {
                 // buang delete_at
-                $data_array = $data_array->whereNull($alias_tabel . '.deleted_at');
+                if (Schema::hasColumn($tabel, 'deleted_at')) {
+                    $data_array = $data_array->whereNull($alias_tabel . '.deleted_at');
+                }
             }
 
             // dd( $select,$data_array);
