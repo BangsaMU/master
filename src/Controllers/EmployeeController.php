@@ -287,7 +287,7 @@ class EmployeeController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('read_employee') == true) {
+        if (checkPermission('is_admin') || checkPermission('read_employee') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
