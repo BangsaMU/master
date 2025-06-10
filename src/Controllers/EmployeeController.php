@@ -17,7 +17,8 @@ use Bangsamu\Master\Models\MasterStatus;
 use Carbon\Carbon;
 use Bangsamu\Master\Models\MasterLocation;
 use Bangsamu\Master\Models\MasterIncrement;
-use App\Models\User;
+use Bangsamu\Master\Models\User;
+
 
 class EmployeeController extends Controller
 {

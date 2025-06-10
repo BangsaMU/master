@@ -57,7 +57,9 @@ class MasterController extends Controller
         $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master' . Str::studly($tabel));
 
         // dd($request->_token,$key_lokal,$tabel_lokal, $key_master, $tabel_master);
-        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'),true);
+        // default $withTrashed true agar bisa sync data yang sudah dihapus
+        $withTrashed = $request->input('with_trashed', true);
+        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'),$withTrashed);
         extract($getDataSync);
 
         $jml = $data_sync_lokal->count();
