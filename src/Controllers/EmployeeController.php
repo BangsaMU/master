@@ -17,8 +17,8 @@ use Bangsamu\Master\Models\MasterStatus;
 use Carbon\Carbon;
 use Bangsamu\Master\Models\MasterLocation;
 use Bangsamu\Master\Models\MasterIncrement;
-use Bangsamu\Master\Models\User;
-
+// use Bangsamu\Master\Models\User;
+use App\Models\User;
 
 class EmployeeController extends Controller
 {
@@ -349,7 +349,13 @@ class EmployeeController extends Controller
         $offest = 0;
         $user_id = Auth::user()->id ?? 0;
         $user = User::find($user_id);
-        $user_location_id = $user->details()->location_id;
+
+        if (method_exists(User::class, 'details')) {
+            $details = User::details($user_id);
+            $user_location_id = is_object($details) ? $details->location_id ?? '' : '';
+        } else {
+            $user_location_id = '';
+        }
 
         if ($request->input('order.0.column')) {
             /*remove alias*/
