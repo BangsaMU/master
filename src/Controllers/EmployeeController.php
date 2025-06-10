@@ -352,7 +352,7 @@ class EmployeeController extends Controller
 
         if (method_exists(User::class, 'details')) {
             $details = User::details($user_id);
-            $user_location_id = is_object($details) ? $details->location_id ?? '' : '';
+            $user_location_id = $details->location_id;
         } else {
             $user_location_id = '';
         }
