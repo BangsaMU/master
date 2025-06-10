@@ -17,6 +17,7 @@ use Bangsamu\Master\Models\MasterStatus;
 use Carbon\Carbon;
 use Bangsamu\Master\Models\MasterLocation;
 use Bangsamu\Master\Models\MasterIncrement;
+use App\Models\User;
 
 class EmployeeController extends Controller
 {
@@ -25,17 +26,37 @@ class EmployeeController extends Controller
     protected $sheet_slug = 'employee'; //nama routing (slug)
     protected $view_tabel_index = array(
         'm_k.id AS No',
+        'null AS action',
         'm_k.no_id_karyawan AS no_id_karyawan',
         'm_k.employee_name AS nama',
         'm_k.employee_job_title AS posisi',
         'm_k.no_ktp AS no_ktp',
-        'm_k.hire_id AS hire',
+        'm_k.hire_id AS POH',
         'm_k.status_id AS status',
         'm_k.tanggal_join AS tanggal_join',
         'm_k.tanggal_akhir_kontrak AS tanggal_akhir_kontrak',
         'm_k.tanggal_akhir_kerja AS tanggal_akhir_kerja',
         'm_k.keterangan AS keterangan',
-        'null AS action',
+        '
+        CASE
+            WHEN FIND_IN_SET(m_k.app_code, (
+                SELECT s.value
+                FROM setting s
+                WHERE s.name = "employee_internal"
+                AND s.category = "master_employee"
+                AND s.deleted_at IS NULL
+                LIMIT 1
+            )) > 0 THEN "internal"
+            WHEN FIND_IN_SET(m_k.app_code, (
+                SELECT s.value
+                FROM setting s
+                WHERE s.name = "employee_external"
+                AND s.category = "master_employee"
+                AND s.deleted_at IS NULL
+                LIMIT 1
+            )) > 0 THEN "external"
+        ELSE "-"
+        END AS employee_type',
     );
 
     protected $view_tabel = array(
@@ -50,6 +71,7 @@ class EmployeeController extends Controller
         'm_k.tanggal_akhir_kontrak AS tanggal_akhir_kontrak',
         'm_k.tanggal_akhir_kerja AS tanggal_akhir_kerja',
         'm_k.keterangan AS keterangan',
+        'm_k.app_code AS employee_type',
         'null AS action',
     );
 
@@ -325,6 +347,8 @@ class EmployeeController extends Controller
 
         $offest = 0;
         $user_id = Auth::user()->id ?? 0;
+        $user = User::find($user_id);
+        $user_location_id = $user->details()->location_id;
 
         if ($request->input('order.0.column')) {
             /*remove alias*/
@@ -338,12 +362,15 @@ class EmployeeController extends Controller
         $array_data_maping = $view_tabel_index;
         // APP11 = HRD app
         $totalData = DB::table('master_employee as m_k')
-            ->where(function ($query) use ($user_id) {
+            ->where(function ($query) use ($user_id,$user_location_id) {
                 if (checkPermission('is_admin')) {
                     //bisa liat semua employee
                 } else {
                     //hanya app hrd meindo
-                    $query->where('m_k.app_code', 'APP11');
+                    $query
+                    ->where('m_k.app_code', 'APP11')
+                    ->whereIn('hire_id', explode(',', $user_location_id))
+                    ;
                 }
             })->whereNull('m_k.deleted_at')->count();
 
@@ -356,12 +383,16 @@ class EmployeeController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->where(function ($query) use ($user_id) {
+                ->leftJoin('master_location as ml', 'ml.id', '=', 'm_k.work_location_id')
+                ->where(function ($query) use ($user_id,$user_location_id) {
                     if (checkPermission('is_admin')) {
                         //bisa liat semua employee
                     } else {
                         //hanya app hrd meindo
-                        $query->where('m_k.app_code', 'APP11');
+                        $query
+                        ->where('m_k.app_code', 'APP11')
+                        ->whereIn('hire_id', explode(',', $user_location_id))
+                        ;
                     }
                 })->whereNull('m_k.deleted_at');
 
@@ -382,12 +413,15 @@ class EmployeeController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->where(function ($query) use ($user_id) {
+                ->where(function ($query) use ($user_id,$user_location_id) {
                     if (checkPermission('is_admin')) {
                         //bisa liat semua employee
                     } else {
                         //hanya app hrd meindo
-                        $query->where('m_k.app_code', 'APP11');
+                        $query
+                        ->where('m_k.app_code', 'APP11')
+                        ->whereIn('hire_id', explode(',', $user_location_id))
+                        ;
                     }
                 })->whereNull('m_k.deleted_at')
                 ->groupby('m_k.id')

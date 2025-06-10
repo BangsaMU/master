@@ -232,6 +232,12 @@ class ApiController extends Controller
             // $select=DB::raw($selectRaw);
             // $data_array = $data_array->select($select);
             $data_array = $data_array->select(DB::raw($list_select));
+
+            if (empty($request->deleted_at)) {
+                // buang delete_at
+                $data_array = $data_array->whereNull($alias_tabel . '.deleted_at');
+            }
+
             // dd( $select,$data_array);
             if ($id) {
                 // $data_array = $data_array->where($alias_tabel . '.id', $id);
@@ -395,6 +401,7 @@ class ApiController extends Controller
             if ($order) {
                 $data_array->orderby($order['column'], ($order['direction'] ?? 'asc'));
             }
+
 
             $builder = $data_array->offset($start)->limit($limit);
             $data_array = $builder->get()->toArray();

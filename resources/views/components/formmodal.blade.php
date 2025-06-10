@@ -159,7 +159,7 @@
             var data_index = [];
             @isset($formModal['list_input'])
                 @foreach (@$formModal['list_input'] as $data)
-                    data_index['{{ $data['identification'] }}'] = {{ $data['index'] }};
+                    data_index['{{ $data['identification'] }}'] = {{ @$data['index'] }};
                 @endforeach
             @endisset
 
