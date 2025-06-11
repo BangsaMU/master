@@ -269,6 +269,14 @@
             </div>
         </div>
     </div>
+
+<div class="content">
+    @include('master::master.logs_view.list', [
+        'title' => 'Log Karyawan',
+        'logs' => $data['page']['logs'],
+    ])
+</div>
+
 @stop
 
 @push('js')

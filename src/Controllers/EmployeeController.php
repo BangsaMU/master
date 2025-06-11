@@ -19,6 +19,7 @@ use Bangsamu\Master\Models\MasterLocation;
 use Bangsamu\Master\Models\MasterIncrement;
 // use Bangsamu\Master\Models\User;
 use App\Models\User;
+use Bangsamu\LibraryClay\Models\ActivityLog;
 
 class EmployeeController extends Controller
 {
@@ -738,6 +739,27 @@ class EmployeeController extends Controller
         $data['page']['readonly'] = $this->readonly;
         // $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
+        $data['page']['logs'] = ActivityLog::
+            select(
+                'id',
+                'model_type',
+                'model_id',
+                'user_id',
+                'action',
+                DB::raw('SUBSTRING_INDEX(description, action, 1) AS nama_user'),
+                DB::raw('TRIM(SUBSTRING_INDEX(description, action, -1)) AS sort_description'),
+                'description',
+                'properties',
+                'updated_at',
+                DB::raw('DATE_FORMAT(updated_at, "%e %M %Y %H:%i:%s") AS updated_at_formated'),
+                DB::raw('DATE_FORMAT(updated_at, "%e %M %Y") AS updated_at_formated_date'),
+                DB::raw('DATE_FORMAT(updated_at, "%H:%i:%s") AS updated_at_formated_time'),
+            )
+            ->where('model_type', 'Bangsamu\Master\Models\Employee')
+            ->where('model_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+// dd($data['page']['logs']);
         $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'm_l.loc_name as work_location_name')
             ->leftJoin('master_location as m_l', 'm_l.id', '=', 'master_employee.work_location_id')
             ->where('master_employee.id', $id)
