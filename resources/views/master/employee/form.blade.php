@@ -144,7 +144,8 @@
                                     class="form-control @error('tanggal_join') is-invalid @enderror" id="tanggal_join"
                                     placeholder="Tanggal Join" name="tanggal_join"
                                     value="{{ isset($param->tanggal_join) ? $param->tanggal_join : old('tanggal_join') }}"
-                                    @isset($param->tanggal_join) readonly @endisset>
+                                    {{-- @isset($param->tanggal_join) readonly @endisset --}}
+                                >
                                 @error('tanggal_join')
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
@@ -248,7 +249,8 @@
                                         class="form-control @error('no_id_karyawan') is-invalid @enderror"
                                         id="no_id_karyawan" placeholder="No KTP" name="no_id_karyawan"
                                         value="{{ isset($param->no_id_karyawan) ? $param->no_id_karyawan : old('no_id_karyawan') }}"
-                                        readonly>
+                                        {{-- readonly --}}
+                                    >
                                     @error('no_id_karyawan')
                                         <span class="text-danger">{{ $message }}</span>
                                     @enderror
@@ -309,43 +311,43 @@
             //read
             let list_karyawan_read_premission = '{{ auth()->user()->can('list_karyawan_read') }}';
             if (list_karyawan_read_premission) {
-                $("input, textarea").attr("readonly", true);
-                $("select").attr("disabled", true);
+                // $("input, textarea").attr("readonly", true);
+                // $("select").attr("disabled", true);
             }
 
             // edit
             if (id.length > 0) {
                 let list_karyawan_update_premission = '{{ auth()->user()->can('list_karyawan_update') }}';
                 if (list_karyawan_update_premission) {
-                    $("#status_id, #hire_id,  #tanggal_join, #no_id_karyawan").attr("readonly", true);
+                    // $("#status_id, #hire_id,  #tanggal_join, #no_id_karyawan").attr("readonly", true);
                     $("#nama, #email, #no_ktp, #posisi, #tanggal_akhir_kerja, #tanggal_akhir_kontrak, #email_corporate, #keterangan")
-                        .attr("readonly", false);
-                    $("#inputWorkLocation").attr("disabled", false);
+                        // .attr("readonly", false);
+                    // $("#inputWorkLocation").attr("disabled", false);
                 }
             } else {
                 // create
                 let list_karyawan_create_premission = '{{ auth()->user()->can('list_karyawan_create') }}';
                 if (list_karyawan_create_premission && id.length == 0) {
-                    $("input, textarea").attr("readonly", false);
-                    $("select").attr("readonly", false);
-                    $("select").attr("disabled", false);
-                    // $("#hire_id, #status_id, #work_location_id").attr("disabled", false);
+                    // $("input, textarea").attr("readonly", false);
+                    // $("select").attr("readonly", false);
+                    // $("select").attr("disabled", false);
+                    $("#hire_id, #status_id, #work_location_id").attr("disabled", false);
                 }
             }
 
             let admin_permission = '{{ auth()->user()->can('admin') }}';
             if (admin_permission) {
-                $("input, textarea").attr("readonly", false);
-                $("select").attr("readonly", false);
-                $("select").attr("disabled", false);
+                // $("input, textarea").attr("readonly", false);
+                // $("select").attr("readonly", false);
+                // $("select").attr("disabled", false);
             }
 
-            $("#no_id_karyawan").attr("readonly", true);
+            // $("#no_id_karyawan").attr("readonly", true);
 
             if (tanggal_akhir_kerja != null && tanggal_akhir_kerja != '') {
                 if (!admin_permission) {
-                    $("input, textarea").attr("readonly", true);
-                    $("select").attr("disabled", true);
+                    // $("input, textarea").attr("readonly", true);
+                    // $("select").attr("disabled", true);
                     $("#btn-save").remove();
                 }
             }

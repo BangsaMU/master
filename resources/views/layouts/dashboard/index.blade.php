@@ -21,7 +21,13 @@
             <div class="col-12 alert alert-danger alert-dismissible" role="alert">
                 @if (is_array(Session::get('error_message')))
                     @foreach (Session::get('error_message') as $error)
-                        {!! $error . '<br/>' !!}
+                        @if (is_array($error))
+                            @foreach ($error as $keyerror => $valerror)
+                                {!! $valerror . '<br/>' !!}
+                            @endforeach
+                        @else
+                            {!! $error . '<br/>' !!}
+                        @endif
                     @endforeach
                 @else
                     {!! Session::get('error_message') . '<br/>' !!}
@@ -37,7 +43,13 @@
             <div class="col-12 alert alert-success alert-dismissible" role="alert">
                 @if (is_array(Session::get('success_message')))
                     @foreach (Session::get('success_message') as $error)
-                        {!! $error . '<br/>' !!}
+                        @if (is_array($error))
+                            @foreach ($error as $keyerror => $valerror)
+                                {!! $valerror . '<br/>' !!}
+                            @endforeach
+                        @else
+                            {!! $error . '<br/>' !!}
+                        @endif
                     @endforeach
                 @else
                     {!! Session::get('success_message') . '<br/>' !!}

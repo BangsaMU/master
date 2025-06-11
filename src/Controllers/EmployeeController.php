@@ -5,7 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 
 // use App\Imports\Master\ProjectImport;
-use Bangsamu\Master\Imports\Master\ProjectImport;
+use Bangsamu\Master\Imports\Master\EmployeeImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -32,11 +32,11 @@ class EmployeeController extends Controller
         'm_k.employee_name AS nama',
         'm_k.employee_job_title AS posisi',
         'm_k.no_ktp AS no_ktp',
-        'm_k.hire_id AS POH',
-        'm_k.status_id AS status',
+        'm_l2.loc_name AS POH',
+        'm_s.status AS status',
         'm_k.tanggal_join AS tanggal_join',
         'm_k.tanggal_akhir_kontrak AS tanggal_akhir_kontrak',
-        'm_k.tanggal_akhir_kerja AS tanggal_akhir_kerja',
+        'COALESCE(m_k.tanggal_akhir_kerja,"AKTIF") AS tanggal_akhir_kerja',
         'm_k.keterangan AS keterangan',
         '
         CASE
@@ -319,7 +319,8 @@ class EmployeeController extends Controller
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.employee.import');
-        $data['page']['import']['template'] = url('/templates/projectImportTemplate.xlsx');
+        $data['page']['import']['template'] = url('/template/form_import_hrd.xlsx');
+
 
         $page_var = compact('data');
 
@@ -390,7 +391,9 @@ class EmployeeController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->leftJoin('master_location as ml', 'ml.id', '=', 'm_k.work_location_id')
+                ->leftJoin('master_status as m_s', 'm_k.status_id', '=', 'm_s.id')
+                ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
+                ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
                 ->where(function ($query) use ($user_id,$user_location_id) {
                     if (checkPermission('is_admin')) {
                         //bisa liat semua employee
@@ -420,6 +423,9 @@ class EmployeeController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
+                ->leftJoin('master_status as m_s', 'm_k.status_id', '=', 'm_s.id')
+                ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
+                ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
                 ->where(function ($query) use ($user_id,$user_location_id) {
                     if (checkPermission('is_admin')) {
                         //bisa liat semua employee
@@ -732,8 +738,8 @@ class EmployeeController extends Controller
         $data['page']['readonly'] = $this->readonly;
         // $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
-        $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'ml.loc_name as work_location_name')
-            ->leftJoin('master_location as ml', 'ml.id', '=', 'master_employee.work_location_id')
+        $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'm_l.loc_name as work_location_name')
+            ->leftJoin('master_location as m_l', 'm_l.id', '=', 'master_employee.work_location_id')
             ->where('master_employee.id', $id)
             ->first();
 
@@ -803,7 +809,7 @@ class EmployeeController extends Controller
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 
-            $import = new ProjectImport;
+            $import = new EmployeeImport;
             Excel::import($import, $file);
             $error = $import->getError();
             $success = $import->getSuccess();
