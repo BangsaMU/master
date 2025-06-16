@@ -85,6 +85,8 @@ class ApiController extends Controller
         // contoh multi saerch http://mcu-meindo.localhost/api/getmaster_projectbyparams?search[project_code]=21316&search[project_code]=21305&set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token=1fa4a34a49944698769737edf2812b23&_token=ee3Hd8XalXieXGbLtJbChgiYwDax5HkDjkDEwpPR
         // contoh by id http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?id=45&set[text]=type&set[field][]=description&set[field][]=id
         // contoh get list http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=type&set[field][]=description&set[field][]=id
+        // contoh join tabel http://clay.localhost/api/getmaster_item_codebyparams?set[field][]=uom_name&set[field][]=item_name&set[field][]=pca_name&join[master_uom.id]=uom_id&join[master_pca.id]=pca_id
+
         /*Param serch support array dan string data yg diambil param terakhir */
         $search = $request->search;
         $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {

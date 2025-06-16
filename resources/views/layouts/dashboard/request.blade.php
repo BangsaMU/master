@@ -52,7 +52,7 @@
                         @php
                             if ($key == 1) {
                                 // $data['setForm']['auto_status']['type']='select';
-                                if (isset($data['setForm'][$formdata->name])) {
+                                if (isset($data['setForm'][@$formdata->name])) {
                                     $form['type'] = $data['setForm'][$formdata->name]['type'];
                                     $form['option'] = @$data['setForm'][$formdata->name]['option'] ?? [];
                                     // dd($form['type']);

@@ -53,11 +53,13 @@ class Employee extends Model
 
                     // Tambahkan kolom employee_blood_type
                     $table->string('employee_blood_type', 5)
-                        ->nullable()
-                        ->default('-');
+                    ->nullable()
+                    ->default('-');
 
                     $table->string('employee_project', 10)->nullable();
                     $table->integer('project_id')->nullable();
+                    $table->integer('job_position_id')->nullable();
+                    $table->date('employee_dob')->nullable()->comment('isi tanggal lahir wni dari ktp auto extrak');
 
                     // Indexes
                     $table->index('app_code', 'index_app_code');

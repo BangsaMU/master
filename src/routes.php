@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Http\Request;
 
 Route::get('mud-master', function () {
     // dd(config());
@@ -73,6 +75,36 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
 
 });
 
+Route::get('crud/{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'index'])
+    ->name('crud.index');
+
+
+Route::middleware(['web','auth'])->prefix('crud')->name('crud.')->group(function () {
+    // AURO CRUD Tabel
+// Route::get('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'index'])
+//     ->name('index'); // List all
+
+Route::get('{table}/create', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'create'])
+    ->name('create'); // Form create
+
+Route::post('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'store'])
+    ->name('store'); // Handle form submission
+
+Route::get('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'show'])
+    ->name('show'); // View a single row
+
+Route::get('{table}/{id}/edit', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'edit'])
+    ->name('edit'); // Form edit
+
+Route::put('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'update'])
+    ->name('update'); // Handle update submission
+
+Route::delete('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'destroy'])
+    ->name('destroy'); // Handle delete
+
+});
+
+
 Route::prefix('api')
     ->middleware(['api'])->group(function () {
         // Route::get('get-ip',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'getIp'])
@@ -133,6 +165,21 @@ Route::middleware(['web'])->group(function () {
 Route::get('session-crul',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'masterCrul'])
     ->name('session-crul');
 
+
+
+Route::get('/optimize', function (Request $request) {
+
+    $exitCode = $request->clear ? Artisan::call('optimize:clear') : Artisan::call('optimize');
+    $output = Artisan::output();
+
+    if ($exitCode == 0) {
+        return "<pre>Optimize successfully $output</pre>";
+    } else {
+        return "<pre>Optimize failed $output</pre>";
+    }
+    return "<pre>$output</pre>";
+
+});
 
 
 // =======================================

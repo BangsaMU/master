@@ -20,6 +20,7 @@ use Bangsamu\Master\Models\MasterIncrement;
 // use Bangsamu\Master\Models\User;
 use App\Models\User;
 use Bangsamu\LibraryClay\Models\ActivityLog;
+use Bangsamu\Master\Models\HrdJobPosition;
 
 class EmployeeController extends Controller
 {
@@ -547,28 +548,30 @@ class EmployeeController extends Controller
             return $query->where('id', $request->status_id);
         }, function ($query) {
             return $query->where('kode', 0);
-        })
-            ->first();
+        })->first();
+
         $app_code = config('SsoConfig.main.APP_CODE');
 
         $request->validate([
             // 'no_ktp' => 'required|numeric|digits:16|unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
-            'no_ktp' => [
-                'required',
-                'numeric',
-                'digits:16',
-                'unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
-                function ($attribute, $value, $fail) {
-                    if (!LibraryClayController::isValidNIK($value)) {
-                        $fail('Format NIK tidak valid atau tidak sesuai kode wilayah/tanggal.');
-                    }
-                },
-            ],
+            // 'no_ktp' => [
+            //     'required',
+            //     'numeric',
+            //     'digits:16',
+            //     'unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
+            //     function ($attribute, $value, $fail) {
+            //         if (!LibraryClayController::isValidNIK($value)) {
+            //             $fail('Format NIK tidak valid atau tidak sesuai kode wilayah/tanggal.');
+            //         }
+            //     },
+            // ],
+
             'employee_name' => 'required',
             'employee_email' => "nullable|email|max:150",
+            'no_ktp' => 'required|numeric|digits:16',
             'status_id' => 'required',
-            'employee_job_title' => 'required',
-            'hire_id' => 'required',
+            'job_position_id' => 'nullable',
+            'hire_id' => 'nullable',
             'tanggal_join'  => $status->kode == 0 ? 'nullable|date' : 'required|date',
             // 'tanggal_akhir_kerja' => 'nullable|date|after:tanggal_join',
             // 'tanggal_akhir_kontrak' => 'required|date|after:tanggal_join',
@@ -579,12 +582,42 @@ class EmployeeController extends Controller
             'work_location_id' => "nullable",
         ]);
 
+        // Validasi lanjutan tergantung status_id
+        if ((int) $request->status_id !== 0) {
+            $request->validate([
+                'job_position_id' => 'required',
+                'hire_id' => 'required',
+                'tanggal_join' => 'required|date',
+                'tanggal_akhir_kontrak' => 'required|date|after:tanggal_join',
+            ]);
+        }
+
+        // Validasi lanjutan tergantung status_id bukan EXSPATRIAT ga bisa harus pakek filed bantu cityzen blm ada
+        // if ((int) $request->status_id !== 3) {
+        //     $request->validate([
+        //             'no_ktp' => [
+        //             'required',
+        //             'numeric',
+        //             'digits:16',
+        //             'unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
+        //             function ($attribute, $value, $fail) {
+        //                 if (!LibraryClayController::isValidNIK($value)) {
+        //                     $fail('Format NIK tidak valid atau tidak sesuai kode wilayah/tanggal.');
+        //                 }
+        //             },
+        //         ],
+        //     ]);
+        // }
+
         if ($request->id) {
             // Update existing employee
             $employee = Employee::findOrFail($request->id);
+
+            $jobPositionData = HrdJobPosition::find($request->job_position_id);
+
             $update = $employee->update([
                 'employee_name' => $request->employee_name,
-                'employee_job_title' => $request->employee_job_title,
+                'employee_job_title' =>  strtoupper($jobPositionData->position_name),
                 'employee_email' => $request->employee_email,
                 'employee_phone' => $request->employee_phone,
                 'deleted_at' => $request->deleted_at,
@@ -618,29 +651,35 @@ class EmployeeController extends Controller
                 $message = $this->sheet_name . ' no data changed';
             }
         } else {
-            // Create new employee
-            $employee = Employee::create([
-                'employee_name' => $request->employee_name,
-                'employee_job_title' => $request->employee_job_title,
-                'employee_email' => $request->employee_email,
-                'employee_phone' => $request->employee_phone ?? '-',
-                'deleted_at' => $request->deleted_at,
-                'corporate_email' => $request->corporate_email,
-                'no_ktp' => $request->no_ktp,
-                'no_id_karyawan' => $request->no_id_karyawan,
-                'status_id' => $request->status_id,
-                'hire_id' => $request->hire_id,
-                'tanggal_join' => $request->tanggal_join,
-                'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
-                'tanggal_akhir_kontrak' => $request->tanggal_akhir_kontrak,
-                'keterangan' => $request->keterangan,
-                'work_location_id' => $request->work_location_id,
-                'employee_blood_type' => $request->employee_blood_type,
-                'app_code' => $app_code,
-            ]);
+            $karyawan_active = Employee::where('no_ktp', $request->no_ktp)
+            ->whereNull('tanggal_akhir_kerja')
+            ->latest()->first();
 
-
-            $message = $this->sheet_name . ' created successfully';
+            if ($karyawan_active) {
+               $message = 'Data dengan NIK ' . $request->no_ktp . ' sudah ada dan masih aktif';
+             } else {
+                // Create new employee
+                $employee = Employee::create([
+                    'employee_name' => strtoupper($request->employee_name),
+                    'employee_job_title' => strtoupper($request->employee_job_title),
+                    'employee_email' => $request->employee_email,
+                    'employee_phone' => $request->employee_phone ?? '-',
+                    'deleted_at' => $request->deleted_at,
+                    'corporate_email' => $request->corporate_email,
+                    'no_ktp' => $request->no_ktp,
+                    'no_id_karyawan' => $request->no_id_karyawan,
+                    'status_id' => $request->status_id,
+                    'hire_id' => $request->hire_id,
+                    'tanggal_join' => $request->tanggal_join,
+                    'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
+                    'tanggal_akhir_kontrak' => $request->tanggal_akhir_kontrak,
+                    'keterangan' => $request->keterangan,
+                    'work_location_id' => $request->work_location_id,
+                    'employee_blood_type' => $request->employee_blood_type,
+                    'app_code' => $app_code,
+                ]);
+                $message = $this->sheet_name . ' created successfully';
+            }
         }
 
         //hanya generate jika dari app HRD
