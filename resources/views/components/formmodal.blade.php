@@ -9,9 +9,13 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form class="row" action="{{ @$formModal['form_format']['url'] }}" method="post"
-                    enctype="multipart/form-data" id="{{ @$formModal['form_format']['identification'] }}">
+                <form class="row" action="{{ $formModal['form_format']['url'] }}" method="post" enctype="multipart/form-data" id="{{ $formModal['form_format']['identification'] }}">
                     @csrf
+
+                    @if($formModal['form_format']['mode'] == 'edit')
+                        @method('PUT')
+                    @endif
+
                     @isset($formModal['list_input'])
                         @foreach (@$formModal['list_input'] as $input)
                             @switch($input['type'])
