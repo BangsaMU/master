@@ -88,6 +88,9 @@ class ProjectController extends Controller
         if (@$default_for_info_id) {
             extract($default_for_info_id);
         }
+
+        $api_token = LibraryClayController::api_token(null);
+
         $view_form['parent_id'] = [
             'field' => 'parent_id',
             'name' => 'parent_id',
@@ -96,7 +99,7 @@ class ProjectController extends Controller
             'select2_minimum' => 0, //[1-5]
             'select2_tags' => false, //[true.false]
             'select2_search' => [["name"]], //[field]
-            'select2_url' => url('api/getmaster_mcubyparams?set[field][]=name&set[text]=name&ap_token=' . api_token($id) . ''),
+            'select2_url' => url('api/getmaster_mcubyparams?set[field][]=name&set[text]=name&ap_token=' . $api_token . ''),
             // 'select2_url' => url('api/getmaster_projectbyparams?set[id]=id&set[text]=name&ap_token=' . api_token($id) . ''),
             'multi' => false,
             'col' => 'col-12 col-md-3 mb-2',
@@ -121,7 +124,7 @@ class ProjectController extends Controller
             // 'select2_search' => "project_code", //[field]
             'select2_search' => [["project_code"], ['|' => "project_name"]], //[field]
             // 'select2_url' => url('api/getmaster_projectbyparams?set[text]=project_code&ap_token=' . api_token($id) . ''),
-            'select2_url' => url('api/getmaster_projectbyparams?set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token=' . api_token($id) . ''),
+            'select2_url' => url('api/getmaster_projectbyparams?set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token=' . $api_token . ''),
             // 'multi' => false,
             'col' => 'col-12 col-md-6 mb-2',
             'disabled' => $global_disable || $revisi_disable ? true : false,
