@@ -30,8 +30,15 @@
     @endif
 
     @foreach ($formdata_multi as $keydata => $formdata)
-        <form id="FormRequest{{ @$formdata->id }}" action="{{ $data['page']['store'] }}" method="POST" autocomplete="off">
+        <form id="FormRequest{{ @$formdata->id }}" action="{{ $data['page']['store'] }}" autocomplete="off">
             @csrf
+
+            @if(@$data['page']['mode'] == 'edit')
+                @method('PUT')
+            @else
+                @method('POST')
+            @endif
+
             <div class="card card-outline card-primary">
 
                 @isset($data['page']['form']['title'])
@@ -81,6 +88,15 @@
         <div class="card-footer">
             <button type="submit" class="submitButton btn btn-primary">Submit</button>
             {{-- <a href="{{ route('hse-dar.' . $data['page']['url_prefix'] . '.index') }}" class="btn btn-default">Back</a> --}}
+        </div>
+    @endif
+
+    @if (!empty($data['page']['logs']) && $data['page']['logs']->isNotEmpty())
+        <div class="content">
+            @include('master::master.logs_view.list', [
+                'title' => 'Log change',
+                'logs' => $data['page']['logs'],
+            ])
         </div>
     @endif
 

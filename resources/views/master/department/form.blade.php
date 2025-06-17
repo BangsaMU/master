@@ -42,9 +42,20 @@
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif
-                        <a href="{{ route('master.department.index') }}" class="btn btn-default">
+
+                        @php
+                            $segments = request()->segments();
+
+                            $segments = array_filter($segments, function ($segment) {
+                                return !is_numeric($segment) && $segment !== 'edit';
+                            });
+
+                            $base_url = url(implode('/',$segments));
+                        @endphp
+                        <a href="{{  @$data['page']['base_url']??$base_url }}" class="btn btn-default">
                             Back
                         </a>
+
                     </form>
                 </div>
             </div>

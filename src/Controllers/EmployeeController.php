@@ -798,7 +798,7 @@ class EmployeeController extends Controller
             ->where('model_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
-// dd($data['page']['logs']);
+        // dd($data['page']['logs']);
         $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'm_l.loc_name as work_location_name')
             ->leftJoin('master_location as m_l', 'm_l.id', '=', 'master_employee.work_location_id')
             ->where('master_employee.id', $id)
@@ -826,7 +826,7 @@ class EmployeeController extends Controller
         /*redirect jika bukan multi insert*/
         if (empty($formdata)) {
             if ($form_row_type == 'single') {
-                return redirect()->route('module.' . $sheet_slug . '.index')->with('error_message', 'Data not found with id ' . $id . ' not found in database.');
+                return redirect()->route('master.' . $sheet_slug . '.index')->with('error_message', 'Data not found with id ' . $id . ' not found in database.');
             } else {
                 abort(403, 'data not found');
             }

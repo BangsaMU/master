@@ -75,14 +75,12 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
 
 });
 
-Route::get('crud/{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'index'])
-    ->name('crud.index');
 
 
 Route::middleware(['web','auth'])->prefix('crud')->name('crud.')->group(function () {
     // AURO CRUD Tabel
-// Route::get('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'index'])
-//     ->name('index'); // List all
+Route::get('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'index'])
+    ->name('index'); // List all
 
 Route::get('{table}/create', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'create'])
     ->name('create'); // Form create

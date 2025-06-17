@@ -1,5 +1,5 @@
 <div class="row">
-    <div class="col-12 col-sm-8">
+    <div class="col ">
         <div class="card card-outline card-primary">
             <div class="card-header font-weight-bold">
                 {{ $title ?? 'Timeline' }}
@@ -37,32 +37,38 @@
 
                                                 <div class="timeline-body">
                                                     {{-- {{$log->sort_description}} --}}
-<table class="table table-bordered table-striped">
-    <thead class="table-light">
-        <tr>
-            <th>Field</th>
-            <th>Before</th>
-            <th>After</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach ($log['properties']['before'] as $key => $beforeValue)
-            @if ($key === 'updated_at')
-                @continue
-            @endif
+                                                    <table class="table table-bordered table-striped">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Field</th>
+                                                                <th>Before</th>
+                                                                <th>After</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @if (isset($log['properties']['before']) && is_array($log['properties']['before']))
+                                                                @foreach ($log['properties']['before'] as $key => $beforeValue)
+                                                                    @if ($key === 'updated_at')
+                                                                        @continue
+                                                                    @endif
 
-            @php
-                $afterValue = $log['properties']['after'][$key] ?? '-';
-            @endphp
+                                                                    @php
+                                                                        $afterValue = $log['properties']['after'][$key] ?? '-';
+                                                                    @endphp
 
-            <tr>
-                <td>{{ ucfirst(str_replace('_', ' ', $key)) }}</td>
-                <td>{{ $beforeValue ?? '-' }}</td>
-                <td>{{ $afterValue }}</td>
-            </tr>
-        @endforeach
-    </tbody>
-</table>
+                                                                    <tr>
+                                                                        <td>{{ ucfirst(str_replace('_', ' ', $key)) }}</td>
+                                                                        <td>{{ $beforeValue ?? '-' }}</td>
+                                                                        <td>{{ $afterValue }}</td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            @else
+                                                                <tr>
+                                                                    <td colspan="3"><em>Data sebelum tidak tersedia</em></td>
+                                                                </tr>
+                                                            @endif
+                                                        </tbody>
+                                                    </table>
 
 
 
