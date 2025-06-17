@@ -91,6 +91,21 @@
         </div>
     @endif
 
+
+                        @php
+                            $segments = request()->segments();
+
+                            $segments = array_filter($segments, function ($segment) {
+                                return !is_numeric($segment) && $segment !== 'edit';
+                            });
+
+                            $base_url = url(implode('/',$segments));
+                        @endphp
+                        <a href="{{  @$data['page']['base_url']??$base_url }}" class="btn btn-default">
+                            Back
+                        </a>
+
+
     @if (!empty($data['page']['logs']) && $data['page']['logs']->isNotEmpty())
         <div class="content">
             @include('master::master.logs_view.list', [

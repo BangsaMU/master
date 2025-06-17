@@ -12,7 +12,7 @@
                 <form class="row" action="{{ $formModal['form_format']['url'] }}" method="post" enctype="multipart/form-data" id="{{ $formModal['form_format']['identification'] }}">
                     @csrf
 
-                    @if($formModal['form_format']['mode'] == 'edit')
+                    @if(@$formModal['form_format']['mode'] == 'edit')
                         @method('PUT')
                     @endif
 
