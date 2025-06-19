@@ -3,14 +3,16 @@
 namespace Bangsamu\Master\Imports\Master;
 
 use Bangsamu\Master\Models\Employee as HrdKaryawan;
+use Bangsamu\Master\Models\JobPosition as HrdJobPosition;
 use Bangsamu\Master\Models\MasterIncrement as HrdIncrement;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
-class EmployeeImport implements ToCollection
+class EmployeeImport implements ToCollection, WithHeadingRow
 {
     private $error = [];
     private $success = [];
@@ -21,26 +23,15 @@ class EmployeeImport implements ToCollection
     //         $this->request = $request;
     // }
 
+    public function headingRow(): int
+    {
+        return 1;
+    }
+
     public function collection(Collection $rows)
     {
         //check format data
-        if(
-            strtoupper(@$rows[0][0]) == 'NAMA' &&
-            strtoupper(@$rows[0][1]) == 'EMAIL PERSONAL' &&
-            strtoupper(@$rows[0][2]) == 'EMAIL CORPORATE' &&
-            strtoupper(@$rows[0][3]) == 'JABATAN' &&
-            strtoupper(@$rows[0][4]) == 'EMPLOYEE DEPARTMENT' &&
-            strtoupper(@$rows[0][5]) == 'NO ID KARYAWAN' &&
-            strtoupper(@$rows[0][6]) == 'NO KTP' &&
-            strtoupper(@$rows[0][7]) == 'HIRE' &&
-            strtoupper(@$rows[0][8]) == 'STATUS' &&
-            strtoupper(@$rows[0][9]) == 'TANGGAL JOIN' &&
-            strtoupper(@$rows[0][10]) == 'TANGGAL AKHIR KONTRAK' &&
-            strtoupper(@$rows[0][11]) == 'TANGGAL AKHIR KERJA' &&
-            strtoupper(@$rows[0][12]) == 'EMPLOYEE BLOODTYPE' &&
-            strtoupper(@$rows[0][13]) == 'EMPLOYEE PROJECT' &&
-            strtoupper(@$rows[0][14]) == 'KETERANGAN'
-        ){
+        if($rows){
             $list_status = DB::connection('db_master')->table('master_status')->get();
             $list_hire = DB::connection('db_master')->table('master_location')->where('group_type', 'hrd')->get();
 
@@ -48,22 +39,24 @@ class EmployeeImport implements ToCollection
                 //skip header row
                 if($key > 0){
 
+                    $key = $key + 1; //adjust key to start from 1
                     $data['key'] = $key;
-                    $data['employee_name'] = $row[0];
-                    $data['employee_email'] = empty($row[1]) ? null : $row[1];
-                    $data['corporate_email'] = empty($row[2]) ? null : $row[2];
-                    $data['employee_job_title'] = $row[3];
-                    $data['employee_department'] = $row[4];
-                    $data['no_id_karyawan'] = $row[5];
-                    $data['no_ktp'] = trim($row[6]);
-                    $hire_location = $row[7];
-                    $status = $row[8];
-                    $data['tanggal_join'] = $row[9];
-                    $data['tanggal_akhir_kontrak'] = $row[10];
-                    $data['tanggal_akhir_kerja'] = $row[11];
-                    $data['employee_blood_type'] = $row[12];
-                    $data['employee_project'] = $row[13];
-                    $data['keterangan'] = $row[14];
+                    $data['employee_name'] = $row['nama'];
+                    $data['employee_email'] = empty($row['email_personal']) ? null : $row['email_personal'];
+                    $data['corporate_email'] = empty($row['email_corporate']) ? null : $row['email_corporate'];
+                    $job_position_code = $row['job_position_code'];
+                    // $data['employee_department'] = $row[4];
+                    $data['no_id_karyawan'] = $row['no_id_karyawan'];
+                    $data['no_ktp'] = trim($row['no_ktp']);
+                    $data['dob'] = empty($row['dob']) ? null : $row['dob'];
+                    $poh_code = trim($row['poh_code']);
+                    $status = trim($row['status']);
+                    $data['tanggal_join'] = empty($row['tanggal_join']) ? null : $row['tanggal_join'];
+                    $data['tanggal_akhir_kontrak'] = $row['tanggal_akhir_kontrak'];
+                    $data['tanggal_akhir_kerja'] = $row['tanggal_akhir_kerja'];
+                    $data['employee_blood_type'] = $row['employee_bloodtype'];
+                    $data['employee_project'] = $row['employee_project'];
+                    $data['keterangan'] = $row['keterangan'];
 
                     //validate nama
                     if(empty($data['employee_name'])){
@@ -76,32 +69,54 @@ class EmployeeImport implements ToCollection
                         $data['employee_name'] = strtoupper($data['employee_name']);
                     }
 
-                    //validate posisi (jabatan)
-                    if(empty($data['employee_job_title'])){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom posisi yang kosong';
+                    //validate nik
+                    if(empty($data['no_ktp'])){
+                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom NO_KTP yang kosong';
+                        continue;
+                    }else if(strlen($data['no_ktp']) > 16){
+                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki NO_KTP lebih dari 16 karakter';
                         continue;
                     }else{
-                        $data['employee_job_title'] = strtoupper($data['employee_job_title']);
+                        $data['no_ktp'] = strtoupper($data['no_ktp']);
+                    }
+
+                    //validate posisi (jabatan)
+                    if(!$job_position_code){
+                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom kode posisi yang kosong';
+                        continue;
+                    }else{
+                        $jobPositionData = HrdJobPosition::where('position_code', $job_position_code)->with('department')->first();
+
+                        if(!$jobPositionData){
+                            $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki Kode Posisi yang salah, Mohon cek kembali kode pada menu Job Position!';
+                            continue;
+                        }else{
+                            $data['employee_department'] = $jobPositionData->department->department_name;
+                            $data['employee_job_title'] = $jobPositionData->position_name;
+                            $data['job_position_code'] = $jobPositionData->position_code;
+                            $data['job_position_id'] = $jobPositionData->id;
+                        }
                     }
 
                     //validate hire
-                    if($hire_location){
+                    if($poh_code){
                         //get hire data
-                        $hireData = self::getDataByColumn($list_hire, $hire_location, 'loc_name');
+                        $pohData = self::getDataByColumn($list_hire, $poh_code, 'loc_name');
 
                         //cek nama lokasi sesuai
-                        if(!$hireData){
+                        if(!$pohData){
                             $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki hire lokasi yang salah';
                             continue;
                         }else{
-                            $data['hire_id'] = $hireData->id;
-                            $data['hire_kode'] = $hireData->loc_code;
+                            $data['hire_id'] = $pohData->id;
+                            $data['hire_code'] = $pohData->loc_code;
+                            $data['hire_name'] = $pohData->loc_name;
                         }
                     }
 
                     //validate status
-                    if(empty($status)){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom status yang kosong';
+                    if(!is_numeric($status)){
+                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom status yang kosong / tidak sesuai';
                         continue;
                     }else{
                         //get status data
@@ -114,6 +129,19 @@ class EmployeeImport implements ToCollection
                         }else{
                             $data['status_id'] = $statusData->id;
                             $data['status_kode'] = $statusData->kode;
+                            $data['status_name'] = $statusData->status;
+                        }
+                    }
+
+                    //validate DOB
+                    if(empty($data['dob'])){
+                        $extractDataKTP = LibraryClayController::extractDataKTP($data['no_ktp']);
+                        $data['dob'] = $extractDataKTP['tanggalLahir'];
+                    }else{
+                        try {
+                            $data['dob'] = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($data['dob'])->format('Y-m-d');
+                        } catch (\Throwable $th) {
+                            $data['dob'] = LibraryClayController::convertDate($data['dob']);
                         }
                     }
 
@@ -146,6 +174,15 @@ class EmployeeImport implements ToCollection
                         }
                     }
 
+                    if($data['employee_blood_type']){
+                        $bloodTypes = ['A','A+','A-','B','B+','B-','O','O+','O-','AB','AB+','AB-'];
+
+                        if (!in_array($data['employee_blood_type'], $bloodTypes)) {
+                            $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom Blood Type yang tidak sesuai!';
+                            continue;
+                        }
+                    }
+
                     //validate no id karyawan
                     if(!empty($data['no_id_karyawan'])){
                         $karyawan = HrdKaryawan::where('no_id_karyawan', $data['no_id_karyawan'])->first();
@@ -162,22 +199,28 @@ class EmployeeImport implements ToCollection
 
                     //Check if data karyawan exist
                     if($data_karyawan){
+                        $original = $data_karyawan->getOriginal();
                         //check data import, no id karyawan is not null
                         if(!empty($data['no_id_karyawan'])){
                             // $data_karyawan_exist = HrdKaryawan::where('no_ktp', $data['no_ktp'])->where('no_id_karyawan', $data['no_id_karyawan'])->latest()->first();
-                            $data_karyawan_exist = HrdKaryawan::where('no_ktp', $data['no_ktp'])->latest()->first();
+                            // $data_karyawan_exist = HrdKaryawan::where('no_ktp', $data['no_ktp'])->latest()->first();
 
-                            $data_karyawan_exist->update([
+                            $data_karyawan->update([
                                 'employee_name' => $data['employee_name'],
                                 'employee_email' => $data['employee_email'],
+                                'corporate_email' => $data['corporate_email'],
                                 'employee_job_title' => $data['employee_job_title'],
                                 'employee_department' => $data['employee_department'],
-                                'employee_project' => $data['employee_project'],
-                                'tanggal_akhir_kontrak' => $data['tanggal_akhir_kontrak'],
+                                'job_position_id' => $data['job_position_id'],
                                 'employee_blood_type' => $data['employee_blood_type'],
-                                'corporate_email' => $data['corporate_email'],
-                                'keterangan' => $data['keterangan'],
+                                'employee_project' => $data['employee_project'],
+                                'hire_id' => $data['hire_id'],
+                                'employee_dob' => $data['dob'],
+                                'status_id' => $data['status_id'],
+                                'tanggal_join' => $data['tanggal_join'],
+                                'tanggal_akhir_kontrak' => $data['tanggal_akhir_kontrak'],
                                 'tanggal_akhir_kerja' => $data['tanggal_akhir_kerja'],
+                                'keterangan' => $data['keterangan'],
                             ]);
 
                             $this->success[$key]['message'] = 'Data row ' . $key . ' dengan NIK ' . $data['no_ktp'] . ' berhasil diupdate';
@@ -213,20 +256,27 @@ class EmployeeImport implements ToCollection
                             }
                             */
 
-                            $data_karyawan_exist = HrdKaryawan::where('no_ktp', $data['no_ktp'])->latest()->first();
+                            // $data_karyawan_exist = HrdKaryawan::where('no_ktp', $data['no_ktp'])->latest()->first();
 
-                            $data_karyawan_exist->update([
+                            $data_karyawan->update([
                                 'employee_name' => $data['employee_name'],
                                 'employee_email' => $data['employee_email'],
+                                'corporate_email' => $data['corporate_email'],
                                 'employee_job_title' => $data['employee_job_title'],
                                 'employee_department' => $data['employee_department'],
-                                'employee_project' => $data['employee_project'],
-                                'tanggal_akhir_kontrak' => $data['tanggal_akhir_kontrak'],
+                                'job_position_id' => $data['job_position_id'],
                                 'employee_blood_type' => $data['employee_blood_type'],
-                                'corporate_email' => $data['corporate_email'],
-                                'keterangan' => $data['keterangan'],
+                                'employee_project' => $data['employee_project'],
+                                'hire_id' => $data['hire_id'],
+                                'employee_dob' => $data['dob'],
+                                'status_id' => $data['status_id'],
+                                'tanggal_join' => $data['tanggal_join'],
+                                'tanggal_akhir_kontrak' => $data['tanggal_akhir_kontrak'],
                                 'tanggal_akhir_kerja' => $data['tanggal_akhir_kerja'],
+                                'keterangan' => $data['keterangan'],
                             ]);
+
+                            $this->success[$key]['message'] = 'Data row ' . $key . ' dengan NIK ' . $data['no_ktp'] . ' berhasil diupdate';
                         }
                     }else{
                         $insert = self::insertData($data);
@@ -257,23 +307,26 @@ class EmployeeImport implements ToCollection
 
         $karyawan = HrdKaryawan::create([
             'employee_name' => $data['employee_name'],
-            'employee_job_title' => $data['employee_job_title'],
             'employee_email' => $data['employee_email'],
             'corporate_email' => $data['corporate_email'],
+            'employee_job_title' => $data['employee_job_title'],
+            'employee_department' => $data['employee_department'],
+            'job_position_id' => $data['job_position_id'],
+            'employee_blood_type' => $data['employee_blood_type'],
+            'employee_project' => $data['employee_project'],
             'no_ktp' => $data['no_ktp'],
+            'employee_dob' => $data['dob'],
             'hire_id' => $data['hire_id'],
             'status_id' => $data['status_id'],
             'tanggal_join' => $data['tanggal_join'],
             'tanggal_akhir_kontrak' => $data['tanggal_akhir_kontrak'],
             'tanggal_akhir_kerja' => $data['tanggal_akhir_kerja'],
             'keterangan' => $data['keterangan'],
-            'employee_department' => $data['employee_department'],
-            'employee_blood_type' => $data['employee_blood_type'],
-            'employee_project' => $data['employee_project'],
         ]);
 
         //cek NIP null
-        if(empty($data['no_id_karyawan'])){
+        $skip=true;
+        if(empty($data['no_id_karyawan'])&&$skip=='false'){
 
             $unique_group = $data['status_kode'] . $data['hire_kode'] . $data['tahun_join_y'];
 
