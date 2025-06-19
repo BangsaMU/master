@@ -11,13 +11,13 @@ use Illuminate\Database\Schema\Blueprint;
 use Bangsamu\LibraryClay\Traits\Loggable;
 
 
-class ItemCode extends Model
+class ItemCodePicture extends Model
 {
     use HasFactory;
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_item_code";
+    public $table = "master_item_code_picture";
     protected $primaryKey = 'id';
     protected $guarded = [];
 
@@ -41,13 +41,21 @@ class ItemCode extends Model
                     $table->integer('category_id')->nullable();
                     $table->integer('group_id')->nullable();
                     $table->text('remarks')->nullable();
+                    $table->dateTime('created_at')->nullable();
+                    $table->dateTime('updated_at')->nullable();
+                    $table->dateTime('deleted_at')->nullable();
                     $table->string('app_code', 10)->default('APP03');
                     $table->longText('attributes')->nullable();
                     $table->string('nav_code', 25)->nullable();
+
+                    $table->index('app_code', 'index_app_code');
+
+                    $table->integer('item_code_id')->nullable();
+                    $table->string('folder_url', 255)->nullable();
+                    $table->string('thumbnail_url', 255)->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
 
-                    $table->index('app_code', 'index_app_code');
                 });
             }
         }

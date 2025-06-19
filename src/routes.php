@@ -14,7 +14,18 @@ Route::get('mud-view', function () {
     return view('master::mud');
 });
 
+Route::middleware(['web','auth'])->prefix('redis')->name('redis.')->group(function () {
+    Route::get('/inspector', [\Bangsamu\Master\Controllers\RedisInspectorController::class, 'index'])->name('inspector');
+});
 
+Route::middleware(['web','auth'])->prefix('support')->name('support.')->group(function () {
+    Route::get('ticket-email', [\Bangsamu\Master\Controllers\SupportTicketController::class, 'ticketEmail'])
+        ->name('ticket-email');
+    Route::get('ticket-email/{id?}', [\Bangsamu\Master\Controllers\SupportTicketController::class, 'ticketEmailView'])
+        ->name('ticket-email.view');
+    Route::post('ticket-store', [\Bangsamu\Master\Controllers\SupportTicketController::class, 'ticketStore'])
+        ->name('ticket-store');
+});
 
 
 Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(function () {

@@ -41,7 +41,7 @@ class LocationImport implements ToCollection, WithHeadingRow, WithMultipleSheets
 
                         if(!$location){
                             $data = new Location();
-                            $data->loc_code = $row['location_code'];
+                            $data->loc_code = strtoupper($row['location_code']);
                             $data->loc_name = $row['location_name'];
                             $data->save();
 

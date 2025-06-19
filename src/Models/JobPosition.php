@@ -31,15 +31,14 @@ class JobPosition extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->integer('department_id')->nullable();        $table->integer('department_id')->nullable();
                     $table->string('position_code', 15)->unique();
                     $table->string('position_name', 100);
                     $table->string('position_ranking_code', 20)->nullable()->index();
 
-                    $table->dateTime('created_at')->nullable();
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
 
                     $table->index('position_code', 'index_position_code');
                 });

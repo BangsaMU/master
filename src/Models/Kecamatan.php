@@ -36,8 +36,10 @@ class Kecamatan extends Model
                     $table->string('nama', 32);
                     $table->double('latitude')->default(0);
                     $table->double('longitude')->default(0);
-                    $table->timestamps(); // Automatically creates `created_at` and `updated_at`
-                    $table->dateTime('deleted_at')->nullable();
+
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
+
                 });
             }
         }

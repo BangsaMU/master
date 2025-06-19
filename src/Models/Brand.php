@@ -32,12 +32,11 @@ class Brand extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->string('brand_code', 15)->unique()->nullable();
                     $table->string('brand_description')->nullable();
-                    $table->dateTime('created_at')->nullable();
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
                 });
             }
         }

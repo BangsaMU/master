@@ -32,13 +32,13 @@ class Uom extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->string('uom_code', 10)->unique()->nullable();
                     $table->string('uom_name', 25)->unique()->nullable();
-                    $table->dateTime('created_at')->nullable();
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
                     $table->string('app_code', 10)->default('APP03');
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
+
 
                     $table->index('app_code', 'index_app_code');
                 });

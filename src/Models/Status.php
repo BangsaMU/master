@@ -32,15 +32,15 @@ class Status extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->string('kode', 2)->unique();
                     $table->string('status', 14)->unique();
-                    $table->timestamp('created_at')->useCurrent()->nullable();
-                    $table->timestamp('updated_at')->nullable();
-                    $table->timestamp('deleted_at')->nullable();
                     $table->string('app_code', 10)
                         ->default('APP03')
                         ->comment('buat limit hak akses app yg boleh edit');
+
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
 
                     $table->index('app_code', 'Index_1');
                 });

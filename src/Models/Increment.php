@@ -32,15 +32,14 @@ class Increment extends Model
 
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->string('unique_group', 20)->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
                     $table->unsignedInteger('increment')->default(1);
-                    $table->dateTime('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
                     $table->unsignedBigInteger('object_id')->default(0);
                     $table->unsignedBigInteger('object_sub_id')->default(0);
                     $table->string('app_code', 10)->default('APP03');
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
 
                     $table->index('object_id', 'Index_1');
                 });

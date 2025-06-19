@@ -34,11 +34,10 @@ class Apps extends Model
                     $table->id();
                     $table->string('app_code', 10)->unique();
                     $table->string('name', 25);
-                    $table->dateTime('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
-                    $table->softDeletes();
-                    $table->dateTime('updated_at')->nullable();
                     $table->string('app_url', 100)->nullable();
                     $table->string('app_icon', 100)->nullable();
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
 
                     $table->charset = 'utf8mb4';
                     $table->collation = 'utf8mb4_unicode_ci';

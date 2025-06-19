@@ -35,15 +35,14 @@ class ProjectDetail extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->string('project_code_client', 10)->nullable();
                     $table->string('project_name_client', 100)->nullable();
                     $table->integer('company_id')->nullable();
                     $table->integer('project_id')->nullable();
                     $table->integer('user_id')->nullable();
-                    $table->dateTime('created_at')->nullable();
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
                 });
             }
         }

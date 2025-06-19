@@ -2,12 +2,12 @@
 
 namespace Bangsamu\Master\Imports;
 
-use App\Models\ItemCode;
-use App\Models\ItemGroup;
-use App\Models\Category;
-use App\Models\ItemCodePicture;
-use App\Models\UoM;
-use App\Models\Pca;
+use Bangsamu\Master\Models\ItemCode;
+use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Models\Category;
+use Bangsamu\Master\Models\ItemCodePicture;
+use Bangsamu\Master\Models\UoM;
+use Bangsamu\Master\Models\Pca;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -174,7 +174,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 $uom_id = $uom->id;
                             }else{
                                 $create_uom = UoM::create([
-                                    'uom_code' => $row['uom_code'],
+                                    'uom_code' => strtoupper($row['uom_code']),
                                     'uom_name' => $row['uom_name'] ?? $row['uom_code'],
                                 ]);
 
@@ -186,7 +186,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 $pca_id = $pca->id;
                             }else{
                                 $create_pca = Pca::create([
-                                    'pca_code' => $row['pca_code'],
+                                    'pca_code' => strtoupper($row['pca_code']),
                                     'pca_name' => $row['pca_name'] ?? $row['pca_code'],
                                 ]);
 
@@ -198,7 +198,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 $category_id = $category->id;
                             }else{
                                 $create_category = Category::create([
-                                    'category_code' => $row['category_code'],
+                                    'category_code' => strtoupper($row['category_code']),
                                     'category_name' => $row['category_name'] ?? $row['category_code'],
                                 ]);
 
@@ -210,7 +210,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 $item_group_id = $item_group->id;
                             }else{
                                 $create_item_group = ItemGroup::create([
-                                    'item_group_code' => $row['item_group_code'],
+                                    'item_group_code' => strtoupper($row['item_group_code']),
                                     'item_group_name' => $row['item_group_name'] ?? $row['item_group_code'],
                                 ]);
 
@@ -218,7 +218,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                             }
 
                             $data = ItemCode::create([
-                                'item_code' => $row['item_code'],
+                                'item_code' => strtoupper($row['item_code']),
                                 'item_name' => $row['item_name'],
                                 'uom_id' => $uom_id,
                                 'pca_id' => $pca_id,

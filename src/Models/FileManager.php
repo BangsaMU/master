@@ -37,13 +37,13 @@ class FileManager extends Model
                     $table->id();
                     $table->unsignedBigInteger('tfr_id');
                     $table->unsignedBigInteger('tfrs_id')->nullable();
-                    $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
-                    $table->timestamp('updated_at')->nullable();
-                    $table->timestamp('deleted_at')->nullable();
                     $table->unsignedBigInteger('wgallery_id');
                     $table->unsignedBigInteger('user_id');
                     $table->enum('attachment_type', ['evidence', 'action'])->nullable()->collation('utf8mb4_unicode_ci');
                     $table->string('app', 255)->default('teliti')->collation('utf8mb4_unicode_ci');
+
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
                 });
             }
         }

@@ -32,7 +32,7 @@ class Company extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->string('company_code', 10)->unique()->nullable();
                     $table->string('company_name', 200)->nullable();
                     $table->string('company_short', 10)->nullable();
@@ -40,9 +40,8 @@ class Company extends Model
                     $table->string('company_address', 300)->nullable();
                     $table->bigInteger('company_logo_id')->nullable();
                     $table->text('company_logo')->nullable();
-                    $table->dateTime('created_at')->nullable();
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
                 });
             }
         }

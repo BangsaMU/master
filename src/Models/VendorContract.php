@@ -32,14 +32,15 @@ class VendorContract extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->unsignedBigInteger('vendor_id')->nullable();
                     $table->string('vendor_contact_name', 100)->nullable();
                     $table->string('vendor_contact_phone', 100)->nullable();
                     $table->string('vendor_contact_email', 100)->nullable();
                     $table->string('vendor_contact_fax', 100)->nullable();
-                    $table->timestamps(); // Automatically creates `created_at` and `updated_at`
-                    $table->dateTime('deleted_at')->nullable();
+
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
                 });
             }
         }

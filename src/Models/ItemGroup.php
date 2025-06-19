@@ -32,14 +32,14 @@ class ItemGroup extends Model
             if (!Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->bigIncrements('id');
+                    $table->id();
                     $table->string('item_group_code', 20)->unique()->nullable();
                     $table->string('item_group_name', 50)->nullable();
-                    $table->dateTime('created_at')->nullable();
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
                     $table->string('app_code', 10)->default('APP03');
                     $table->longText('item_group_attributes')->nullable();
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
+
 
                     $table->index('app_code', 'index_app_code');
                 });

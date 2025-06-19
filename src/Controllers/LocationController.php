@@ -408,7 +408,7 @@ class LocationController extends Controller
             // Update existing location
             $location = Location::findOrFail($request->id);
             $update = $location->update([
-                'loc_code' => $request->loc_code,
+                'loc_code' => strtoupper($request->loc_code),
                 'loc_name' => $request->loc_name,
                 'group_type' => $request->group_type,
             ]);
@@ -434,7 +434,7 @@ class LocationController extends Controller
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
 
             $modelClass::create([
-                'loc_code' => $request->loc_code,
+                'loc_code' => strtoupper($request->loc_code),
                 'loc_name' => $request->loc_name,
                 'group_type' => $request->group_type,
                 'created_at' => now(),

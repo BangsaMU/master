@@ -75,9 +75,9 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 $uom_id = $uom->id;
                             } else {
                                 $create_uom = MasterUom::create([
-                                    'uom_code' => $uom_code,
+                                    'uom_code' => strtoupper($uom_code),
                                     'uom_name' => $uom_code,
-                                    'app_code' => $app_code,
+                                    'app_code' => strtoupper($app_code),
                                 ]);
 
                                 $uom_id = $create_uom->id;
@@ -90,9 +90,9 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                     $pca_id = $pca->id;
                                 } else {
                                     $create_pca = MasterPca::create([
-                                        'pca_code' => $pca_code,
+                                        'pca_code' => strtoupper($pca_code),
                                         'pca_name' => $pca_code,
-                                        'app_code' => $app_code,
+                                        'app_code' => strtoupper($app_code),
                                     ]);
 
                                     $pca_id = $create_pca->id;
@@ -106,9 +106,9 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                     $category_id = $category->id;
                                 } else {
                                     $create_category = MasterCategory::create([
-                                        'category_code' => $category_code,
+                                        'category_code' => strtoupper($category_code),
                                         'category_name' => $category_code,
-                                        'app_code' => $app_code,
+                                        'app_code' => strtoupper($app_code),
                                     ]);
 
                                     $category_id = $create_category->id;

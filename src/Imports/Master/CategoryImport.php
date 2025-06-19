@@ -35,7 +35,7 @@ class CategoryImport implements ToCollection, WithHeadingRow
 
                     if(!$category){
                         $data = new Category();
-                        $data->category_code = $row['category_code'];
+                        $data->category_code = strtoupper($row['category_code']);
                         $data->category_name = $row['category_name'];
                         $data->remark = $row['remark'];
                         $data->save();

@@ -2,8 +2,7 @@
 
 namespace Bangsamu\Master\Imports;
 
-use App\Models\ItemGroup;
-use Bangsamu\Master\Models\MasterItemGroup;
+use Bangsamu\Master\Models\ItemGroup;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -34,7 +33,7 @@ class ItemGroupImport implements ToCollection, WithHeadingRow
 
                     if(!$item_group){
                         $data = new ItemGroup();
-                        $data->item_group_code = $row['item_group_code'];
+                        $data->item_group_code = strtoupper($row['item_group_code']);
                         $data->item_group_name = $row['item_group_name'];
                         $data->save();
 

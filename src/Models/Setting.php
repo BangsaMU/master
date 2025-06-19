@@ -41,6 +41,7 @@ class Setting extends Model
                     $table->string('category', 255);
                     $table->timestamps();
                     $table->softDeletes();
+
                     $table->unique(['category', 'name'], 'category_name_unique');
                 });
             }

@@ -41,8 +41,8 @@ class Gallery extends Model
                     $table->string('file_group', 191)->nullable();
                     $table->string('hash_file', 255)->nullable();
                     $table->char('file_type', 10);
-                    $table->timestamps();
-                    $table->softDeletes();
+                    $table->timestamps(); // created_at & updated_at
+                    $table->softDeletes(); // deleted_at
                 });
             }
         }

@@ -34,7 +34,7 @@ class ItemGroupImport implements ToCollection, WithHeadingRow
 
                     if(!$item_group){
                         $data = new ItemGroup();
-                        $data->item_group_code = $row['item_group_code'];
+                        $data->item_group_code = strtoupper($row['item_group_code']);
                         $data->item_group_name = $row['item_group_name'];
                         $data->save();
 

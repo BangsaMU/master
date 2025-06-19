@@ -31,7 +31,7 @@ class UomImport implements ToCollection, WithHeadingRow
                                     ->first();
                     if(!$uom){
                         $data = new UoM();
-                        $data->uom_code = $row['uom_code'];
+                        $data->uom_code = strtoupper($row['uom_code']);
                         $data->uom_name = $row['uom_name'];
                         $data->save();
 

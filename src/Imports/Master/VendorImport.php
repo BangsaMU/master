@@ -32,7 +32,7 @@ class VendorImport implements ToCollection, WithHeadingRow
                         array_push($this->error,$text);
                     } else {
                         $data = MasterVendor::create([
-                            'vendor_code' => $row['vendor_code'],
+                            'vendor_code' => strtoupper($row['vendor_code']),
                             'vendor_description' => $row['vendor_description'],
                         ]);
 

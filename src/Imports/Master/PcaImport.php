@@ -33,7 +33,7 @@ class PcaImport implements ToCollection, WithHeadingRow
                         array_push($this->error,$text);
                     } else {
                         $data = new Pca();
-                        $data->pca_code = $row['pca_code'];
+                        $data->pca_code = strtoupper($row['pca_code']);
                         $data->pca_name = $row['pca_name'];
                         $data->save();
 
