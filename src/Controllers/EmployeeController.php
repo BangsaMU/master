@@ -20,7 +20,8 @@ use Bangsamu\Master\Models\MasterIncrement;
 // use Bangsamu\Master\Models\User;
 use App\Models\User;
 use Bangsamu\LibraryClay\Models\ActivityLog;
-use Bangsamu\Master\Models\HrdJobPosition;
+use Bangsamu\Master\Models\JobPosition as HrdJobPosition;
+use Bangsamu\Master\Models\Employee as HrdKaryawan;
 
 class EmployeeController extends Controller
 {
@@ -617,6 +618,7 @@ class EmployeeController extends Controller
 
             $update = $employee->update([
                 'employee_name' => $request->employee_name,
+                'employee_phone' => $request->employee_phone,
                 'employee_job_title' =>  strtoupper($jobPositionData->position_name),
                 'employee_email' => $request->employee_email,
                 'employee_phone' => $request->employee_phone,
@@ -661,6 +663,7 @@ class EmployeeController extends Controller
                 // Create new employee
                 $employee = Employee::create([
                     'employee_name' => strtoupper($request->employee_name),
+                    'employee_phone' => $request->employee_phone,
                     'employee_job_title' => strtoupper($request->employee_job_title),
                     'employee_email' => $request->employee_email,
                     'employee_phone' => $request->employee_phone ?? '-',
@@ -799,8 +802,15 @@ class EmployeeController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         // dd($data['page']['logs']);
-        $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'm_l.loc_name as work_location_name')
-            ->leftJoin('master_location as m_l', 'm_l.id', '=', 'master_employee.work_location_id')
+        // $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'm_l.loc_name as work_location_name')
+        //     ->leftJoin('master_location as m_l', 'm_l.id', '=', 'master_employee.work_location_id')
+        //     ->where('master_employee.id', $id)
+        //     ->first();
+
+        $param = HrdKaryawan::select('master_employee.*', 'mjp.position_code','md.department_name','ml.loc_name as work_location_name', 'master_employee.job_position_id')
+            ->leftJoin('master_location as ml', 'ml.id', '=', 'master_employee.work_location_id')
+            ->leftJoin('master_job_position as mjp', 'mjp.id', '=', 'master_employee.job_position_id')
+            ->leftJoin('master_department as md', 'md.id', '=', 'mjp.department_id')
             ->where('master_employee.id', $id)
             ->first();
 

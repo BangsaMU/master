@@ -36,6 +36,19 @@
                                 @enderror
                             </div>
                             <div class="col">
+                                <label for="employee_phone">Employee phone</label>
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
+                                    class="form-control @error('employee_phone') is-invalid @enderror" id="employee_phone"
+                                    placeholder="Email" name="employee_phone"
+                                    value="{{ isset($param->employee_phone) ? $param->employee_phone : old('employee_phone') }}">
+                                @error('employee_phone')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <div class="col">
                                 <label for="employee_email">Email</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="employee_email"
                                     class="form-control @error('employee_email') is-invalid @enderror" id="employee_email"
@@ -45,9 +58,6 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
-                        </div>
-
-                        <div class="form-group row">
                             <div class="col">
                                 <label for="corporate_email">Email Corporate</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="corporate_email"
@@ -96,15 +106,18 @@
                                 @enderror
                             </div>
                             <div class="col">
-                                <label for="employee_job_title">Posisi (Jabatan)</label>
-                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
-                                    class="form-control @error('employee_job_title') is-invalid @enderror"
-                                    id="employee_job_title" placeholder="Posisi" name="employee_job_title"
-                                    value="{{ isset($param->employee_job_title) ? $param->employee_job_title : old('employee_job_title') }}"
-                                    style="text-transform:uppercase" oninput="this.value = this.value.toUpperCase()">
-                                @error('employee_job_title')
+
+                                <label for="job_position_id">(Dep.) - Posisi Jabatan</label>
+                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('job_position_id') is-invalid @enderror"
+                                    id="job_position_id" placeholder="Posisi" name="job_position_id">
+                                    @if ($param)
+                                        <option value="{{ $param->job_position_id }}" selected>({{$param->department_name}}) {{$param->position_code}} - {{ $param->employee_job_title }}</option>
+                                    @endif
+                                </select>
+                                @error('job_position_id')
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
+
                             </div>
                         </div>
 
@@ -288,6 +301,30 @@
         $(document).ready(function() {
             var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
+
+            $('#job_position_id').select2({
+                width: '100%',
+                placeholder: 'Please select Job Position',
+                ajax: {
+                    url: "{!! url('api/getmaster_job_positionbyparams?set[id]=id&set[text][ - ]=position_code&set[text][]=position_name') !!}",
+                    type: "get",
+                    dataType: 'json',
+                    delay: 5,
+                    data: function(params) {
+                        return {
+                            _token: CSRF_TOKEN,
+                            search: params.term
+                        };
+                    },
+                    processResults: function(response) {
+                        return {
+                            results: response
+                        };
+                    },
+                    cache: true
+                }
+            });
+
             $('#inputWorkLocation').select2({
                 width: '100%',
                 placeholder: 'Please select Lokasi Kerja',
@@ -339,7 +376,7 @@
                     // $("input, textarea").attr("readonly", false);
                     // $("select").attr("readonly", false);
                     // $("select").attr("disabled", false);
-                    $("#hire_id, #status_id, #work_location_id").attr("disabled", false);
+                    $("#hire_id, #status_id, #work_location_id, #job_position_id").attr("disabled", false);
                 }
             }
 
