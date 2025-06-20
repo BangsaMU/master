@@ -172,7 +172,7 @@ class ApiController extends Controller
                     $ptabel_join = $join_val['tabel'];
                     // $alias_tabel = $join_val['tabel_join_alias'];
                     $select = self::getSelect($field, $ptabel_join, compact('select'));
-                    $data_array = $data_array->join($join_val['tabel'] . ' as ' . $join_val['tabel_join_alias'], $join_val['tabel_join'], $join_val['tabel_join_reff']);
+                    $data_array = $data_array->leftjoin($join_val['tabel'] . ' as ' . $join_val['tabel_join_alias'], $join_val['tabel_join'], $join_val['tabel_join_reff']);
                     // $data_array = $data_array->join($tabel_join_schema[0] . ' as ' . $alias_tabel_join, "$alias_tabel_join.$tabel_join_schema[1]", $id_join);
                 }
             }
