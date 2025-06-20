@@ -210,7 +210,7 @@ class ApiController extends Controller
 
                         if (Schema::hasColumn($tabel, $field_text)) {
                             $sparator = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
-                            $text_concat .= $alias_tabel . '.' . $field_text . $sparator;
+                            $text_concat .= 'coalesce('.$alias_tabel . '.' . $field_text.',"")' . $sparator;
                             // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
                         }else{
 
@@ -219,7 +219,7 @@ class ApiController extends Controller
                                     if(Schema::hasColumn($join_val['tabel'], $field_text)){
                                                 //jik pakek joint
                                                 $sparatorjoin = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
-                                                $text_concat .= $field_text . $sparatorjoin;
+                                                $text_concat .= 'coalesce('.$field_text .',"")' . $sparatorjoin;
                                     }else{
                                         //buang last sparator
                                         $lastCommaPos = strrpos($text_concat, ',');
