@@ -86,6 +86,8 @@ class ApiController extends Controller
         // contoh by id http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?id=45&set[text]=type&set[field][]=description&set[field][]=id
         // contoh get list http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=type&set[field][]=description&set[field][]=id
         // contoh join tabel http://clay.localhost/api/getmaster_item_codebyparams?set[field][]=uom_name&set[field][]=item_name&set[field][]=pca_name&join[master_uom.id]=uom_id&join[master_pca.id]=pca_id
+        // contoh joint multi text dari join http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1
+
 
         /*Param serch support array dan string data yg diambil param terakhir */
         $search = $request->search;
@@ -197,12 +199,38 @@ class ApiController extends Controller
                 /*validasi kolom tabel*/
                 if (is_array($text)) {
                     $text_concat = 'concat(';
+                    $last = end($text);
+                    // dd($last);
                     foreach ($text as $sparator => $field_text) {
-                        $sparator = $sparator == '0' ? '' : $sparator;
+                        $sparator = $sparator == '0' ? '-' : $sparator;
+
+                        if($last==$field_text){
+                            $sparator='';
+                        }
+
                         if (Schema::hasColumn($tabel, $field_text)) {
                             $sparator = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
                             $text_concat .= $alias_tabel . '.' . $field_text . $sparator;
                             // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
+                        }else{
+
+                            foreach ($join_tabel as $key_index => $join_val) {
+                                    // dd($join_val['tabel']);
+                                    if(Schema::hasColumn($join_val['tabel'], $field_text)){
+                                                //jik pakek joint
+                                                $sparatorjoin = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
+                                                $text_concat .= $field_text . $sparatorjoin;
+                                    }else{
+                                        //buang last sparator
+                                        $lastCommaPos = strrpos($text_concat, ',');
+
+                                        if ($lastCommaPos !== false) {
+                                            $text_concat = substr($text_concat, 0, $lastCommaPos);
+                                        }
+
+                                        // dd($text_concat,$sparator);
+                                    };
+                            }
                         }
                     }
 
