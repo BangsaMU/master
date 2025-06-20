@@ -199,15 +199,18 @@ class ApiController extends Controller
                 /*validasi kolom tabel*/
                 if (is_array($text)) {
                     $text_concat = 'concat(';
-                    $last = end($text);
+                    // $last = end($text);
+                    $last_key = array_key_last($text);
+                    $last = $text[$last_key];
                     // dd($last);
-                    foreach ($text as $sparator => $field_text) {
+                    foreach ($text as $keyText => $field_text) {
+                        $sparator = $keyText;
                         $sparator = $sparator == '0' ? '-' : $sparator;
 
-                        if($last==$field_text){
+                        if($last_key==$keyText){
                             $sparator='';
                         }
-
+                        // dd(array_key_last($text),$text,$sparator,$last,$field_text);
                         if (Schema::hasColumn($tabel, $field_text)) {
                             $sparator = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
                             $text_concat .= 'coalesce('.$alias_tabel . '.' . $field_text.',"")' . $sparator;
