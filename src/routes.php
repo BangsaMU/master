@@ -163,6 +163,13 @@ Route::prefix('api')
         /*global select2 dari tabel*/
         Route::get('get{tabel}byparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getTabelByParams'])
         ->name('get{tabel}byparams');
+
+        /*annotation untuk paraf dan signature*/
+        Route::post('setAnnotationId', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'setAnnotationId'])->name('setAnnotationId');
+        Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->name('getcurrentuser');
+        Route::get('getSignature', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getSignature'])->name('getSignature');
+        Route::get('getParaf', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getParaf'])->name('getParaf');
+
     });
 
 Route::middleware(['web'])->group(function () {
