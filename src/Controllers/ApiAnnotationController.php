@@ -388,7 +388,7 @@ class ApiAnnotationController extends Controller
         return $outputPath;
     }
 
-
+    //funngsi ambil paraf
     public function getParaf(Request $request)
     {
         $token = $request->token;
