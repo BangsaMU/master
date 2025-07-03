@@ -12,12 +12,15 @@ use Intervention\Image\Image;
 use Mpdf\Mpdf;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use App\Http\Controllers\Controller;
-use Bangsamu\Master\Models\UserDetails;
-use Bangsamu\Master\Models\User;
-use Bangsamu\Master\Models\Gallery;
+use App\Models\UserDetail;
+use App\Models\User;
+
+use Illuminate\Support\Facades\Auth;
+
+//jika punya routing skema dari spb enl contohnya
+use App\Models\Gallery;
 use App\Models\Routing;
 use App\Models\Requisition;
-use Illuminate\Support\Facades\Auth;
 
 
 class ApiAnnotationController extends Controller
@@ -394,7 +397,7 @@ class ApiAnnotationController extends Controller
         $token = $request->token;
         $user = $this->getTokenIdOrEmail($token);
         $user_id = $user->id ?? 0;
-        $paraf = UserDetails::select('field_value')->where('field_key', 'paraf')->where('user_id', $user_id)->first();
+        $paraf = UserDetail::select('field_value')->where('field_key', 'paraf')->where('user_id', $user_id)->first();
         // dd($token, $user_id, $paraf->toArray());
         if ($paraf) {
             $paraf_path = storage_path($paraf->field_value);
@@ -433,7 +436,7 @@ class ApiAnnotationController extends Controller
         $token = $request->token;
         $user = $this->getTokenIdOrEmail($token);
         $user_id = $user->id ?? 0;
-        $signature = UserDetails::select('field_value')->where('field_key', 'signature')->where('user_id', $user_id)->first();
+        $signature = UserDetail::select('field_value')->where('field_key', 'signature')->where('user_id', $user_id)->first();
         // dd($token, $user_id, $signature->toArray());
         if ($signature) {
             $signature_path = storage_path($signature->field_value);
@@ -553,7 +556,7 @@ class ApiAnnotationController extends Controller
 
         $value = true;
         // dd($permission,$code_number,$getRouting,$user);
-        // $signature = UserDetails::select('field_value')->where('field_key','signature')->where('user_id',$user_id)->first();
+        // $signature = UserDetail::select('field_value')->where('field_key','signature')->where('user_id',$user_id)->first();
         // if($signature){
         // $signature_url = storage_path($signature->field_value);
         // $file_signature = storage_path($user->signature ?? 'no-image.png');
