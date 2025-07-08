@@ -222,7 +222,6 @@ class ApiAnnotationController extends Controller
 
     function getTokenIdOrEmail($token=null) {
         $user = user::where('api_token', $token)->first() ?? null;
-        // dd($user);
         if ($user === null) {
             $user = User::whereRaw('MD5(email) = ?', [$token])->first() ?? abort(401);;
         }
@@ -279,7 +278,93 @@ class ApiAnnotationController extends Controller
         $fontSize = 5 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
         $fontSize2 = 7 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
         // Jika ingin menggunakan font custom, contoh:
-        $fontPath = storage_path('/fonts/arial.ttf');
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+
+        // Tentukan posisi teks (x, y)
+        $x = 10; // Jarak dari kiri
+        $y = 10 + $fontSize; // Jarak dari bawah
+        $y2 = imagesy($image) - 100; // Jarak dari bawah
+
+
+        // Tambahkan teks timestamp ke gambar
+        imagettftext($image, $fontSize, 0, $x, $y, $textColor, $fontPath, $dateFormat);
+        // imagettftext($image, $fontSize2, 0, $x, $y2, $textColor, $fontPath, $name);
+        // imagestring($image, $fontSize, $x, $y, $currentTime, $textColor);
+
+        // Hitung posisi Y awal
+        $yStart = imagesy($image) - 100;
+        $maxWidth = imagesx($image) - 20;
+        $lines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
+
+        // Tulis teks per baris
+        foreach ($lines as $i => $line) {
+            imagettftext($image, $fontSize2, 0, 10, $yStart + ($i * ($fontSize2 + 5)), $textColor, $fontPath, $line);
+        }
+
+        imagepng($image, $outputPath);
+
+        // return response()->file($outputPath, [
+        //     'Content-Type' => 'image/png'
+        // ]);
+
+        // Tampilkan gambar ke browser
+        // imagepng($image);
+        // Hapus resource gambar dari memori
+        imagedestroy($image);
+        return $outputPath;
+        // echo "Gambar tanda tangan dengan timestamp telah disimpan di: $outputPath";
+    }
+    public function getParafWithTimeStamp($paraf_path, $request)
+    {
+        // dd(pathinfo($paraf_path));
+        $token = $request->token;
+        $user = $this->getTokenIdOrEmail($token);
+        $name = $user->name;
+        // dd( $token,$name);
+        // Cek apakah file tanda tangan ada
+        if (!file_exists($paraf_path)) {
+            // Jika file tidak ditemukan
+            abort(403, 'Signature file not found.');
+        }
+
+        // $paraf_path = storage_path($signature->field_value);
+        // Lokasi gambar tanda tangan
+        $imagePath = $paraf_path;
+
+        // dd(pathinfo($paraf_path));
+        // Ambil waktu saat ini
+        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+        $strtotime = strtotime(base64_decode($currentTime));
+        $dateFormat = date('d M Y H:i:s O', $strtotime);
+        // Simpan gambar dengan timestamp
+        $outputPath = '/tmp/ttd_with_timestamp' . basename($paraf_path) . $dateFormat . '.png';
+        if (file_exists($outputPath)) {
+            return $outputPath;
+        }
+
+        // Muat gambar tanda tangan dengan transparansi
+        // $image = imagecreatefrompng($imagePath);
+        try {
+            $image = self::loadImage($imagePath); // Memuat gambar dengan deteksi otomatis
+        } catch (\Exception $e) {
+            die("Error: " . $e->getMessage());
+        }
+        // Konversi tanda tangan ke warna biru
+        imagefilter($image, IMG_FILTER_COLORIZE, 0, 0, 255);
+
+        // Aktifkan mode alpha untuk transparansi
+        imagealphablending($image, true);
+        imagesavealpha($image, true);
+
+        // Tentukan warna teks (hitam)
+        $textColor = imagecolorallocate($image, 0, 0, 0);
+        // $textColor = imagecolorallocate($image, 255, 255, 255);
+
+        // Tentukan font (gunakan font default atau path ke file font .ttf)
+        $fontSize = 5 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
+        $fontSize2 = 7 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
+        // Jika ingin menggunakan font custom, contoh:
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
 
         // Tentukan posisi teks (x, y)
         $x = 10; // Jarak dari kiri
@@ -400,13 +485,15 @@ class ApiAnnotationController extends Controller
         $paraf = UserDetail::select('field_value')->where('field_key', 'paraf')->where('user_id', $user_id)->first();
         // dd($token, $user_id, $paraf->toArray());
         if ($paraf) {
-            $paraf_path = storage_path($paraf->field_value);
 
-            // Cek apakah file tanda tangan ada
-            if (file_exists($paraf_path)) {
-                // if ($request->currentTime) {
-                //     $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
-                // }
+            // dd(Storage::disk('media')->exists($paraf->field_value), Storage::disk('media')->path($paraf->field_value), Storage::disk('media')->url('nama-file.jpg') );
+            $paraf_path = Storage::disk('media')->path($paraf->field_value);
+
+            // Cek apakah file paraf ada
+            if (Storage::disk('media')->exists($paraf->field_value)) {
+                if ($request->currentTime) {
+                    $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
+                }
                 return response()->file($paraf_path, [
                     'Content-Type' => 'image/png'
                 ]);
@@ -423,7 +510,7 @@ class ApiAnnotationController extends Controller
         if ($paraf) {
             // $paraf_url = storage_path($paraf->field_value);
             // dd(storage_path($paraf->field_value),$paraf->toArray());
-            $paraf_url = file_get_contents(storage_path($paraf->field_value));
+            $paraf_url = file_get_contents($paraf_path);
             // $file_paraf = storage_path($user->paraf ?? 'no-image.png');
         } else {
             $paraf_url = null;
@@ -439,10 +526,10 @@ class ApiAnnotationController extends Controller
         $signature = UserDetail::select('field_value')->where('field_key', 'signature')->where('user_id', $user_id)->first();
         // dd($token, $user_id, $signature->toArray());
         if ($signature) {
-            $signature_path = storage_path($signature->field_value);
+            $signature_path = Storage::disk('media')->path($signature->field_value);
 
             // Cek apakah file tanda tangan ada
-            if (file_exists($signature_path)) {
+            if (Storage::disk('media')->exists($signature->field_value)) {
                 if ($request->currentTime) {
                     $signature_path = self::getSignatureWithTimeStamp($signature_path, $request);
                 }
@@ -462,7 +549,7 @@ class ApiAnnotationController extends Controller
         if ($signature) {
             // $signature_url = storage_path($signature->field_value);
             // dd(storage_path($signature->field_value),$signature->toArray());
-            $signature_url = file_get_contents(storage_path($signature->field_value));
+            $signature_url = file_get_contents($paraf_path);
             // $file_signature = storage_path($user->signature ?? 'no-image.png');
         } else {
             $signature_url = null;
