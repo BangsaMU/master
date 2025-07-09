@@ -571,6 +571,7 @@ class ApiAnnotationController extends Controller
         $filename = $request->file_name . '.pdf'; //'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
         // dd($filename,$request->all());
         $Gallery = Gallery::where('filename', $filename)->first() ?? abort(403, 'requisition not found');
+        // dd($Gallery,$Gallery->object_id);
         return $Gallery->object_id;
     }
 
@@ -586,20 +587,20 @@ class ApiAnnotationController extends Controller
         $annotation_id = $request->annotation_id;
 
         $Requisition = Requisition::find($getRequisitionId);
-        // dd($Requisition->toArray(),$file_name_array);
+        // dd($getRequisitionId,$request->all(),$Requisition->toArray(),$file_name,$file_name_array);
         $version = $Requisition->version;
         $requisition_number = @$file_name_array[1];
 
         $filename = $request->file_name . '.pdf'; //'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
         $Routing = Routing::where('object_id', $getRequisitionId)
             // ->where('active', 1)
-            ->where('requisition_number', $requisition_number)
+            // ->where('requisition_number', $requisition_number) ganti by requisition.id
             ->where('version', $version)
             ->where('status', 'open')
             ->where('label_email', $email)
             ->first();
 
-        // dd($Gallery->object_id,$filename);
+        // dd($Routing,$email,@$Gallery->object_id,$filename);
         return $Routing;
     }
 
@@ -628,17 +629,18 @@ class ApiAnnotationController extends Controller
         /*ambil mnilai dari env HAVE_ROUTING jika true ada module routing*/
         if (config('app.HAVE_ROUTING')) {
             $getRouting = self::getRouting($request);
+            if ($getRouting) {
+                $permission = $getRouting->active == 1 ? true : false;
+            }else{
+                $permission = false;
+            }
         }else{
             $getRouting = null;
-        }
-
-
-        if ($getRouting) {
-            $permission = $getRouting->active == 1 ? true : false;
-        } else {
-            //jika annotasi selai routing di open defaultnya
             $permission = true;
         }
+
+        // dd($getRouting,config('app.HAVE_ROUTING'));
+
 
 
         $value = true;
