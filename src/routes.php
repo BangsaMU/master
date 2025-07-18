@@ -203,6 +203,12 @@ Route::get('/optimize', function (Request $request) {
 });
 
 
+Route::middleware(['web','auth'])->group(function () {
+    Route::get('/profile', [Bangsamu\Master\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [Bangsamu\Master\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [Bangsamu\Master\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
 // =======================================
 
 /*

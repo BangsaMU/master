@@ -26,37 +26,50 @@ class SupportTicketController extends Controller
         $this->middleware('auth');
     }
 
-    public function getAppTicketUrl()
+    public function getAppSetting($valueTicket)
     {
-        return Cache::rememberForever('setting.app.ticket', function () {
+        return Cache::rememberForever('setting.app.ticket.'.$valueTicket, function () use($valueTicket) {
             // Ambil dari database
-            $setting = Setting::where('name', 'app.ticket')
+            $setting = Setting::where('name', $valueTicket)
+                ->where('category', 'support_ticket')
                 ->whereNull('deleted_at')
                 ->value('value');
-
+            // dd($setting,$valueTicket);
             // Jika tidak ada, fallback ke config
-            return $setting ?: config('app.ticket', 'http://192.168.16.205:9016');
+            return $setting;
         });
     }
 
     public function ticketEmail(Request $request)
     {
-        $apiUrl =  $this->getAppTicketUrl();
-        $appCode = config('SsoConfig.main.APP_CODE');
+        $apiUrl = $this->getAppSetting('app.ticket');//?: config('app.ticket', 'http://192.168.16.205:9016');
+        $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
+        $search = $this->getAppSetting('app.search');
+
         $perPage = 10; // Sesuai dengan logika pagination pada response
         $page = max(1, intval($request->query('page', 1))); // Ambil page dari query, default ke 1
         $offset = ($page - 1) * $perPage;
-dd($apiUrl);
-        $response = Http::get($apiUrl . '/api/tickets', [
+        // dd($apiUrl);
+
+        $url = $apiUrl . '/api/tickets';
+        $params = [
             'limit' => $perPage,
             'offset' => $offset,
             'app_code' => $appCode,
+            'search' => $search,
             'order_by' => 'status,created_at',
             'order' => 'desc,desc',
-        ]);
+        ];
+
+        // Log full URL for debugging
+        $fullUrl = $url . '?' . http_build_query($params);
+        Log::debug('Requesting ticket API:', ['url' => $fullUrl]);
+
+        $response = Http::get($url, $params);
+
 
         if ($response->failed()) {
-            return view('settings.supportemail', [
+            return view('master::support.supportemail', [
                 'tickets' => [],
                 'error' => 'Failed to fetch tickets.'
             ]);
@@ -67,7 +80,8 @@ dd($apiUrl);
         $totalTickets = $data['pagination']['total'] ?? 0;
         $totalPages = ceil($totalTickets / $perPage);
 
-        return view('settings.supportemail', [
+        return view('master::master.support.supportemail',
+        [
             'tickets' => $tickets,
             'currentPage' => $page,
             'totalPages' => $totalPages,
@@ -81,14 +95,18 @@ dd($apiUrl);
             return response()->json(['success' => false, 'message' => 'Ticket ID is required']);
         }
 
-        $apiUrl = config('app.ticket') . "/api/tickets/" . $id;
+        $apiUrl = $this->getAppSetting('app.ticket');//?: config('app.ticket', 'http://192.168.16.205:9016');
+        $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
+        $search = $this->getAppSetting('app.search');
+
+        $apiUrlViewTicket = $apiUrl . "/api/tickets/" . $id;
 
         // Initialize cURL session
         $curl = curl_init();
 
         // Set cURL options
         curl_setopt_array($curl, [
-            CURLOPT_URL => $apiUrl,
+            CURLOPT_URL => $apiUrlViewTicket,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 30,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
@@ -124,9 +142,11 @@ dd($apiUrl);
             'description' => 'required',
         ]);
 
-        $apiUrl = config('app.ticket');
-        $appCode = config('SsoConfig.main.APP_CODE');
         $appName = config('app.name');
+
+        $apiUrl = $this->getAppSetting('app.ticket');//?: config('app.ticket', 'http://192.168.16.205:9016');
+        $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
+        $search = $this->getAppSetting('app.search');
 
         // Gather form data
         $subject = $request->subject;
