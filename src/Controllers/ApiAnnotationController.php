@@ -384,8 +384,8 @@ class ApiAnnotationController extends Controller
         $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
 
         // Posisi untuk timestamp dan nama (di sebelah kanan)
-        $rightSectionX = $originalWidth / 2; // Mulai dari tengah canvas
-        $maxTextWidth = $originalWidth / 2 - 20; // Maksimal setengah lebar canvas minus margin
+        $rightSectionX = $originalWidth;// / 2; // Mulai dari tengah canvas
+        $maxTextWidth = $originalWidth;// / 2 - 20; // Maksimal setengah lebar canvas minus margin
 
         // Posisi timestamp (di bagian atas sebelah kanan)
         $timestampY = 30; // Jarak dari atas
@@ -512,6 +512,108 @@ class ApiAnnotationController extends Controller
         return $outputPath;
         // echo "Gambar tanda tangan dengan timestamp telah disimpan di: $outputPath";
     }
+
+    public function getParafWithTimeStampKanan($paraf_path, $request)
+    {
+        $token = $request->token;
+        $user = $this->getTokenIdOrEmail($token);
+        $name = $user->name;
+
+        // Cek apakah file tanda tangan ada
+        if (!file_exists($paraf_path)) {
+            abort(403, 'Paraf file not found.');
+        }
+
+        // Ambil waktu saat ini
+        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+        $strtotime = strtotime(base64_decode($currentTime));
+        $dateFormat = date('d M Y H:i:s', $strtotime);
+
+        // Simpan gambar dengan timestamp
+        $outputPath = '/tmp/ttd_with_timestamp' . basename($paraf_path) . $dateFormat . '.png';
+        if (file_exists($outputPath)) {
+            return $outputPath;
+        }
+
+        try {
+            // Muat gambar paraf asli
+            $parafImage = self::loadImage($paraf_path);
+        } catch (\Exception $e) {
+            die("Error: " . $e->getMessage());
+        }
+
+        // Dapatkan dimensi gambar asli
+        $originalWidth = imagesx($parafImage);
+        $originalHeight = imagesy($parafImage);
+
+        // Buat canvas baru dengan ukuran yang sama
+        $canvas = imagecreatetruecolor($originalWidth, $originalHeight);
+
+        // Set background transparan
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefill($canvas, 0, 0, $transparent);
+        imagealphablending($canvas, true);
+
+        // Copy gambar signature ke canvas (posisi paling atas)
+        imagecopy($canvas, $parafImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
+
+        // Konversi paraf ke warna yang diinginkan
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000';
+        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+
+        // Tentukan warna teks (hitam)
+        $textColor = imagecolorallocate($canvas, 0, 0, 0);
+
+        // Tentukan ukuran font berdasarkan lebar gambar
+        $fontSize = 4 / 100 * $originalWidth;
+        $fontSize2 = 5 / 100 * $originalWidth;
+
+        // Path font
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+
+        // Posisi untuk timestamp dan nama (di sebelah kanan)
+        $rightSectionX = $originalWidth;// / 2; // Mulai dari tengah canvas
+        $maxTextWidth = $originalWidth;// / 2 - 20; // Maksimal setengah lebar canvas minus margin
+
+        // Posisi timestamp (di bagian atas sebelah kanan)
+        $timestampY = 30; // Jarak dari atas
+
+        // Wrap text untuk timestamp jika terlalu panjang
+        $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
+
+        // Tulis timestamp per baris
+        foreach ($timestampLines as $i => $line) {
+            $lineY = $timestampY + ($i * ($fontSize + 5));
+            imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+        }
+
+        // Posisi untuk nama (di bawah timestamp)
+        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 5)) + 15; // 15px gap setelah timestamp
+        $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
+
+        // Tulis nama per baris
+        foreach ($nameLines as $i => $line) {
+            $lineY = $nameY + ($i * ($fontSize2 + 5));
+            // Pastikan teks tidak keluar dari canvas
+            if ($lineY < $originalHeight - 10) {
+                imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+            }
+        }
+
+        // Simpan hasil ke file
+        imagepng($canvas, $outputPath);
+
+        // Hapus resource gambar dari memori
+        imagedestroy($parafImage);
+        imagedestroy($canvas);
+
+        return $outputPath;
+    }
+
     public function getParafWithTimeStamp($paraf_path, $request)
     {
         // dd(pathinfo($paraf_path));
@@ -694,7 +796,11 @@ class ApiAnnotationController extends Controller
             // Cek apakah file paraf ada
             if (Storage::disk('media')->exists($paraf->field_value)) {
                 if ($request->currentTime) {
-                    $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
+                    if($request->position=='right'){
+                        $paraf_path = self::getParafWithTimeStampKanan($paraf_path, $request);
+                    }else{
+                        $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
+                    }
                 }
                 return response()->file($paraf_path, [
                     'Content-Type' => 'image/png'
