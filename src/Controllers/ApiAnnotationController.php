@@ -16,6 +16,7 @@ use App\Models\UserDetail;
 use App\Models\User;
 
 use Illuminate\Support\Facades\Auth;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 //jika punya routing skema dari spb enl contohnya
 use App\Models\Gallery;
@@ -230,6 +231,199 @@ class ApiAnnotationController extends Controller
 
     public function getSignatureWithTimeStamp($signature_path, $request)
     {
+        $token = $request->token;
+        $user = $this->getTokenIdOrEmail($token);
+        $name = $user->name;
+
+        // Cek apakah file tanda tangan ada
+        if (!file_exists($signature_path)) {
+            abort(403, 'Signature file not found.');
+        }
+
+        // Ambil waktu saat ini
+        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+        $strtotime = strtotime(base64_decode($currentTime));
+        $dateFormat = date('d M Y H:i:s', $strtotime);
+
+        // Simpan gambar dengan timestamp
+        $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
+        if (file_exists($outputPath)) {
+            return $outputPath;
+        }
+
+        try {
+            // Muat gambar tanda tangan asli
+            $signatureImage = self::loadImage($signature_path);
+        } catch (\Exception $e) {
+            die("Error: " . $e->getMessage());
+        }
+
+        // Dapatkan dimensi gambar asli
+        $originalWidth = imagesx($signatureImage);
+        $originalHeight = imagesy($signatureImage);
+
+        // Buat canvas baru dengan ukuran yang sama
+        $canvas = imagecreatetruecolor($originalWidth, $originalHeight);
+
+        // Set background transparan
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefill($canvas, 0, 0, $transparent);
+        imagealphablending($canvas, true);
+
+        // Copy gambar signature ke canvas (posisi paling atas)
+        imagecopy($canvas, $signatureImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
+
+        // Konversi tanda tangan ke warna yang diinginkan
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000';
+        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+
+        // Tentukan warna teks (hitam)
+        $textColor = imagecolorallocate($canvas, 0, 0, 0);
+
+        // Tentukan ukuran font berdasarkan lebar gambar
+        $fontSize = 5 / 100 * $originalWidth;
+        $fontSize2 = 7 / 100 * $originalWidth;
+
+        // Path font
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+
+        // Posisi untuk timestamp (di bagian bawah)
+        $timestampX = 10;
+        $timestampY = $originalHeight - 60; // Jarak dari bawah untuk timestamp
+
+        // Tambahkan timestamp ke canvas
+        imagettftext($canvas, $fontSize, 0, $timestampX, $timestampY, $textColor, $fontPath, $dateFormat);
+
+        // Posisi untuk nama (di bawah timestamp)
+        $nameY = $originalHeight - 30; // Lebih ke bawah dari timestamp
+        $maxWidth = $originalWidth - 20;
+        $lines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
+
+        // Tulis nama per baris
+        foreach ($lines as $i => $line) {
+            $lineY = $nameY + ($i * ($fontSize2 + 5));
+            // Pastikan teks tidak keluar dari canvas
+            if ($lineY < $originalHeight - 10) {
+                imagettftext($canvas, $fontSize2, 0, 10, $lineY, $textColor, $fontPath, $line);
+            }
+        }
+
+        // Simpan hasil ke file
+        imagepng($canvas, $outputPath);
+
+        // Hapus resource gambar dari memori
+        imagedestroy($signatureImage);
+        imagedestroy($canvas);
+
+        return $outputPath;
+    }
+    public function getSignatureWithTimeStampKanan($signature_path, $request)
+    {
+        $token = $request->token;
+        $user = $this->getTokenIdOrEmail($token);
+        $name = $user->name;
+
+        // Cek apakah file tanda tangan ada
+        if (!file_exists($signature_path)) {
+            abort(403, 'Signature file not found.');
+        }
+
+        // Ambil waktu saat ini
+        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+        $strtotime = strtotime(base64_decode($currentTime));
+        $dateFormat = date('d M Y H:i:s', $strtotime);
+
+        // Simpan gambar dengan timestamp
+        $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
+        if (file_exists($outputPath)) {
+            return $outputPath;
+        }
+
+        try {
+            // Muat gambar tanda tangan asli
+            $signatureImage = self::loadImage($signature_path);
+        } catch (\Exception $e) {
+            die("Error: " . $e->getMessage());
+        }
+
+        // Dapatkan dimensi gambar asli
+        $originalWidth = imagesx($signatureImage);
+        $originalHeight = imagesy($signatureImage);
+
+        // Buat canvas baru dengan ukuran yang sama
+        $canvas = imagecreatetruecolor($originalWidth, $originalHeight);
+
+        // Set background transparan
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefill($canvas, 0, 0, $transparent);
+        imagealphablending($canvas, true);
+
+        // Copy gambar signature ke canvas (posisi paling atas)
+        imagecopy($canvas, $signatureImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
+
+        // Konversi tanda tangan ke warna yang diinginkan
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000';
+        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+
+        // Tentukan warna teks (hitam)
+        $textColor = imagecolorallocate($canvas, 0, 0, 0);
+
+        // Tentukan ukuran font berdasarkan lebar gambar
+        $fontSize = 4 / 100 * $originalWidth;
+        $fontSize2 = 5 / 100 * $originalWidth;
+
+        // Path font
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+
+        // Posisi untuk timestamp dan nama (di sebelah kanan)
+        $rightSectionX = $originalWidth / 2; // Mulai dari tengah canvas
+        $maxTextWidth = $originalWidth / 2 - 20; // Maksimal setengah lebar canvas minus margin
+
+        // Posisi timestamp (di bagian atas sebelah kanan)
+        $timestampY = 30; // Jarak dari atas
+
+        // Wrap text untuk timestamp jika terlalu panjang
+        $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
+
+        // Tulis timestamp per baris
+        foreach ($timestampLines as $i => $line) {
+            $lineY = $timestampY + ($i * ($fontSize + 5));
+            imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+        }
+
+        // Posisi untuk nama (di bawah timestamp)
+        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 5)) + 15; // 15px gap setelah timestamp
+        $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
+
+        // Tulis nama per baris
+        foreach ($nameLines as $i => $line) {
+            $lineY = $nameY + ($i * ($fontSize2 + 5));
+            // Pastikan teks tidak keluar dari canvas
+            if ($lineY < $originalHeight - 10) {
+                imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+            }
+        }
+
+        // Simpan hasil ke file
+        imagepng($canvas, $outputPath);
+
+        // Hapus resource gambar dari memori
+        imagedestroy($signatureImage);
+        imagedestroy($canvas);
+
+        return $outputPath;
+    }
+
+    public function getSignatureWithTimeStampOLD($signature_path, $request)
+    {
         // dd(pathinfo($signature_path));
         $token = $request->token;
         $user = $this->getTokenIdOrEmail($token);
@@ -263,8 +457,12 @@ class ApiAnnotationController extends Controller
         } catch (\Exception $e) {
             die("Error: " . $e->getMessage());
         }
+
         // Konversi tanda tangan ke warna biru
-        imagefilter($image, IMG_FILTER_COLORIZE, 0, 0, 255);
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000'; // fallback kalau null
+        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        imagefilter($image, IMG_FILTER_COLORIZE, $r, $g, $b);
 
         // Aktifkan mode alpha untuk transparansi
         imagealphablending($image, true);
@@ -342,15 +540,19 @@ class ApiAnnotationController extends Controller
             return $outputPath;
         }
 
-        // Muat gambar tanda tangan dengan transparansi
+        // Muat gambar paraf dengan transparansi
         // $image = imagecreatefrompng($imagePath);
         try {
             $image = self::loadImage($imagePath); // Memuat gambar dengan deteksi otomatis
         } catch (\Exception $e) {
             die("Error: " . $e->getMessage());
         }
-        // Konversi tanda tangan ke warna biru
-        imagefilter($image, IMG_FILTER_COLORIZE, 0, 0, 255);
+        // Konversi paraf ke warna biru
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000'; // fallback kalau null
+        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        imagefilter($image, IMG_FILTER_COLORIZE, $r, $g, $b);
+        // imagefilter($image, IMG_FILTER_COLORIZE, 0, 0, 255);
 
         // Aktifkan mode alpha untuk transparansi
         imagealphablending($image, true);
@@ -400,7 +602,7 @@ class ApiAnnotationController extends Controller
         return $outputPath;
         // echo "Gambar tanda tangan dengan timestamp telah disimpan di: $outputPath";
     }
-    public function getSignatureWithTimeStampKanan($signature_path, $request)
+    public function getSignatureWithTimeStampKananKekecilan($signature_path, $request)
     {
         $token = $request->token;
         $user = $this->getTokenIdOrEmail($token);
@@ -531,7 +733,11 @@ class ApiAnnotationController extends Controller
             // Cek apakah file tanda tangan ada
             if (Storage::disk('media')->exists($signature->field_value)) {
                 if ($request->currentTime) {
-                    $signature_path = self::getSignatureWithTimeStamp($signature_path, $request);
+                    if($request->position=='right'){
+                        $signature_path = self::getSignatureWithTimeStampKanan($signature_path, $request);
+                    }else{
+                        $signature_path = self::getSignatureWithTimeStamp($signature_path, $request);
+                    }
                 }
                 return response()->file($signature_path, [
                     'Content-Type' => 'image/png'
