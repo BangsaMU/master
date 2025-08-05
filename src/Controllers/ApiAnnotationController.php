@@ -513,106 +513,135 @@ class ApiAnnotationController extends Controller
         // echo "Gambar tanda tangan dengan timestamp telah disimpan di: $outputPath";
     }
 
-    public function getParafWithTimeStampKanan($paraf_path, $request)
-    {
-        $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
-        $name = $user->name;
+public function getParafWithTimeStampKanan($paraf_path, $request)
+{
+    $token = $request->token;
+    $user = $this->getTokenIdOrEmail($token);
+    $name = $user->name;
 
-        // Cek apakah file tanda tangan ada
-        if (!file_exists($paraf_path)) {
-            abort(403, 'Paraf file not found.');
-        }
+    // Cek apakah file tanda tangan ada
+    if (!file_exists($paraf_path)) {
+        abort(403, 'Paraf file not found.');
+    }
 
-        // Ambil waktu saat ini
-        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
-        $strtotime = strtotime(base64_decode($currentTime));
-        $dateFormat = date('d M Y H:i:s', $strtotime);
+    // Ambil waktu saat ini
+    $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+    $strtotime = strtotime(base64_decode($currentTime));
+    $dateFormat = date('d M Y H:i:s', $strtotime);
 
-        // Simpan gambar dengan timestamp
-        $outputPath = '/tmp/ttd_with_timestamp' . basename($paraf_path) . $dateFormat . '.png';
-        if (file_exists($outputPath)) {
-            return $outputPath;
-        }
+    // Simpan gambar dengan timestamp
+    $outputPath = '/tmp/ttd_with_timestamp' . basename($paraf_path) . $dateFormat . '.png';
 
-        try {
-            // Muat gambar paraf asli
-            $parafImage = self::loadImage($paraf_path);
-        } catch (\Exception $e) {
-            die("Error: " . $e->getMessage());
-        }
+    if (file_exists($outputPath)) {
+        return $outputPath;
+    }
 
-        // Dapatkan dimensi gambar asli
-        $originalWidth = imagesx($parafImage);
-        $originalHeight = imagesy($parafImage);
+    try {
+        // Muat gambar paraf asli
+        $parafImage = self::loadImage($paraf_path);
+    } catch (\Exception $e) {
+        die("Error: " . $e->getMessage());
+    }
 
-        // Buat canvas baru dengan ukuran yang sama
-        $canvas = imagecreatetruecolor($originalWidth, $originalHeight);
+    // Dapatkan dimensi gambar asli
+    $originalWidth = imagesx($parafImage);
+    $originalHeight = imagesy($parafImage);
 
-        // Set background transparan
-        imagealphablending($canvas, false);
-        imagesavealpha($canvas, true);
-        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-        imagefill($canvas, 0, 0, $transparent);
-        imagealphablending($canvas, true);
+    // Buat canvas baru dengan lebar diperluas untuk menampung teks
+    $canvasWidth = $originalWidth * 2; // Dobel lebar untuk memberikan ruang teks
+    $canvasHeight = $originalHeight;
+    $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
 
-        // Copy gambar signature ke canvas (posisi paling atas)
-        imagecopy($canvas, $parafImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
+    // Set background transparan
+    imagealphablending($canvas, false);
+    imagesavealpha($canvas, true);
+    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+    imagefill($canvas, 0, 0, $transparent);
+    imagealphablending($canvas, true);
 
-        // Konversi paraf ke warna yang diinginkan
-        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
-        $hex = $annotation_sign['color'] ?? '#000000';
-        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
-        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+    // Copy gambar paraf ke canvas (posisi kiri)
+    imagecopy($canvas, $parafImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
 
-        // Tentukan warna teks (hitam)
-        $textColor = imagecolorallocate($canvas, 0, 0, 0);
+    // Konversi paraf ke warna yang diinginkan
+    $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+    $hex = $annotation_sign['color'] ?? '#000000';
+    list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+    imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
 
-        // Tentukan ukuran font berdasarkan lebar gambar
-        $fontSize = 4 / 100 * $originalWidth;
-        $fontSize2 = 5 / 100 * $originalWidth;
+    // Tentukan warna teks (hitam)
+    $textColor = imagecolorallocate($canvas, 0, 0, 0);
 
-        // Path font
-        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+    // Tentukan ukuran font - perbaiki perhitungan
+    $fontSize = max(12, ($originalWidth * 6) / 100); // Minimal 12px, lebih besar
+    $fontSize2 = max(14, ($originalWidth * 6) / 100); // Minimal 14px, lebih besar
 
-        // Posisi untuk timestamp dan nama (di sebelah kanan)
-        $rightSectionX = $originalWidth;// / 2; // Mulai dari tengah canvas
-        $maxTextWidth = $originalWidth;// / 2 - 20; // Maksimal setengah lebar canvas minus margin
+    // Path font - cek apakah font ada
+    $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
 
-        // Posisi timestamp (di bagian atas sebelah kanan)
-        $timestampY = 30; // Jarak dari atas
+    // Jika font tidak ada, gunakan font built-in
+    $useBuiltInFont = !file_exists($fontPath);
+
+    // Posisi untuk timestamp dan nama (di sebelah kanan paraf)
+    $rightSectionX = $originalWidth + 10; // 10px margin dari paraf
+    $maxTextWidth = $originalWidth - 20; // Lebar area teks
+
+    // Posisi timestamp - perbaiki agar tidak terpotong
+    $timestampY = $fontSize + 10; // Sesuaikan dengan ukuran font + margin
+
+    if ($useBuiltInFont) {
+        // Gunakan font built-in GD - ukuran 1-5
+        $fontSizeBuiltIn = 5; // Font size maksimal untuk built-in font
+        $fontSizeBuiltIn2 = 5; // Font size maksimal untuk built-in font
+
+        // Tulis timestamp
+        imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
+
+        // Tulis nama di bawah timestamp
+        $nameY = $timestampY + 25; // Lebih jauh dari timestamp
+        imagestring($canvas, $fontSizeBuiltIn2, $rightSectionX, $nameY, $name, $textColor);
+
+    } else {
+        // Gunakan TTF font
+        // Debug: cek nilai fontSize
+        // error_log("Font sizes: $fontSize, $fontSize2");
 
         // Wrap text untuk timestamp jika terlalu panjang
         $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
 
         // Tulis timestamp per baris
         foreach ($timestampLines as $i => $line) {
-            $lineY = $timestampY + ($i * ($fontSize + 5));
+            $lineY = $timestampY + ($i * ($fontSize + 8)); // Tambah spacing antar baris
             imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
         }
 
         // Posisi untuk nama (di bawah timestamp)
-        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 5)) + 15; // 15px gap setelah timestamp
+        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 8)) + 20; // Lebih besar gap
         $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
 
         // Tulis nama per baris
         foreach ($nameLines as $i => $line) {
-            $lineY = $nameY + ($i * ($fontSize2 + 5));
+            $lineY = $nameY + ($i * ($fontSize2 + 8)); // Tambah spacing antar baris
             // Pastikan teks tidak keluar dari canvas
-            if ($lineY < $originalHeight - 10) {
+            if ($lineY < $canvasHeight - 20) { // Beri margin lebih besar dari bawah
                 imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
             }
         }
-
-        // Simpan hasil ke file
-        imagepng($canvas, $outputPath);
-
-        // Hapus resource gambar dari memori
-        imagedestroy($parafImage);
-        imagedestroy($canvas);
-
-        return $outputPath;
     }
+
+    // Debug: Tambahkan border merah untuk melihat area canvas (opsional)
+    // $red = imagecolorallocate($canvas, 255, 0, 0);
+    // imagerectangle($canvas, 0, 0, $canvasWidth-1, $canvasHeight-1, $red);
+
+    // Simpan hasil ke file
+    imagepng($canvas, $outputPath);
+
+    // Hapus resource gambar dari memori
+    imagedestroy($parafImage);
+    imagedestroy($canvas);
+
+    return $outputPath;
+}
+
 
     public function getParafWithTimeStamp($paraf_path, $request)
     {
