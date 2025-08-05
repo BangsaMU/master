@@ -615,7 +615,7 @@ class ApiAnnotationController extends Controller
         // Ambil waktu saat ini
         $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
         $strtotime = strtotime(base64_decode($currentTime));
-        $dateFormat = date('Y.m.d H:i:s O', $strtotime);
+        $dateFormat = date('Y.m.d H:i:s', $strtotime);
 
         // Lokasi penyimpanan gambar hasil
         $outputPath = '/tmp/ttd_with_timestamp_' . basename($signature_path) . $dateFormat . '.png';
