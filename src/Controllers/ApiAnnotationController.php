@@ -570,9 +570,9 @@ class ApiAnnotationController extends Controller
         $annotation_id = $request->annotation_id;
         $filename = $request->file_name . '.pdf'; //'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
         // dd($filename,$request->all());
-        $Gallery = Gallery::where('filename', $filename)->first() ?? abort(403, 'requisition not found');
+        $Gallery = Gallery::where('filename', $filename)->first();
         // dd($Gallery,$Gallery->object_id);
-        return $Gallery->object_id;
+        return $Gallery->object_id??null;
     }
 
     public function getRouting(Request $request)
@@ -588,7 +588,7 @@ class ApiAnnotationController extends Controller
 
         $Requisition = Requisition::find($getRequisitionId);
         // dd($getRequisitionId,$request->all(),$Requisition->toArray(),$file_name,$file_name_array);
-        $version = $Requisition->version;
+        $version = $Requisition->version??null;
         $requisition_number = @$file_name_array[1];
 
         $filename = $request->file_name . '.pdf'; //'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
