@@ -247,7 +247,7 @@ class ApiAnnotationController extends Controller
 
         // Simpan gambar dengan timestamp
         $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
-        if (file_exists($outputPath)) {
+        if (file_exists($outputPath)&&empty($request->debug)) {
             return $outputPath;
         }
 
@@ -263,7 +263,11 @@ class ApiAnnotationController extends Controller
         $originalHeight = imagesy($signatureImage);
 
         // Buat canvas baru dengan ukuran yang sama
-        $canvas = imagecreatetruecolor($originalWidth, $originalHeight);
+        // $canvas = imagecreatetruecolor($originalWidth, $originalHeight);
+        $canvasWidth = $originalWidth; // Dobel lebar untuk ruang teks
+        $canvasHeight = $originalHeight;
+        $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
+
 
         // Set background transparan
         imagealphablending($canvas, false);
@@ -284,9 +288,14 @@ class ApiAnnotationController extends Controller
         // Tentukan warna teks (hitam)
         $textColor = imagecolorallocate($canvas, 0, 0, 0);
 
-        // Tentukan ukuran font berdasarkan lebar gambar
-        $fontSize = 5 / 100 * $originalWidth;
-        $fontSize2 = 7 / 100 * $originalWidth;
+        // // Tentukan ukuran font berdasarkan lebar gambar
+        // $fontSize = 5 / 100 * $originalWidth;
+        // $fontSize2 = 7 / 100 * $originalWidth;
+
+
+        // PERBAIKAN: Font size yang lebih besar dan perhitungan yang benar
+        $fontSize = max(12, ($originalWidth * 5) / 100); // Minimal 12px
+        $fontSize2 = max(14, ($originalWidth * 7) / 100); // Minimal 14px
 
         // Path font
         $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
@@ -301,15 +310,23 @@ class ApiAnnotationController extends Controller
         // Posisi untuk nama (di bawah timestamp)
         $nameY = $originalHeight - 30; // Lebih ke bawah dari timestamp
         $maxWidth = $originalWidth - 20;
-        $lines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
+        $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
 
+        // // Tulis nama per baris
+        // foreach ($nameLines as $i => $line) {
+        //     $lineY = $nameY + ($i * ($fontSize2 + 5));
+        //     // Pastikan teks tidak keluar dari canvas
+        //     if ($lineY < $originalHeight - 10) {
+        //         imagettftext($canvas, $fontSize2, 0, 10, $lineY, $textColor, $fontPath, $line);
+        //     }
+        // }
         // Tulis nama per baris
-        foreach ($lines as $i => $line) {
-            $lineY = $nameY + ($i * ($fontSize2 + 5));
+        foreach ($nameLines as $i => $line) {
+            $lineY = $nameY + ($i * ($fontSize2 + 8));
             // Pastikan teks tidak keluar dari canvas
-            if ($lineY < $originalHeight - 10) {
+            // if ($lineY < $canvasHeight - 20) {
                 imagettftext($canvas, $fontSize2, 0, 10, $lineY, $textColor, $fontPath, $line);
-            }
+            // }
         }
 
         // Simpan hasil ke file
@@ -321,106 +338,133 @@ class ApiAnnotationController extends Controller
 
         return $outputPath;
     }
-    public function getSignatureWithTimeStampKanan($signature_path, $request)
-    {
-        $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
-        $name = $user->name;
+public function getSignatureWithTimeStampKanan($signature_path, $request)
+{
+    $token = $request->token;
+    $user = $this->getTokenIdOrEmail($token);
+    $name = $user->name;
 
-        // Cek apakah file tanda tangan ada
-        if (!file_exists($signature_path)) {
-            abort(403, 'Signature file not found.');
-        }
+    // Cek apakah file tanda tangan ada
+    if (!file_exists($signature_path)) {
+        abort(403, 'Signature file not found.');
+    }
 
-        // Ambil waktu saat ini
-        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
-        $strtotime = strtotime(base64_decode($currentTime));
-        $dateFormat = date('d M Y H:i:s', $strtotime);
+    // Ambil waktu saat ini
+    $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+    $strtotime = strtotime(base64_decode($currentTime));
+    $dateFormat = date('d M Y H:i:s', $strtotime);
 
-        // Simpan gambar dengan timestamp
-        $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
-        if (file_exists($outputPath)) {
-            return $outputPath;
-        }
+    // Simpan gambar dengan timestamp
+    $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
+    if (file_exists($outputPath)&&empty($request->debug)) {
+        return $outputPath;
+    }
 
-        try {
-            // Muat gambar tanda tangan asli
-            $signatureImage = self::loadImage($signature_path);
-        } catch (\Exception $e) {
-            die("Error: " . $e->getMessage());
-        }
+    try {
+        // Muat gambar tanda tangan asli
+        $signatureImage = self::loadImage($signature_path);
+    } catch (\Exception $e) {
+        die("Error: " . $e->getMessage());
+    }
 
-        // Dapatkan dimensi gambar asli
-        $originalWidth = imagesx($signatureImage);
-        $originalHeight = imagesy($signatureImage);
+    // Dapatkan dimensi gambar asli
+    $originalWidth = imagesx($signatureImage);
+    $originalHeight = imagesy($signatureImage);
 
-        // Buat canvas baru dengan ukuran yang sama
-        $canvas = imagecreatetruecolor($originalWidth, $originalHeight);
+    // PERBAIKAN: Buat canvas baru dengan lebar diperluas untuk teks
+    $canvasWidth = $originalWidth * 2; // Dobel lebar untuk ruang teks
+    $canvasHeight = $originalHeight;
+    $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
 
-        // Set background transparan
-        imagealphablending($canvas, false);
-        imagesavealpha($canvas, true);
-        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-        imagefill($canvas, 0, 0, $transparent);
-        imagealphablending($canvas, true);
+    // Set background transparan
+    imagealphablending($canvas, false);
+    imagesavealpha($canvas, true);
+    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+    imagefill($canvas, 0, 0, $transparent);
+    imagealphablending($canvas, true);
 
-        // Copy gambar signature ke canvas (posisi paling atas)
-        imagecopy($canvas, $signatureImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
+    // Copy gambar signature ke canvas (posisi kiri)
+    imagecopy($canvas, $signatureImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
 
-        // Konversi tanda tangan ke warna yang diinginkan
-        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
-        $hex = $annotation_sign['color'] ?? '#000000';
-        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
-        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+    // Konversi tanda tangan ke warna yang diinginkan
+    $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+    $hex = $annotation_sign['color'] ?? '#000000';
+    list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+    imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
 
-        // Tentukan warna teks (hitam)
-        $textColor = imagecolorallocate($canvas, 0, 0, 0);
+    // Tentukan warna teks (hitam)
+    $textColor = imagecolorallocate($canvas, 0, 0, 0);
 
-        // Tentukan ukuran font berdasarkan lebar gambar
-        $fontSize = 4 / 100 * $originalWidth;
-        $fontSize2 = 5 / 100 * $originalWidth;
+    // PERBAIKAN: Font size yang lebih besar dan perhitungan yang benar
+    $fontSize = max(12, ($originalWidth * 5) / 100); // Minimal 12px
+    $fontSize2 = max(14, ($originalWidth * 7) / 100); // Minimal 14px
+    // dd($fontSize,$fontSize2);
+    // Path font
+    $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
 
-        // Path font
-        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+    // Cek apakah font file ada
+    $useBuiltInFont = !file_exists($fontPath);
 
-        // Posisi untuk timestamp dan nama (di sebelah kanan)
-        $rightSectionX = $originalWidth;// / 2; // Mulai dari tengah canvas
-        $maxTextWidth = $originalWidth;// / 2 - 20; // Maksimal setengah lebar canvas minus margin
+    // PERBAIKAN: Posisi untuk timestamp dan nama (di sebelah kanan signature)
+    $rightSectionX = $originalWidth + 10; // 10px margin dari signature
+    $maxTextWidth = $originalWidth - 20; // Lebar area teks
 
-        // Posisi timestamp (di bagian atas sebelah kanan)
-        $timestampY = 30; // Jarak dari atas
+    // PERBAIKAN: Posisi timestamp yang tidak terpotong
+    $timestampY = $fontSize + 10; // Sesuaikan dengan ukuran font
 
+    if ($useBuiltInFont) {
+        // Gunakan font built-in GD jika TTF tidak tersedia
+        $fontSizeBuiltIn = 5; // Font size maksimal (1-5)
+        $fontSizeBuiltIn2 = 5;
+
+        // Tulis timestamp
+        imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
+
+        // Tulis nama di bawah timestamp
+        $nameY = $timestampY + 25;
+        imagestring($canvas, $fontSizeBuiltIn2, $rightSectionX, $nameY, $name, $textColor);
+
+    } else {
+        // Gunakan TTF font
         // Wrap text untuk timestamp jika terlalu panjang
         $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
 
         // Tulis timestamp per baris
         foreach ($timestampLines as $i => $line) {
-            $lineY = $timestampY + ($i * ($fontSize + 5));
+            $lineY = $timestampY + ($i * ($fontSize + 8));
             imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
         }
 
         // Posisi untuk nama (di bawah timestamp)
-        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 5)) + 15; // 15px gap setelah timestamp
+        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 8)) + 20;
         $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
 
         // Tulis nama per baris
         foreach ($nameLines as $i => $line) {
-            $lineY = $nameY + ($i * ($fontSize2 + 5));
+            $lineY = $nameY + ($i * ($fontSize2 + 8));
             // Pastikan teks tidak keluar dari canvas
-            if ($lineY < $originalHeight - 10) {
+            if ($lineY < $canvasHeight - 20) {
                 imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
             }
         }
-
-        // Simpan hasil ke file
-        imagepng($canvas, $outputPath);
-
-        // Hapus resource gambar dari memori
-        imagedestroy($signatureImage);
-        imagedestroy($canvas);
-
-        return $outputPath;
     }
+
+    // Debug: Uncomment untuk melihat area canvas
+    if($request->debug){
+        $red = imagecolorallocate($canvas, 255, 0, 0);
+        imagerectangle($canvas, 0, 0, $canvasWidth-1, $canvasHeight-1, $red);
+        imagerectangle($canvas, $rightSectionX-2, $timestampY-$fontSize-2, $rightSectionX+$maxTextWidth+2, $canvasHeight-20, $red);
+    }
+
+    // Simpan hasil ke file
+    imagepng($canvas, $outputPath);
+
+    // Hapus resource gambar dari memori
+    imagedestroy($signatureImage);
+    imagedestroy($canvas);
+
+    return $outputPath;
+}
 
     public function getSignatureWithTimeStampOLD($signature_path, $request)
     {
