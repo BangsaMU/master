@@ -5,6 +5,7 @@ namespace Bangsamu\Master;
 use Illuminate\Support\ServiceProvider;
 use Jenssegers\Agent\Agent as Agent;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Blade;
 
 class MasterPackageServiceProvider extends ServiceProvider
 {
@@ -49,6 +50,12 @@ class MasterPackageServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/routes.php' => base_path('routes/master.php'),
         ]);
+
+
+        // componen
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'master');
+
+        Blade::componentNamespace('BangsaMu\\Master\\Components', 'master');
     }
 
     /**

@@ -1,7 +1,7 @@
 @props(['item', 'isActive'])
 
 @php
-    use App\Helpers\MenuHelper;
+    use Bangsamu\LibraryClay\Controllers\LibraryClayController;
     use Illuminate\Support\Str;
 @endphp
 
@@ -28,7 +28,7 @@
                         {{-- This child is a nested dropdown ("dropend") --}}
                         <div class="dropend">
                             {{-- FIX #2: The nested dropdown toggle now checks its own active state. --}}
-                            <a class="dropdown-item dropdown-toggle {{ MenuHelper::isDropdownActive($child) ? 'active' : '' }}"
+                            <a class="dropdown-item dropdown-toggle {{ LibraryClayController::isDropdownActive($child) ? 'active' : '' }}"
                                href="#sidebar-{{ Str::slug($child['title']) }}"
                                data-bs-toggle="dropdown" data-bs-auto-close="outside" role="button" aria-expanded="false">
 
@@ -40,8 +40,8 @@
                             <div class="dropdown-menu">
                                 @foreach($child['children'] as $subChild)
                                     {{-- FIX #3: Each grandchild link checks its own active state. --}}
-                                    <a href="{{ MenuHelper::getUrl($subChild) }}"
-                                       class="dropdown-item {{ MenuHelper::isActive($subChild) ? 'active' : '' }}"
+                                    <a href="{{ LibraryClayController::getUrl($subChild) }}"
+                                       class="dropdown-item {{ LibraryClayController::isActive($subChild) ? 'active' : '' }}"
                                        @if(!empty($subChild['target'])) target="{{ $subChild['target'] }}" @endif>
 
                                         @if(!empty($subChild['icon']))
@@ -55,8 +55,8 @@
                     @else
                         {{-- This child is a simple link --}}
                         {{-- FIX #4: Each child link checks its own active state. --}}
-                        <a class="dropdown-item {{ MenuHelper::isActive($child) ? 'active' : '' }}"
-                           href="{{ MenuHelper::getUrl($child) }}"
+                        <a class="dropdown-item {{ LibraryClayController::isActive($child) ? 'active' : '' }}"
+                           href="{{ LibraryClayController::getUrl($child) }}"
                            @if(!empty($child['target'])) target="{{ $child['target'] }}" @endif>
 
                             @if(!empty($child['icon']))
