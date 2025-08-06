@@ -6,9 +6,9 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 @foreach($items as $item)
     @if(LibraryClayController::userHasAnyPermission($item))
         @if($item['type'] === 'item')
-            <x-menu-item :item="$item" :is-active="LibraryClayController::isActive($item)" />
+            <x-master::menu-item :item="$item" :is-active="LibraryClayController::isActive($item)" />
         @elseif($item['type'] === 'dropdown')
-            <x-menu-dropdown :item="$item" :is-active="LibraryClayController::isDropdownActive($item)" />
+            <x-master::menu-dropdown :item="$item" :is-active="LibraryClayController::isDropdownActive($item)" />
         @endif
     @else
         @if($item['type'] === 'divider' && \App\Facades\Settings::get('appearance.sidebar', false))
