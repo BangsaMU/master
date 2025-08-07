@@ -36,6 +36,7 @@ class Apps extends Model
                     $table->string('name', 25);
                     $table->string('app_url', 100)->nullable();
                     $table->string('app_icon', 100)->nullable();
+                    $table->string('description', 100)->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
 
