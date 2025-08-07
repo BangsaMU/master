@@ -1,7 +1,7 @@
 <?php
 // app/View/Components/MenuItem.php
 
-namespace App\View\Components;
+namespace Bangsamu\Master\Components;
 
 use Illuminate\View\Component;
 
@@ -41,6 +41,6 @@ class MenuItem extends Component
      */
     public function render()
     {
-        return view('components.menu-item');
+        return view('master::components.menu-item');
     }
 }

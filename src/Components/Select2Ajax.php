@@ -1,6 +1,6 @@
 <?php
 
-namespace App\View\Components;
+namespace Bangsamu\Master\Components;
 
 use Illuminate\View\Component;
 use Illuminate\Database\Eloquent\Collection;
@@ -29,6 +29,6 @@ class Select2Ajax extends Component
 
     public function render()
     {
-        return view('components.select2-ajax');
+        return view('master::components.select2-ajax');
     }
 }

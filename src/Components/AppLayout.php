@@ -1,6 +1,6 @@
 <?php
 
-namespace App\View\Components;
+namespace Bangsamu\Master\Components;
 
 use Illuminate\View\Component;
 use Illuminate\View\View;
@@ -12,6 +12,6 @@ class AppLayout extends Component
      */
     public function render(): View
     {
-        return view('layouts.app');
+        return view('master::layouts.app');
     }
 }

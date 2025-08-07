@@ -1,6 +1,6 @@
 <?php
 
-namespace App\View\Components;
+namespace Bangsamu\Master\Components;
 
 use Illuminate\View\Component;
 
@@ -15,6 +15,6 @@ class PdfViewer extends Component
 
     public function render()
     {
-        return view('components.pdf-viewer');
+        return view('master::components.pdf-viewer');
     }
 }
