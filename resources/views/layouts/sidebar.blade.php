@@ -28,7 +28,7 @@
             <!-- BEGIN NAVBAR MENU -->
             <ul class="navbar-nav pt-lg-3">
                 <!-- Use your menu component here -->
-                <x-menu />
+                <x-master::menu />
             </ul>
             <!-- END NAVBAR MENU -->
         </div>
