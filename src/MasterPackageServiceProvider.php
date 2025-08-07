@@ -6,6 +6,8 @@ use Illuminate\Support\ServiceProvider;
 use Jenssegers\Agent\Agent as Agent;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Blade;
+use Symfony\Component\Finder\Finder;
+use Illuminate\Support\Str;
 
 class MasterPackageServiceProvider extends ServiceProvider
 {
@@ -37,6 +39,8 @@ class MasterPackageServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../resources/config/MasterConfig.php' => config_path('MasterConfig.php'),
         ]);
+
+        // componen & view master
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'master');
 
         $this->publishes([
@@ -52,10 +56,28 @@ class MasterPackageServiceProvider extends ServiceProvider
         ]);
 
 
-        // componen
-        $this->loadViewsFrom(__DIR__.'/../resources/views', 'master');
 
-        Blade::componentNamespace('BangsaMu\\Master\\Components', 'master');
+        // // Path ke folder komponen
+        // $componentPath = __DIR__.'/Components';
+
+        // // Namespace dasar komponen
+        // $baseNamespace = 'Bangsamu\\Master\\Components\\';
+
+        // // Daftar semua file PHP di folder Components
+        // foreach (Finder::create()->files()->in($componentPath)->name('*.php') as $file) {
+        //     $filename = $file->getFilenameWithoutExtension(); // contoh: "Menu"
+        //     $class = $baseNamespace . $filename;
+
+        //     if (class_exists($class)) {
+        //         // Ubah ke nama kebab-case untuk Blade component
+        //         $alias = Str::kebab($filename); // "menu", "input-label"
+
+        //         // Daftarkan Blade component <x-master::menu />
+        //         dd($class, $alias);
+        //         Blade::component($class, $alias, 'master');
+        //     }
+        // }
+        Blade::componentNamespace('Bangsamu\\Master\\Components', 'master');
     }
 
     /**
@@ -67,8 +89,10 @@ class MasterPackageServiceProvider extends ServiceProvider
     {
         $configPath = $this->packagePath('resources/config/' . ucfirst($this->pkgPrefix) . 'Config' . '.php');
         $configPath2 = $this->packagePath('resources/config/' . ucfirst($this->pkgPrefix) . 'CrudConfig' . '.php');
+        $configMenu = $this->packagePath('resources/config/' . ucfirst($this->pkgPrefix) . 'Menu' . '.php');
         $this->mergeConfigFrom($configPath, ucfirst($this->pkgPrefix . 'Config'));
         $this->mergeConfigFrom($configPath2, ucfirst($this->pkgPrefix . 'CrudConfig'));
+        $this->mergeConfigFrom($configMenu, ucfirst($this->pkgPrefix . 'Menu'));
         // dd(config());
     }
 

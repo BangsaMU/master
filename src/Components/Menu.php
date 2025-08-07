@@ -1,5 +1,5 @@
 <?php
-
+// packages/bangsamu/master/src/Components/Menu.php
 namespace Bangsamu\Master\Components;
 
 use Illuminate\View\Component;
@@ -21,7 +21,8 @@ class Menu extends Component
      */
     public function __construct($menu = 'main_menu')
     {
-        $this->items = config("menu.{$menu}");
+        //  dd($menu,config());
+        $this->items = config("MasterMenu.{$menu}",[]);
     }
 
     /**

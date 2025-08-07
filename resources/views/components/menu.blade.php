@@ -1,4 +1,4 @@
-<!-- resources/views/components/menu.blade.php -->
+<!-- packages/bangsamu/master/resources/views/components/menu.blade.php -->
 @php
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 @endphp
@@ -11,7 +11,8 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
             <x-master::menu-dropdown :item="$item" :is-active="LibraryClayController::isDropdownActive($item)" />
         @endif
     @else
-        @if($item['type'] === 'divider' && \App\Facades\Settings::get('appearance.sidebar', false))
+        {{-- @if($item['type'] === 'divider' && \App\Facades\Settings::get('appearance.sidebar', false)) --}}
+        @if($item['type'] === 'divider' && LibraryClayController::getDashboardSetting('appearance.sidebar', false))
             <li class="nav-link">
                 <div class="hr-text m-1">{{ $item['title'] }}</div>
             </li>
