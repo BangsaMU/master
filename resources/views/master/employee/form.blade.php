@@ -110,7 +110,7 @@
                                 <label for="job_position_id">(Dep.) - Posisi Jabatan</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('job_position_id') is-invalid @enderror"
                                     id="job_position_id" placeholder="Posisi" name="job_position_id">
-                                    @if ($param)
+                                    @if (@$param->job_position_id)
                                         <option value="{{ $param->job_position_id }}" selected>({{$param->department_name}}) {{$param->position_code}} - {{ $param->employee_job_title }}</option>
                                     @endif
                                 </select>
@@ -284,10 +284,12 @@
     </div>
 
 <div class="content">
-    @include('master::master.logs_view.list', [
-        'title' => 'Log Karyawan',
-        'logs' => $data['page']['logs'],
-    ])
+    @if(@$data['page']['logs'])
+        @include('master::master.logs_view.list', [
+            'title' => 'Log Karyawan',
+            'logs' => $data['page']['logs'],
+        ])
+    @endif
 </div>
 
 @stop
