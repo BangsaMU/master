@@ -20,7 +20,7 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
     public function collection()
     {
         $headers = [];
-        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table));
+        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table,'db_master'));
 
         foreach ($table_columns as $key => $col) {
             if (
@@ -44,7 +44,7 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
     public function headings(): array
     {
         $headers = [];
-        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table));
+        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table,'db_master'));
 
         foreach ($table_columns as $key => $col) {
             if (
