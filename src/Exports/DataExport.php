@@ -19,8 +19,9 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
 
     public function collection()
     {
+        $databaseConfig = 'db_master'; // Sesuaikan dengan konfigurasi database Anda
         $headers = [];
-        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table,'db_master'));
+        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table,$databaseConfig));
 
         foreach ($table_columns as $key => $col) {
             if (
@@ -33,10 +34,12 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
             }
         }
 
-        $data = DB::table($this->table)
-                    ->select($headers)
-                    ->whereNull('deleted_at')
-                    ->get();
+        $data = DB::connection($databaseConfig)
+        ->table($this->table)
+        ->select($headers)
+        ->whereNull('deleted_at')
+        ->get();
+
 
         return $data;
     }
