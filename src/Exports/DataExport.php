@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
 {
@@ -19,7 +20,7 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
     public function collection()
     {
         $headers = [];
-        $table_columns = json_decode(get_filed_toJson($this->table));
+        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table));
 
         foreach ($table_columns as $key => $col) {
             if (
@@ -43,7 +44,7 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
     public function headings(): array
     {
         $headers = [];
-        $table_columns = json_decode(get_filed_toJson($this->table));
+        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table));
 
         foreach ($table_columns as $key => $col) {
             if (
