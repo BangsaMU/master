@@ -48,7 +48,15 @@ class Employee extends Model
                     $table->string('keterangan', 255)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
                     $table->tinyInteger('work_location_id')->nullable();
                     $table->string('app_code', 10)->default('APP11')->comment('buat limit hak akses app yg boleh edit default emplye HRD meindo app');
-
+                    $table->enum('citizenship', ['WNI', 'WNA'])
+                        ->default('WNI')
+                        ->comment('WNI = Warga Negara Indonesia, WNA = Warga Negara Asing citizen jika WNI ada limit 16 digit ktp');
+                    // country_code (ISO 3166-1 alpha-3, misal: IDN, USA, CHN)
+                    $table->char('country_code', 3)
+                        ->default('IDN')
+                        ->comment('ISO 3166-1 alpha-3 country code, ex: IDN, USA, CHN https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3')
+                        ->after('citizenship');
+                    // ALTER TABLE `master_employee` ADD COLUMN `citizenship` Enum( 'WNI', 'WNA' ) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'WNI';
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
 

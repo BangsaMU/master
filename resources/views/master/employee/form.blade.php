@@ -8,7 +8,7 @@
 
 @section('content')
     <div class="row">
-        <div class="col-12 col-sm-8">
+        <div class="col-12">
             <div class="card card-outline card-primary">
                 <div class="card-header font-weight-bold">
                     {{ $data['page']['title'] }} Form
@@ -68,6 +68,32 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
+
+                            <div class="col">
+                                <label for="citizenship">citizenship</label>
+                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('citizenship') is-invalid @enderror"
+                                    id="citizenship" placeholder="Posisi" name="citizenship">
+                                        <option value=""  {{ @$param->citizenship==""||old('citizenship')==''? 'selected': '' }} >-</option>
+                                        <option value="WNI" {{ @$param->citizenship=="WNI"||old('citizenship')=='WNI'? 'selected': '' }} >WNI</option>
+                                        <option value="WNA" {{ @$param->citizenship=="WNA"||old('citizenship')=='WNA'? 'selected': '' }} >WNA</option>
+                                </select>
+                                @error('citizenship')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                            <div class="col">
+                                <label for="country_code">Country code</label>
+                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('country_code') is-invalid @enderror"
+                                    id="country_code" placeholder="Posisi" name="country_code">
+                                    @foreach (@$param->country_code as $key_code=>$val_code)
+                                        <option value="{{$key_code}}" {{ @$param->country_code==$key_code||old('country_code')? 'selected': '' }} >{{$val_code}}</option>
+                                    @endforeach
+                                </select>
+                                @error('country_code')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+
                             <div class="col">
                                 <label for="no_ktp">No KTP</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"

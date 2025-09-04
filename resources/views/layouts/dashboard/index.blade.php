@@ -1,4 +1,4 @@
-@extends((config('app.themes') == '_tabler' ? 'layouts.tabler' : 'adminlte::page'))
+@extends((config('app.themes') == '_tabler' ? 'master::layouts.tabler' : 'adminlte::page'))
 
 @section('title', 'Page List')
 
