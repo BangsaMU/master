@@ -7,6 +7,7 @@
 @stop
 
 @section('content')
+{{-- add form citizenship --}}
     <div class="row">
         <div class="col-12">
             <div class="card card-outline card-primary">
@@ -86,9 +87,12 @@
                                 <label for="country_code">Country code</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('country_code') is-invalid @enderror"
                                     id="country_code" placeholder="Posisi" name="country_code">
-                                    @foreach (@$param->country_code as $key_code=>$val_code)
-                                        <option value="{{$key_code}}" {{ @$param->country_code==$key_code||old('country_code')? 'selected': '' }} >{{$val_code}}</option>
-                                    @endforeach
+
+                                    @if (is_array($param->country_code))
+                                        @foreach (@$param->country_code as $key_code=>$val_code)
+                                            <option value="{{$key_code}}" {{ @$param->country_code==$key_code||old('country_code')? 'selected': '' }} >{{$val_code}}</option>
+                                        @endforeach
+                                    @endif
                                 </select>
                                 @error('country_code')
                                     <span class="text-danger">{{ $message }}</span>
