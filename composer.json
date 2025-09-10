@@ -4,7 +4,7 @@
     "type": "library",
     "license": "MIT",
     "require": {
-        "bangsamu/library-clay": "dev-master",
+        "bangsamu/library-clay": "*",
         "maatwebsite/excel": "^3.1"
     },
     "autoload": {
