@@ -382,7 +382,7 @@ class EmployeeController extends Controller
         // APP11 = HRD app
         $totalData = DB::table('master_employee as m_k')
             ->where(function ($query) use ($user_id,$user_location_id) {
-                if (checkPermission('is_admin')) {
+                if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
                     //bisa liat semua employee
                 } else {
                     //hanya app hrd meindo
