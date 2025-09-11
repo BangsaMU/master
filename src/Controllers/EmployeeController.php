@@ -406,7 +406,7 @@ class EmployeeController extends Controller
                 ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
                 ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
                 ->where(function ($query) use ($user_id,$user_location_id) {
-                    if (checkPermission('is_admin')) {
+                    if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
                         //bisa liat semua employee
                     } else {
                         //hanya app hrd meindo
@@ -438,7 +438,7 @@ class EmployeeController extends Controller
                 ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
                 ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
                 ->where(function ($query) use ($user_id,$user_location_id) {
-                    if (checkPermission('is_admin')) {
+                    if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
                         //bisa liat semua employee
                     } else {
                         //hanya app hrd meindo
