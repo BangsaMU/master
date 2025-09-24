@@ -69,6 +69,8 @@ class Employee extends Model
                     $table->string('employee_project', 10)->nullable();
                     $table->integer('project_id')->nullable();
                     $table->integer('job_position_id')->nullable();
+                    $table->string('JOB_LIST', 255)->nullable();
+                    $table->bigInteger('company_id')->after('job_list')->default(0)->comment('Company ID default meindo 1 0=vendor');
                     $table->date('employee_dob')->nullable()->comment('isi tanggal lahir wni dari ktp auto extrak');
 
                     // Indexes
