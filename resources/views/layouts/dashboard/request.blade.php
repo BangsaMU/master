@@ -92,18 +92,20 @@
     @endif
 
 
-                        @php
-                            $segments = request()->segments();
+    @php
+        $segments = request()->segments();
 
-                            $segments = array_filter($segments, function ($segment) {
-                                return !is_numeric($segment) && $segment !== 'edit';
-                            });
+        $segments = array_filter($segments, function ($segment) {
+            return !is_numeric($segment) && !in_array($segment, ['edit', 'create']);
+        });
 
-                            $base_url = url(implode('/',$segments));
-                        @endphp
-                        <a href="{{  @$data['page']['base_url']??$base_url }}" class="btn btn-default">
-                            Back
-                        </a>
+        $base_url = url(implode('/', $segments));
+    @endphp
+
+    <a href="{{ $data['page']['base_url'] ?? $base_url }}" class="btn btn-default">
+        Back
+    </a>
+
 
 
     @if (!empty($data['page']['logs']) && $data['page']['logs']->isNotEmpty())

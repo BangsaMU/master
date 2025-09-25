@@ -63,7 +63,7 @@
                 name="{{ $form['name'] ?? $form['field'] }}" data-id="{{ @$formdata->id }}"
                 id="{{ 'input' . @$formdata->id . '_' . $form['field'] . '_hidden' }}">
 
-            <input autocomplete="off" type="text" value="{{ old($form['field'], @$formdata->{$form['field']}) }}"
+                        <input autocomplete="off" type="text" value="{{ old($form['field'], @$formdata->{$form['field']})??@$form['value'] }}"
                 {{ @$form['readonly'] == true ? 'data-readonly=true readonly=true' : null }}
                 {{ @$form['disabled'] == true ? 'data-disabled=true disabled=true' : null }}
                 class="{{ 'input_' . $form['field'] }} form-control @error($form['field']) is-invalid @enderror"
