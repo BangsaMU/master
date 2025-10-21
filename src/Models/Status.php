@@ -42,6 +42,9 @@ class Status extends Model
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
 
+                    // Index dan constraint
+                    $table->unique(['kode', 'app_code'], 'kode');
+                    $table->unique(['status', 'app_code'], 'status');
                     $table->index('app_code', 'Index_1');
                 });
             }

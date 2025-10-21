@@ -38,6 +38,8 @@ class Employee extends Model
                     $table->string('employee_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->unique('email');
                     $table->string('corporate_email', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');//->unique('unique_corporate_email'); unik dihapus karena banyak email corp yg ga unik
                     $table->string('employee_phone', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
+                    $table->string('emergency_phone', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
+                    $table->enum('gender', ['laki-laki', 'perempuan'])->nullable();
                     $table->string('employee_department', 155)->nullable();
                     $table->string('no_ktp', 17)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->unique('unique_no_ktp');
                     $table->string('no_id_karyawan', 15)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->unique('unique_no_id_karyawan');
@@ -70,7 +72,7 @@ class Employee extends Model
                     $table->integer('project_id')->nullable();
                     $table->integer('job_position_id')->nullable();
                     $table->string('JOB_LIST', 255)->nullable();
-                    $table->bigInteger('company_id')->after('job_list')->default(0)->comment('Company ID default meindo 1 0=vendor');
+                    $table->bigInteger('company_id')->after('job_list')->default(1)->comment('Company ID default meindo 1 0=vendor');
                     $table->date('employee_dob')->nullable()->comment('isi tanggal lahir wni dari ktp auto extrak');
 
                     // Indexes
