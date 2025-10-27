@@ -22,7 +22,8 @@ class Menu extends Component
     public function __construct($menu = 'main_menu')
     {
         //  dd($menu,config());
-        $this->items = config("MasterMenu.{$menu}",[]);
+        $this->items = config("menu.{$menu}") ?? config("MasterMenu.{$menu}", []);
+
     }
 
     /**
