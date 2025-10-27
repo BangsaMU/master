@@ -34,7 +34,7 @@ class CmsSetting extends Model
             self::$hasCheckedTable = true;
 
             if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create('setting', function (Blueprint $table) {
+                Schema::create('cms_setting', function (Blueprint $table) {
                     $table->id();
                     $table->string('name', 255);
                     $table->text('value');
