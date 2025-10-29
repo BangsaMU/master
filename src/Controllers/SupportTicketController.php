@@ -26,23 +26,24 @@ class SupportTicketController extends Controller
         $this->middleware('auth');
     }
 
-    public function getAppSetting($valueTicket)
+    public function getAppSetting($valueConfig,$valueTicket=null)
     {
-        return Cache::rememberForever('setting.app.ticket.'.$valueTicket, function () use($valueTicket) {
+        return Cache::rememberForever('setting.app.ticket.'.$valueConfig, function () use($valueConfig,$valueTicket) {
             // Ambil dari database
-            $setting = Setting::where('name', $valueTicket)
+            $setting = Setting::where('name', $valueConfig)
                 ->where('category', 'support_ticket')
                 ->whereNull('deleted_at')
                 ->value('value');
-            // dd($setting,$valueTicket);
-            // Jika tidak ada, fallback ke config
+                // Jika tidak ada, fallback ke config
+                $setting =  $setting  ?? config($valueConfig)??$valueTicket;
+                // dd($setting,$valueTicket);
             return $setting;
         });
     }
 
     public function ticketEmail(Request $request)
     {
-        $apiUrl = $this->getAppSetting('app.ticket');//?: config('app.ticket', 'http://192.168.16.205:9016');
+        $apiUrl = $this->getAppSetting('app.ticket');;
         $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
         $search = $this->getAppSetting('app.search');
 

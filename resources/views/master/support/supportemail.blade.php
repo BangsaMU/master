@@ -1,4 +1,14 @@
-@extends('adminlte::page')
+@php
+    if (config('app.themes') == '_tabler') {
+        // Cek apakah view "layouts.tabler" ada
+        $themeLayout = view()->exists('layouts.tabler')
+            ? 'layouts.tabler'
+            : 'master::layouts.tabler';
+    } else {
+        $themeLayout = 'adminlte::page';
+    }
+@endphp
+@extends($themeLayout)
 
 @php
     $apiUrl = config('app.ticket');
@@ -321,11 +331,34 @@
 
 @push('js')
 <!-- In your Blade template -->
-<script src="https://unpkg.com/alpinejs" defer></script>
-<!-- Summernote CSS -->
-<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote.min.css" rel="stylesheet">
-<!-- Summernote JS -->
-<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote.min.js"></script>
+@php
+    // Helper untuk cek apakah file lokal tersedia
+    function local_asset_exists($path) {
+        return file_exists(public_path($path));
+    }
+@endphp
+
+{{-- Alpine.js --}}
+@if (local_asset_exists('local/alpinejs'))
+    <script src="{{ asset('local/alpinejs') }}" defer></script>
+@else
+    <script src="https://unpkg.com/alpinejs" defer></script>
+@endif
+
+{{-- Summernote CSS --}}
+@if (local_asset_exists('local/summernote.min.css'))
+    <link href="{{ asset('local/summernote.min.css') }}" rel="stylesheet">
+@else
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote.min.css" rel="stylesheet">
+@endif
+
+{{-- Summernote JS --}}
+@if (local_asset_exists('local/summernote.min.js'))
+    <script src="{{ asset('local/summernote.min.js') }}"></script>
+@else
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote.min.js"></script>
+@endif
+
 <script>
     $(document).ready(function() {
 
