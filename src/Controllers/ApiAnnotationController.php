@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Intervention\Image\Image;
 use Mpdf\Mpdf;
 use setasign\Fpdi\Tcpdf\Fpdi;
@@ -945,9 +946,59 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function setAnnotationId(Request $request)
     {
         $annotation_id = $request->annotation_id;
-        $filename = $request->file_name . '.pdf'; //'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
-        $Gallery = Gallery::where('filename', $filename)->update(['annotation_id' => $annotation_id]);
-        return $Gallery;
+        $file_name_input = $request->file_name;
+
+        // Pastikan tidak null
+        if (empty($file_name_input) || empty($annotation_id)) {
+            Log::warning('[Webhook Receiver] Data tidak lengkap', [
+                'annotation_id' => $annotation_id,
+                'file_name' => $file_name_input,
+            ]);
+            return response()->json(['error' => 'annotation_id atau file_name kosong'], 400);
+        }
+
+        // Pastikan nama file berakhiran .pdf (case-insensitive)
+        if (!preg_match('/\.pdf$/i', $file_name_input)) {
+            $filename = $file_name_input . '.pdf';
+            Log::info('[Webhook Receiver] Menambahkan ekstensi .pdf pada nama file', [
+                'asli' => $file_name_input,
+                'final' => $filename,
+            ]);
+        } else {
+            $filename = $file_name_input;
+        }
+
+        // Log aktivitas sebelum update
+        Log::info('[Webhook Receiver] Menerima request setAnnotationId', [
+            'annotation_id' => $annotation_id,
+            'filename' => $filename,
+        ]);
+
+        try {
+            $updated = Gallery::where('filename', $filename)
+                ->update(['annotation_id' => $annotation_id]);
+
+            if ($updated) {
+                Log::info('[Webhook Receiver] Berhasil update annotation_id', [
+                    'filename' => $filename,
+                    'annotation_id' => $annotation_id,
+                ]);
+                return response()->json(['message' => 'Annotation ID updated', 'updated' => $updated]);
+            } else {
+                Log::warning('[Webhook Receiver] File tidak ditemukan untuk update', [
+                    'filename' => $filename,
+                    'annotation_id' => $annotation_id,
+                ]);
+                return response()->json(['message' => 'File tidak ditemukan'], 404);
+            }
+        } catch (\Throwable $e) {
+            Log::error('[Webhook Receiver] Gagal update annotation_id', [
+                'filename' => $filename,
+                'annotation_id' => $annotation_id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'Terjadi kesalahan saat update'], 500);
+        }
     }
 
     public function getRequisitionId(Request $request)
