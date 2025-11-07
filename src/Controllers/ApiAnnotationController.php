@@ -95,31 +95,76 @@ class ApiAnnotationController extends Controller
         return response()->json($data);
     }
 
+    function normalizeLineBreaks($text) {
+        if (!is_string($text) || trim($text) === '') {
+            return ''; // jika bukan string atau kosong
+        }
+
+        // 1. Normalisasi semua variasi <br> jadi \n
+        $text = preg_replace('/<br\s*\/?>/i', "\n", $text);
+
+        // 2. Ganti \r\n atau \r jadi \n biar konsisten
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+
+        // 3. Hilangkan newline ganda (jadi 1 baris kosong saja)
+        $text = preg_replace("/\n{2,}/", "\n", $text);
+
+        // 4. Trim spasi dan newline di awal/akhir
+        return trim($text);
+    }
 
     public function wrapText($fontSize, $angle, $fontPath, $text, $maxWidth)
     {
-        $words = explode(" ", $text);
+        // Ganti <br> menjadi newline agar bisa diproses sama
+        $text = str_replace(['<br>', '<br/>', '<br />'], "\n", $text);
+
+        // Pisah berdasarkan baris manual
+        $paragraphs = preg_split('/\r\n|\r|\n/', trim($text));
         $lines = [];
-        $currentLine = "";
+        $tolerance = 3; // pixel toleransi kecil biar gak cepet turun
 
-        foreach ($words as $word) {
-            $testLine = $currentLine . " " . $word;
-            $bbox = imagettfbbox($fontSize, $angle, $fontPath, trim($testLine));
-            $textWidth = $bbox[2] - $bbox[0];
+        foreach ($paragraphs as $paragraph) {
+            $words = preg_split('/\s+/', trim($paragraph));
+            $currentLine = '';
 
-            if ($textWidth > $maxWidth) {
-                $lines[] = trim($currentLine);
-                $currentLine = $word;
-            } else {
-                $currentLine = $testLine;
+            foreach ($words as $word) {
+                $testLine = trim($currentLine . ' ' . $word);
+
+                // hitung lebar teks aktual
+                $bbox = imagettfbbox($fontSize, $angle, $fontPath, $testLine);
+                $textWidth = abs($bbox[4] - $bbox[0]);
+
+                // Jika melebihi maxWidth, turun baris
+                if ($textWidth > ($maxWidth - $tolerance)) {
+                    if ($currentLine !== '') {
+                        $lines[] = trim($currentLine);
+                    }
+                    $currentLine = $word;
+                } else {
+                    $currentLine = $testLine;
+                }
             }
+
+            // Tambahkan sisa baris terakhir dari paragraph
+            if (trim($currentLine) !== '') {
+                $lines[] = trim($currentLine);
+            }
+
+            // Tambahkan baris kosong di akhir <br>
+            $lines[] = '';
         }
-        $currentLineBR = explode("<br>", $currentLine);
-        foreach($currentLineBR as $currentLineBR){
-            $lines[] = trim($currentLineBR);
+
+        // Hapus baris kosong terakhir kalau berlebihan
+        if (end($lines) === '') {
+            array_pop($lines);
         }
+
+        $lines = array_filter($lines, fn($v) => trim($v) !== '');
+        $lines = array_values($lines); // reset index ke 0,1,2,...
+
         return $lines;
     }
+
 
     public function loadImageOLD($imagePath)
     {
@@ -256,7 +301,7 @@ class ApiAnnotationController extends Controller
         };
 
         $dateFormat = date('d M Y', $strtotime).$pemisahDate.date('H:i:s', $strtotime);
-
+        // dd($dateFormat);
         // Simpan gambar dengan timestamp
         $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
         if($request->input('refresh')==1&&file_exists($outputPath)){
@@ -329,6 +374,7 @@ class ApiAnnotationController extends Controller
 
         // Wrap text untuk timestamp jika terlalu panjang
         $maxTextWidth = $originalWidth - 20; // Lebar area teks
+
         $rightSectionX = 10; // 10px margin dari signature
         $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
 
@@ -809,6 +855,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // Hitung posisi Y awal
         $yStart = imagesy($image) - 100;
         $maxWidth = imagesx($image) - 20;
+
         $lines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
 
         // Tulis teks per baris
