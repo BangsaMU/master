@@ -114,7 +114,10 @@ class ApiAnnotationController extends Controller
                 $currentLine = $testLine;
             }
         }
-        $lines[] = trim($currentLine);
+        $currentLineBR = explode("<br>", $currentLine);
+        foreach($currentLineBR as $currentLineBR){
+            $lines[] = trim($currentLineBR);
+        }
         return $lines;
     }
 
@@ -244,13 +247,26 @@ class ApiAnnotationController extends Controller
         // Ambil waktu saat ini
         $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
         $strtotime = strtotime(base64_decode($currentTime));
-        $dateFormat = date('d M Y H:i:s', $strtotime);
+
+        // Konversi Pemisah tanggal dan jam
+        $pemisahDate = ' ';
+        $annotation_timestamp = LibraryClayController::getSettingByCategory('annotation_timestamp');
+        if($annotation_timestamp){
+            $pemisahDate = $annotation_timestamp['dateSeparator']??' ';
+        };
+
+        $dateFormat = date('d M Y', $strtotime).$pemisahDate.date('H:i:s', $strtotime);
 
         // Simpan gambar dengan timestamp
         $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
-        if (file_exists($outputPath)&&empty($request->debug)) {
+        if($request->input('refresh')==1&&file_exists($outputPath)){
+            // dd(1,$outputPath,unlink($outputPath));
+            $unlink = unlink($outputPath);
+            log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
+        }elseif(file_exists($outputPath)&&empty($request->debug==1)) {
             return $outputPath;
         }
+
 
         try {
             // Muat gambar tanda tangan asli
@@ -282,9 +298,11 @@ class ApiAnnotationController extends Controller
 
         // Konversi tanda tangan ke warna yang diinginkan
         $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
-        $hex = $annotation_sign['color'] ?? '#000000';
-        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
-        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+        if($annotation_sign){
+            $hex = $annotation_sign['color'] ?? '#000000';
+            list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+            imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+        };
 
         // Tentukan warna teks (hitam)
         $textColor = imagecolorallocate($canvas, 0, 0, 0);
@@ -306,11 +324,26 @@ class ApiAnnotationController extends Controller
         $timestampY = $originalHeight - 60; // Jarak dari bawah untuk timestamp
 
         // Tambahkan timestamp ke canvas
-        imagettftext($canvas, $fontSize, 0, $timestampX, $timestampY, $textColor, $fontPath, $dateFormat);
+        // imagettftext($canvas, $fontSize, 0, $timestampX, $timestampY, $textColor, $fontPath, $dateFormat);
+
+
+        // Wrap text untuk timestamp jika terlalu panjang
+        $maxTextWidth = $originalWidth - 20; // Lebar area teks
+        $rightSectionX = 10; // 10px margin dari signature
+        $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
+
+        // Tambahkan timestamp ke canvas per baris
+        foreach ($timestampLines as $i => $line) {
+            $lineY = $timestampY + ($i * ($fontSize + 8));
+            imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+        }
+
 
         // Posisi untuk nama (di bawah timestamp)
-        $nameY = $originalHeight - 30; // Lebih ke bawah dari timestamp
+        // $nameY = $originalHeight - 30; // Lebih ke bawah dari timestamp
+        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 8)) + 7;
         $maxWidth = $originalWidth - 20;
+
         $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
 
         // // Tulis nama per baris
@@ -353,11 +386,21 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
     // Ambil waktu saat ini
     $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
     $strtotime = strtotime(base64_decode($currentTime));
-    $dateFormat = date('d M Y H:i:s', $strtotime);
+    // Konversi Pemisah tanggal dan jam
+    $pemisahDate = ' ';
+    $annotation_timestamp = LibraryClayController::getSettingByCategory('annotation_timestamp');
+    if($annotation_timestamp){
+        $pemisahDate = $annotation_timestamp['dateSeparator']??' ';
+    };
+    $dateFormat = date('d M Y', $strtotime).$pemisahDate.date('H:i:s', $strtotime);
 
     // Simpan gambar dengan timestamp
     $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
-    if (file_exists($outputPath)&&empty($request->debug)) {
+    if($request->input('refresh')==1&&file_exists($outputPath)){
+        // dd(1,$outputPath,unlink($outputPath));
+       $unlink = unlink($outputPath);
+       log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
+    }elseif(file_exists($outputPath)&&empty($request->debug==1)) {
         return $outputPath;
     }
 
@@ -366,6 +409,7 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
         $signatureImage = self::loadImage($signature_path);
     } catch (\Exception $e) {
         die("Error: " . $e->getMessage());
+       log::Error('signatureImage load::'. $e->getMessage());
     }
 
     // Dapatkan dimensi gambar asli
@@ -414,11 +458,12 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
     $timestampY = $fontSize + 10; // Sesuaikan dengan ukuran font
 
     if ($useBuiltInFont) {
+        // dd(1);
         // Gunakan font built-in GD jika TTF tidak tersedia
         $fontSizeBuiltIn = 5; // Font size maksimal (1-5)
         $fontSizeBuiltIn2 = 5;
 
-        // Tulis timestamp
+        // Tambahkan timestamp ke canvas
         imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
 
         // Tulis nama di bawah timestamp
@@ -426,11 +471,12 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
         imagestring($canvas, $fontSizeBuiltIn2, $rightSectionX, $nameY, $name, $textColor);
 
     } else {
+        // dd(2);
         // Gunakan TTF font
         // Wrap text untuk timestamp jika terlalu panjang
         $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
 
-        // Tulis timestamp per baris
+        // Tambahkan timestamp ke canvas per baris
         foreach ($timestampLines as $i => $line) {
             $lineY = $timestampY + ($i * ($fontSize + 8));
             imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
@@ -451,7 +497,7 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
     }
 
     // Debug: Uncomment untuk melihat area canvas
-    if($request->debug){
+    if($request->debug==1){
         $red = imagecolorallocate($canvas, 255, 0, 0);
         imagerectangle($canvas, 0, 0, $canvasWidth-1, $canvasHeight-1, $red);
         imagerectangle($canvas, $rightSectionX-2, $timestampY-$fontSize-2, $rightSectionX+$maxTextWidth+2, $canvasHeight-20, $red);
@@ -560,6 +606,7 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
 
 public function getParafWithTimeStampKanan($paraf_path, $request)
 {
+    dd(1);
     $token = $request->token;
     $user = $this->getTokenIdOrEmail($token);
     $name = $user->name;
@@ -638,7 +685,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $fontSizeBuiltIn = 5; // Font size maksimal untuk built-in font
         $fontSizeBuiltIn2 = 5; // Font size maksimal untuk built-in font
 
-        // Tulis timestamp
+        // Tambahkan timestamp ke canvas
         imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
 
         // Tulis nama di bawah timestamp
@@ -653,7 +700,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // Wrap text untuk timestamp jika terlalu panjang
         $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
 
-        // Tulis timestamp per baris
+        // Tambahkan timestamp ke canvas per baris
         foreach ($timestampLines as $i => $line) {
             $lineY = $timestampY + ($i * ($fontSize + 8)); // Tambah spacing antar baris
             imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
@@ -712,7 +759,11 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $dateFormat = date('d M Y H:i:s', $strtotime);
         // Simpan gambar dengan timestamp
         $outputPath = '/tmp/ttd_with_timestamp' . basename($paraf_path) . $dateFormat . '.png';
-        if (file_exists($outputPath)) {
+        if($request->input('refresh')==1&&file_exists($outputPath)){
+            // dd(1,$outputPath,unlink($outputPath));
+        $unlink = unlink($outputPath);
+        log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
+        }elseif(file_exists($outputPath)&&empty($request->debug==1)) {
             return $outputPath;
         }
 
@@ -909,7 +960,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // dd($token, $user_id, $signature->toArray());
         if ($signature) {
             $signature_path = Storage::disk('media')->path($signature->field_value);
-
+            // dd($request->all(),$request->input('refresh'),$signature_path);
             // Cek apakah file tanda tangan ada
             if (Storage::disk('media')->exists($signature->field_value)) {
                 if ($request->currentTime) {
