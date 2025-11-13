@@ -459,12 +459,17 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
     }
 
     // Dapatkan dimensi gambar asli
+    // dd($signature_path,$signatureImage);
     $originalWidth = imagesx($signatureImage);
     $originalHeight = imagesy($signatureImage);
+    // dd(
+    //     $originalWidth,$originalHeight
+    // ,$signature_path,$signatureImage
+    // ,getBoxSize([78.75,444,228.75,566.25]) , getBoxSize([105,301,305,464]) );
 
     // PERBAIKAN: Buat canvas baru dengan lebar diperluas untuk teks
     $canvasWidth = $originalWidth * 2; // Dobel lebar untuk ruang teks
-    $canvasHeight = $originalHeight;
+    $canvasHeight = $originalHeight * 2;
     $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
 
     // Set background transparan
