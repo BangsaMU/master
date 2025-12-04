@@ -59,6 +59,7 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::resource('pca', \Bangsamu\Master\Controllers\PcaController::class);
     Route::post('pca/import', [\Bangsamu\Master\Controllers\PcaController::class, 'import'])->name('pca.import');
 
+    // belum test Route::get('project/importtemplate', [\Bangsamu\Master\Controllers\ProjectController::class, 'importtemplate'])->name('project.importtemplate');
     Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
     Route::post('project/import', [\Bangsamu\Master\Controllers\ProjectController::class, 'import'])->name('project.import');
 
@@ -83,6 +84,9 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::post('employee/import', [\Bangsamu\Master\Controllers\EmployeeController::class, 'import'])->name('employee.import');
 
     Route::get('get{table}/export', [\Bangsamu\Master\Controllers\ExportController::class, 'export'])->name('table.export');
+
+
+    //belum test Route::resource('report', \Bangsamu\Master\Controllers\ReportController::class);
 
 });
 
@@ -178,6 +182,8 @@ Route::prefix('api')->group(function () {
 
 
 Route::middleware(['web'])->group(function () {
+    //untuk kebutuhan app annotation get sesion
+    Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->middleware('auth')->name('getcurrentuser');
     Route::get('get-ip2',  [Bangsamu\Master\Controllers\MasterController::class, 'getIp'])
         ->name('get-ip2');
 });

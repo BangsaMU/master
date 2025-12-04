@@ -1146,6 +1146,9 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function getCurrentUser(Request $request)
     {
         $token = $request->token;
+        if(empty($token)){
+            abort(401, 'Unauthorized');
+        }
         $file_name = $request->file_name;
         $code_number = explode('_', $file_name);
         $permission = false;
@@ -1205,6 +1208,10 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     'signature_url' => $signature_url,
                     'paraf_url' => $paraf_url,
                 ],
+                'session'=>[
+                        'logged_in' => auth()->check(),
+                        'user' => auth()->user(),
+                    ]
                 // 'user' => [
                 //     'id' => 2,
                 //     'user' => "demo2@meindo.com",
@@ -1212,14 +1219,18 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 //     'permission' => '',
                 //     'signature_url' => 'https://w7.pngwing.com/pngs/514/114/png-transparent-file-signature-signature-miscellaneous-angle-text-thumbnail.png'
                 // ],
-            ];
+                ];
         } else {
             $data = [
                 'success' => false,
             ];
         }
 
-        return response()->json($data);
+        return response()->json(
+            $data, 200, [
+            'Access-Control-Allow-Origin' => config('AnnotationConfig.main.URL'),
+            'Access-Control-Allow-Credentials' => 'true',
+        ]);
     }
 
     public function getUserSignatureStatus(Request $request)
