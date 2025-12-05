@@ -183,7 +183,7 @@ Route::prefix('api')->group(function () {
 
 Route::middleware(['web','auth'])->group(function () {
     //untuk kebutuhan app annotation get sesion
-    Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->middleware('auth')->name('getcurrentuser');
+    Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->middleware('auth')->name('getcurrentuser.async');
     Route::get('get-ip2',  [Bangsamu\Master\Controllers\MasterController::class, 'getIp'])
         ->name('get-ip2');
 });
