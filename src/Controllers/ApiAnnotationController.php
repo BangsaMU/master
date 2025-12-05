@@ -1197,6 +1197,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // dd($signature,Auth::user());
         if ($value) {
             $data = [
+                'validate_session' => config('AnnotationConfig.main.VALIDATE_SESSION'),
                 'success' => true,
                 'user' => [
                     'id' => $user_id,
