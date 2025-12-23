@@ -52,6 +52,8 @@ class DepartmentController extends Controller
         $data['page']['new']['active'] = true;
         $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
 
+        $data['page']['js_list'][] = 'js.master-data';
+
         $data = configDefAction($id, $data);
 
         $data['page']['id'] = $id;
@@ -80,7 +82,14 @@ class DepartmentController extends Controller
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin')) {
+        if (checkPermission('is_admin') || checkPermission('read_department')) {
+            $data['datatable']['btn']['sync']['id'] = 'sync';
+            $data['datatable']['btn']['sync']['title'] = 'Sync';
+            $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
+            $data['datatable']['btn']['sync']['act'] = "syncFn('department')";
+        }
+
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_department'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -91,16 +100,18 @@ class DepartmentController extends Controller
             $data['datatable']['btn']['import']['icon'] = 'btn-primary';
             $data['datatable']['btn']['import']['url'] = '#';
             $data['datatable']['btn']['import']['act'] = 'importFn()';
+        }
 
+        if ((checkPermission('is_admin') || checkPermission('read_department'))) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
             $data['datatable']['btn']['export']['url'] = url('getmaster_department/export');
         }
 
-        $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.department.import');
-        $data['page']['import']['template'] = url('/templates/DepartmentImportTemplate.xlsx');
+        // $data['page']['import']['layout'] = 'layouts.import.form';
+        // $data['page']['import']['post'] = route('master.department.import');
+        // $data['page']['import']['template'] = url('/templates/DepartmentImportTemplate.xlsx');
 
         $page_var = compact('data');
 
