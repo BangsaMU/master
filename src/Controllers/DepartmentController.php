@@ -231,7 +231,7 @@ class DepartmentController extends Controller
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
 
-                if ((checkPermission('is_admin') || checkPermission('delete_department')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if ((checkPermission('is_admin') || checkPermission('delete_department')) && config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true ) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
