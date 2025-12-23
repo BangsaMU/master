@@ -225,8 +225,12 @@ class DepartmentController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (checkPermission('is_admin')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_department'))) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                } else {
+                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                }
+                if ((checkPermission('is_admin') || checkPermission('delete_department'))) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
