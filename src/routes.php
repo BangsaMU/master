@@ -39,8 +39,8 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('company.import');
 
     // Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
-    // Route::resource('department', \Bangsamu\Master\Controllers\DepartmentController::class);
-    // Route::post('department/import', [\Bangsamu\Master\Controllers\DepartmentController::class, 'import'])->name('department.import');
+    Route::resource('department', \Bangsamu\Master\Controllers\DepartmentController::class);
+    Route::post('department/import', [\Bangsamu\Master\Controllers\DepartmentController::class, 'import'])->name('department.import');
 
     Route::get('item-code/export', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'export'])->name('item-code.export');
     Route::get('item-code/importtemplate', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'importtemplate'])->name('item-code.importtemplate');
