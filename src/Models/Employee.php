@@ -57,8 +57,7 @@ class Employee extends Model
                     // country_code (ISO 3166-1 alpha-3, misal: IDN, USA, CHN)
                     $table->char('country_code', 3)
                         ->default('IDN')
-                        ->comment('ISO 3166-1 alpha-3 country code, ex: IDN, USA, CHN https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3')
-                        ->after('citizenship');
+                        ->comment('ISO 3166-1 alpha-3 country code, ex: IDN, USA, CHN https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3');
                     // ALTER TABLE `master_employee` ADD COLUMN `citizenship` Enum( 'WNI', 'WNA' ) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'WNI';
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
@@ -72,7 +71,7 @@ class Employee extends Model
                     $table->integer('project_id')->nullable();
                     $table->integer('job_position_id')->nullable();
                     $table->string('JOB_LIST', 255)->nullable();
-                    $table->bigInteger('company_id')->after('job_list')->default(1)->comment('Company ID default meindo 1 0=vendor');
+                    $table->bigInteger('company_id')->default(1)->comment('Company ID default meindo 1 0=vendor');
                     $table->date('employee_dob')->nullable()->comment('isi tanggal lahir wni dari ktp auto extrak');
 
                     // Indexes
