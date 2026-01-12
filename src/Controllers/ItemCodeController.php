@@ -102,7 +102,7 @@ class ItemCodeController extends Controller
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('uom,pca,item-group,item_code')";
+            $data['datatable']['btn']['sync']['act'] = "syncFn('category,uom,pca,item-group,item_code')";
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true  && (checkPermission('is_admin') || checkPermission('create_item_code'))) {
