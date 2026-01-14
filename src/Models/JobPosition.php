@@ -32,7 +32,7 @@ class JobPosition extends Model
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();
-                    $table->integer('department_id')->nullable();        $table->integer('department_id')->nullable();
+                    $table->integer('department_id')->nullable();
                     $table->string('position_code', 15)->unique();
                     $table->string('position_name', 100);
                     $table->string('position_ranking_code', 20)->nullable()->index();
