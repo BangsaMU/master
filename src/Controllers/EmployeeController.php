@@ -362,8 +362,8 @@ class EmployeeController extends Controller
         $user_id = Auth::user()->id ?? 0;
         $user = User::find($user_id);
 
-        if (method_exists(User::class, 'details')) {
-            $details = User::details($user_id);
+        if (method_exists(User::class, 'detailsLocation')) {
+            $details = User::detailsLocation($user_id);
             $user_location_id = $details->location_id;
         } else {
             $user_location_id = '';
