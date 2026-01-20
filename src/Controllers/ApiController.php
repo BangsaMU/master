@@ -87,6 +87,7 @@ class ApiController extends Controller
         // contoh get list http://meindo-teliti.test:8181/api/gethse_indicator_methodbyparams?set[text]=type&set[field][]=description&set[field][]=id
         // contoh join tabel http://clay.localhost/api/getmaster_item_codebyparams?set[field][]=uom_name&set[field][]=item_name&set[field][]=pca_name&join[master_uom.id]=uom_id&join[master_pca.id]=pca_id
         // contoh joint multi text dari join http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1
+        // contoh group multi text dari group http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][|]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1&set[text][]=email&set[text][|]=id&group[]=mu.id&group[]=mup.position_code
 
 
         /*Param serch support array dan string data yg diambil param terakhir */
@@ -102,6 +103,7 @@ class ApiController extends Controller
         $start = $request->input("start", 0);
         $limit = $request->input("limit", 10);
         $order = $request->input("order");
+        $group = $request->input("group");
         // dd($order);
         // dd($set,$start,$limit);
         // $field = $request->set['field'];
@@ -435,6 +437,10 @@ class ApiController extends Controller
 
             if ($order) {
                 $data_array->orderby($order['column'], ($order['direction'] ?? 'asc'));
+            }
+
+            if ($group) {
+                $data_array->groupBy($group);
             }
 
 
