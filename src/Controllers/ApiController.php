@@ -88,7 +88,7 @@ class ApiController extends Controller
         // contoh join tabel http://clay.localhost/api/getmaster_item_codebyparams?set[field][]=uom_name&set[field][]=item_name&set[field][]=pca_name&join[master_uom.id]=uom_id&join[master_pca.id]=pca_id
         // contoh joint multi text dari join http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1
         // contoh group multi text dari group http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][|]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1&set[text][]=email&set[text][|]=id&group[]=mu.id&group[]=mup.position_code
-
+        // contoh cek not null http://clay.localhost/api/getmaster_locationbyparams?set[field][]=loc_code&set[field][]=loc_name&set[text][|]=loc_code&set[text][]=loc_name&ap_token=a86a41aabe5fdc9ee11e1cd27af1a920&_token=Gtg1LbQL1yTmkR79Yjc4rHfaPRfeop2JjhorSzmg&not_null[]=loc_code
 
         /*Param serch support array dan string data yg diambil param terakhir */
         $search = $request->search;
@@ -96,6 +96,7 @@ class ApiController extends Controller
             return $res . $w[0];
         });
         // FIND_IN_SET(master_project.id, mcu_package.project_id)
+        $not_null = $request->input("not_null");
         $find_in_set = $request->input("find_in_set");
         $where = $request->input("where");
         $set = $request->input("set");
@@ -429,6 +430,27 @@ class ApiController extends Controller
                                     }
                                 }
                                 //    dd($query->toSql());
+                            }
+                        }
+                    });
+                }
+
+                if (is_array($not_null)) {
+                    $data_array = $data_array->where(function ($query) use ($not_null, $tabel) {
+                        foreach ($not_null as $findKey => $findVal) {
+                            // dd(11,'array',$tabel, $findKey,Schema::hasColumn($tabel, $findVal));
+                            /*validasi kolom pencarian di tabel*/
+                            if (Schema::hasColumn($tabel, $findVal)) {
+                                //cek where or atau and
+                                if (is_array($findVal)) {
+                                    $query->whereNotNull( $findVal);
+                                } else {
+                                    if (is_numeric($findVal)) {
+                                        $query->whereNotNull($findVal);
+                                    } else {
+                                        $query->whereNotNull($findVal);
+                                    }
+                                }
                             }
                         }
                     });
