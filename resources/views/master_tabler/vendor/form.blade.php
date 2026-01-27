@@ -46,7 +46,7 @@
                                     @error('vendor_address') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
 
-                                {{-- <div class="form-group">
+                                <div class="form-group">
                                     <label class="form-label" for="vendor_phone">Vendor Phone</label>
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_phone" id="vendor_phone" class="form-control"
                                             value="{{ $param ? @$param->vendor_phone : old('vendor_phone') }}">
@@ -63,7 +63,7 @@
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_email" id="vendor_email" class="form-control"
                                             value="{{ $param ? @$param->vendor_email : old('vendor_email') }}">
                                     @error('vendor_email') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div> --}}
+                                </div>
 
                             </div>
                         </div>

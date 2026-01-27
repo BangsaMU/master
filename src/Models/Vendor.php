@@ -42,6 +42,9 @@ class Vendor extends Model
                     $table->string('vendor_code', 15)->nullable();
                     $table->string('vendor_description')->nullable();
                     $table->string('vendor_address')->nullable();
+                    $table->string('vendor_phone', 100)->nullable();
+                    $table->string('vendor_email', 100)->nullable();
+                    $table->string('vendor_fax', 100)->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
                 });
