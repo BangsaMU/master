@@ -45,24 +45,26 @@
                                             value="{{ $param ? $param->vendor_address : old('vendor_address') }}" required>
                                     @error('vendor_address') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
-                                <div class="form-group">
+
+                                {{-- <div class="form-group">
                                     <label class="form-label" for="vendor_phone">Vendor Phone</label>
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_phone" id="vendor_phone" class="form-control"
-                                            value="{{ $param ? $param->vendor_phone : old('vendor_phone') }}">
+                                            value="{{ $param ? @$param->vendor_phone : old('vendor_phone') }}">
                                     @error('vendor_phone') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label" for="vendor_fax">Vendor Fax</label>
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_fax" id="vendor_fax" class="form-control"
-                                            value="{{ $param ? $param->vendor_fax : old('vendor_fax') }}">
+                                            value="{{ $param ? @$param->vendor_fax : old('vendor_fax') }}">
                                     @error('vendor_fax') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label" for="vendor_email">Vendor Email</label>
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="vendor_email" id="vendor_email" class="form-control"
-                                            value="{{ $param ? $param->vendor_email : old('vendor_email') }}">
+                                            value="{{ $param ? @$param->vendor_email : old('vendor_email') }}">
                                     @error('vendor_email') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
+                                </div> --}}
+
                             </div>
                         </div>
                     </div>
