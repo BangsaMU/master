@@ -38,9 +38,10 @@ class Vendor extends Model
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();
-                    $table->integer('loc_id');
+                    $table->unsignedBigInteger('loc_id');
                     $table->string('vendor_code', 15)->nullable();
                     $table->string('vendor_description')->nullable();
+                    $table->string('vendor_address')->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
                 });

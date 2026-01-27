@@ -14,7 +14,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Bangsamu\LibraryClay\Traits\Loggable;
 
 
-class MasterVendorContract extends Model
+class MasterVendorContact extends Model
 {
     use HasFactory, Notifiable;
     use SoftDeletes;

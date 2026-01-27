@@ -87,7 +87,7 @@ class VendorController extends Controller
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('vendor_contract,vendor')";
+            $data['datatable']['btn']['sync']['act'] = "syncFn('vendor,vendor_contact')";
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_vendor'))) {
@@ -310,8 +310,8 @@ class VendorController extends Controller
             //         'updated_at' => now(),
             //     ]);
 
-            // Update existing vendor_contract
-            $modelClass = LibraryClayController::resolveModelFromSheetSlug('vendor_contract'); // misalnya "Vendor"
+            // Update existing vendor_contact
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug('vendor_contact'); // misalnya "Vendor"
             $model = $modelClass::find($request->id);
 
             if ($model) {
