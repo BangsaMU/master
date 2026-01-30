@@ -657,7 +657,6 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
 
 public function getParafWithTimeStampKanan($paraf_path, $request)
 {
-    dd(1);
     $token = $request->token;
     $user = $this->getTokenIdOrEmail($token);
     $name = $user->name;
@@ -785,6 +784,120 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     return $outputPath;
 }
 
+    public function getParafStampSize($paraf_path, $request)
+    {
+        $token = $request->token;
+        $user = $this->getTokenIdOrEmail($token);
+        $name = $user->name;
+
+        if (!file_exists($paraf_path)) {
+            abort(403, 'Signature file not found.');
+        }
+
+        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+        $strtotime = strtotime(base64_decode($currentTime));
+        $dateFormat = date('d M Y H:i:s', $strtotime);
+
+        // Tambahkan suffix _resized50 agar tidak konflik dengan file asli
+        $outputPath = '/tmp/ttd_resized_'.$request->input('reSize'). basename($paraf_path) . '.png';
+
+        if($request->input('refresh') == 1 && file_exists($outputPath)){
+            unlink($outputPath);
+        } elseif(file_exists($outputPath) && empty($request->debug == 1)) {
+            return $outputPath;
+        }
+
+        try {
+            $sourceImage = self::loadImage($paraf_path);
+        } catch (\Exception $e) {
+            die("Error: " . $e->getMessage());
+        }
+
+        // --- LOGIKA NORMALISASI SCALE ---
+        // Ambil input, default ke 50 (0.5) jika kosong
+        $rawResize = $request->input('reSize', 50);
+
+        // Jika input dalam format persen (contoh: 80), konversi ke desimal (0.8)
+        if ($rawResize > 1) {
+            $scale = $rawResize / 100;
+        } else {
+            $scale = $rawResize;
+        }
+
+        // Jika hasil scale masih lebih dari 100% (1.0), set ke 0.25 (25%)
+        if ($scale > 1) {
+            $scale = 0.25;
+        }
+
+        // Pastikan scale tidak nol untuk menghindari error division by zero
+        $scale = ($scale <= 0) ? 0.5 : $scale;
+
+        $origW = imagesx($sourceImage);
+        $origH = imagesy($sourceImage);
+        $newW = $origW * $scale;
+        $newH = $origH * $scale;
+
+        // Buat canvas baru untuk hasil resize
+        $image = imagecreatetruecolor($newW, $newH);
+
+        // Pertahankan transparansi pada canvas baru
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        $transparent = imagecolorallocatealpha($image, 255, 255, 255, 127);
+        imagefill($image, 0, 0, $transparent);
+
+        // Proses Resize
+        imagecopyresampled($image, $sourceImage, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+        imagedestroy($sourceImage); // Hapus source asli dari memori
+        // -------------------------
+
+        // Konversi warna paraf (Biru/Custom)
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000';
+        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        imagefilter($image, IMG_FILTER_COLORIZE, $r, $g, $b);
+
+        imagealphablending($image, true);
+        $textColor = imagecolorallocate($image, 0, 0, 0);
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+
+        // Ukuran Font relatif terhadap gambar yang sudah di-resize
+        $fontSize = 5 / 100 * $newW;
+        $fontSize2 = 7 / 100 * $newW;
+
+        // --- LOGIKA CENTER TEXT ---
+        if($request->currentTime){
+        // 1. Teks Tanggal (Atas Tengah)
+            $bboxDate = imagettfbbox($fontSize, 0, $fontPath, $dateFormat);
+            $textWidthDate = $bboxDate[2] - $bboxDate[0];
+            $xDate = ($newW - $textWidthDate) / 2;
+            $yDate = $fontSize + 10; // Margin atas
+            imagettftext($image, $fontSize, 0, $xDate, $yDate, $textColor, $fontPath, $dateFormat);
+        }
+
+        if($request->currentName){
+        // 2. Teks Nama (Bawah Tengah)
+            $maxWidth = $newW - 20;
+            $lines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
+
+            // Hitung total tinggi blok teks untuk menentukan titik mulai (agar center secara vertikal di area bawah)
+            $lineHeight = $fontSize2 + 5;
+            $totalTextHeight = count($lines) * $lineHeight;
+            $yStart = $newH - $totalTextHeight - 10; // 10px dari bawah
+
+            foreach ($lines as $i => $line) {
+                $bboxLine = imagettfbbox($fontSize2, 0, $fontPath, $line);
+                $lineWidth = $bboxLine[2] - $bboxLine[0];
+                $xLine = ($newW - $lineWidth) / 2; // Center horizontal per baris
+                imagettftext($image, $fontSize2, 0, $xLine, $yStart + ($i * $lineHeight), $textColor, $fontPath, $line);
+            }
+        }
+
+        imagepng($image, $outputPath);
+        imagedestroy($image);
+
+        return $outputPath;
+    }
 
     public function getParafWithTimeStamp($paraf_path, $request)
     {
@@ -975,9 +1088,14 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 if ($request->currentTime) {
                     if($request->position=='right'){
                         $paraf_path = self::getParafWithTimeStampKanan($paraf_path, $request);
+                    }elseif($request->reSize){
+                        $paraf_path = self::getParafStampSize($paraf_path, $request);
                     }else{
                         $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
                     }
+                }
+                if ($request->reSize) {
+                    $paraf_path = self::getParafStampSize($paraf_path, $request);
                 }
                 return response()->file($paraf_path, [
                     'Content-Type' => 'image/png'
