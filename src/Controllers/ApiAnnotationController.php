@@ -469,7 +469,7 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
 
     // PERBAIKAN: Buat canvas baru dengan lebar diperluas untuk teks
     $canvasWidth = $originalWidth * 2; // Dobel lebar untuk ruang teks
-    $canvasHeight = $originalHeight * 2;
+    $canvasHeight = $originalHeight * 1;
     $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
 
     // Set background transparan
