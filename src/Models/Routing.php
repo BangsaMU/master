@@ -638,7 +638,7 @@ class Routing extends Model
             self::$hasCheckedTable = true;
 
             if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create('setting', function (Blueprint $table) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id(); // BigInt AUTO_INCREMENT (default = 20 digit cukup)
                     $table->unsignedBigInteger('object_id');
                     $table->unsignedBigInteger('matrix_type_id')->comment("tipe user berdasarkan rolenya\ncek dari terms.term_group=10");

@@ -33,7 +33,7 @@ class FileManager extends Model
             self::$hasCheckedTable = true;
 
             if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create('master_file_manager', function (Blueprint $table) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('tfr_id');
                     $table->unsignedBigInteger('tfrs_id')->nullable();

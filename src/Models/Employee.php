@@ -31,7 +31,7 @@ class Employee extends Model
             self::$hasCheckedTable = true;
 
             if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create('master_employee', function (Blueprint $table) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->string('employee_name', 100)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
                     $table->string('employee_job_title', 50)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->comment('di hrd app == posisi');

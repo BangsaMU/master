@@ -34,7 +34,7 @@ class DashboardSettings extends Model
             self::$hasCheckedTable = true;
 
             if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create('dashboard_settings', function (Blueprint $table) {
+                Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->string('key')->unique();
                     $table->text('value')->nullable();
