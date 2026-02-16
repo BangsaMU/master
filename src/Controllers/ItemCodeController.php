@@ -397,6 +397,24 @@ class ItemCodeController extends Controller
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
 
+
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new item code
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
+
+                $modelClass::create([
+                'item_code' => $request->item_code,
+                'item_name' => $request->item_name,
+                'uom_id' => $request->uom_id,
+                'pca_id' => $request->pca_id,
+                'category_id' => $request->category_id,
+                'group_id' => $request->group_id,
+                'attributes' => $item_code_attributes,
+                'app_code' => config('SsoConfig.main.APP_CODE'),
+                'created_at' => now(),
+                ]);
+            }
+
             // DB::table('master_' . $this->sheet_slug)->insert([
             //     'item_code' => $request->item_code,
             //     'item_name' => $request->item_name,

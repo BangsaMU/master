@@ -440,7 +440,18 @@ class LocationController extends Controller
                 'created_at' => now(),
             ]);
 
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new location
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
+                $modelClass::create([
+                    'loc_code' => strtoupper($request->loc_code),
+                    'loc_name' => $request->loc_name,
+                    'group_type' => $request->group_type,
+                    'created_at' => now(),
+                ]);
+            }
+            
             // DB::table('master_' . $this->sheet_slug)->insert([
             //     'loc_code' => $request->loc_code,
             //     'loc_name' => $request->loc_name,

@@ -304,7 +304,7 @@ class PcaController extends Controller
                 $message = $this->sheet_name . ' no data changed';
             }
         } else {
-            // Create new category
+            // Create new pca
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
 
             $modelClass::create([
@@ -313,6 +313,18 @@ class PcaController extends Controller
                 'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
+
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new location
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
+
+                $modelClass::create([
+                    'pca_code' => $request->pca_code,
+                    'pca_name' => $request->pca_name,
+                    'app_code' => config('SsoConfig.main.APP_CODE'),
+                    'created_at' => now(),
+                ]);
+            }
 
             // DB::table('master_' . $this->sheet_slug)->insert([
             //     'pca_code' => $request->pca_code,

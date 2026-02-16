@@ -323,10 +323,23 @@ class ProjectDetailController extends Controller
 
             $modelClass::create([
                 'project_id' => $request->project_id,
-                'project_code_client' => $request->project_code_client,
+                'project_code_client' => strtoupper($request->project_code_client),
                 'project_name_client' => $request->project_name_client,
                 'company_id' => $request->company_id,
             ]);
+
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new project detail
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_project_detail');
+
+                $modelClass::create([
+                    'project_id' => $request->project_id,
+                    'project_code_client' => strtoupper($request->project_code_client),
+                    'project_name_client' => $request->project_name_client,
+                    'company_id' => $request->company_id,
+                    'created_at' => now(),
+                ]);
+            }
 
             // DB::table('master_project_detail')->insert([
             //     'project_id' => $request->project_id,

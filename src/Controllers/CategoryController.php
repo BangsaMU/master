@@ -315,6 +315,18 @@ class CategoryController extends Controller
                 'remark' => $request->remark,
             ]);
 
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new category
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
+
+                $modelClass::create([
+                    'category_code' => strtoupper($request->category_code),
+                    'category_name' => $request->category_name,
+                    'remark' => $request->remark,
+                    'created_at' => now(),
+                ]);
+            }
+
             $message = $this->sheet_name . ' created successfully';
         }
 

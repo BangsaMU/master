@@ -285,8 +285,8 @@ class UomController extends Controller
             $model = $modelClass::find($request->id);
 
             if ($model) {
-                $model->update([
-                    'uom_code' => $request->uom_code,
+                $update = $model->update([
+                    'uom_code' => strtoupper($request->uom_code),
                     'uom_name' => $request->uom_name,
                     'updated_at' => now(),
                 ]); // ini akan trigger Loggable
@@ -302,17 +302,46 @@ class UomController extends Controller
             //         'uom_name' => $request->uom_name,
             //         'updated_at' => now(),
             //     ]);
+ 
+            if ($update && $model->wasChanged()) {
+                /*sync callback*/
+                $id =  $model->id;
+                $sync_tabel = 'master_' . $this->sheet_slug;
+                $sync_id = $id;
+                $sync_row = $model->toArray();
+                // $sync_row['deleted_at'] = null;
+                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                //update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                }
+                $message = $this->sheet_name . ' updated successfully';
+            } else {
+                $message = $this->sheet_name . ' no data changed';
+            }
 
-            $message = $this->sheet_name . ' updated successfully';
         } else {
-            // Create new category
+            // Create new uom
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
 
             $modelClass::create([
-                'uom_code' => $request->uom_code,
+                'uom_code' => strtoupper($request->uom_code),
                 'uom_name' => $request->uom_name,
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
+
+
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new uom
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
+
+                $modelClass::create([ 
+                    'uom_code' => strtoupper($request->uom_code),
+                    'uom_name' => $request->uom_name,
+                    'created_at' => now(),
+                ]);
+            }
+            
 
             // DB::table('master_' . $this->sheet_slug)->insert([
             //     'uom_code' => $request->uom_code,

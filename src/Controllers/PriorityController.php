@@ -274,7 +274,7 @@ class PriorityController extends Controller
             // Update existing priority
             $priority = Priority::findOrFail($request->id);
             $update = $priority->update([
-                'priority_code' => $request->priority_code,
+                'priority_code' => strtoupper($request->priority_code),
                 'priority_name' => $request->priority_name,
             ]);
 
@@ -299,10 +299,21 @@ class PriorityController extends Controller
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
 
             $modelClass::create([
-                'priority_code' => $request->priority_code,
+                'priority_code' => strtoupper($request->priority_code),
                 'priority_name' => $request->priority_name,
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
+
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new priority di master DB
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
+
+                $modelClass::create([
+                    'priority_code' => strtoupper($request->priority_code),
+                    'priority_name' => $request->priority_name,
+                    'created_at' => now(),
+                ]);
+            }
 
             // DB::table('master_' . $this->sheet_slug)->insert([
             //     'priority_code' => $request->priority_code,

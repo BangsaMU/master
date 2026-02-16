@@ -342,6 +342,20 @@ class CompanyController extends Controller
                 'company_address' => $request->company_address,
             ]);
 
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new company
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
+
+                $modelClass::create([
+                    'company_code' => $request->company_code,
+                    'company_name' => $request->company_name,
+                    'company_short' => $request->company_short,
+                    'company_attention' => $request->company_attention,
+                    'company_address' => $request->company_address,
+                    'created_at' => now(),
+                ]);
+            }
+
             $message .= ' '.$this->sheet_name . ' created successfully';
         }
 
@@ -371,7 +385,26 @@ class CompanyController extends Controller
                 'file_group' => $file_group,
                 'hash_file' => $hash_file,
                 'file_type' => $file_type,
-            ]);
+            ]);            
+            
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new gallery
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_gallery');
+
+                $modelClass::create([
+                    'user_id' => $user_id,
+                    'caption' => $caption,
+                    'url' => $url,
+                    'path' => $path,
+                    'filename' => $filename,
+                    'size' => $size,
+                    'header_type' => $header_type,
+                    'file_group' => $file_group,
+                    'hash_file' => $hash_file,
+                    'file_type' => $file_type,
+                    'created_at' => now(),
+                ]);
+            }
 
             $filename = $gallery->id . "-" . $file->getClientOriginalName();
             $filePath = $file->storeAs('company/' . $prefix, $filename, config('app.storage_disk_master'));

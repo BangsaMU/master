@@ -329,6 +329,20 @@ class ItemGroupController extends Controller
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
 
+
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                // Create new Group
+                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_item_group');
+
+                $modelClass::create([
+                    'item_group_code' => $request->item_group_code,
+                    'item_group_name' => $request->item_group_name,
+                    'item_group_attributes' => $item_group_attributes,
+                    'app_code' => config('SsoConfig.main.APP_CODE'),
+                    'created_at' => now(),
+                ]);
+            }
+
             // DB::table('master_item_group')->insert([
             //     'item_group_code' => $request->item_group_code,
             //     'item_group_name' => $request->item_group_name,

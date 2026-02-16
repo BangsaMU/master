@@ -3,31 +3,33 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Module\ControllerModule;
-use App\Imports\Master\DepartmentImport;
+
+use Bangsamu\Master\Imports\Master\PcaImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Models\Department;
+use Bangsamu\Master\Models\Pca;
+use Illuminate\Support\Str;
 
-class DepartmentController extends Controller
+class ReportController extends Controller
 {
     protected $readonly = false;
-    protected $sheet_name = 'Master - Department'; //nama label untuk FE
-    protected $sheet_slug = 'department'; //nama routing (slug)
+    protected $sheet_name = 'Master - PCA'; //nama label untuk FE
+    protected $sheet_slug = 'pca'; //nama routing (slug)
     protected $view_tabel_index = array(
-        'md.id AS No',
+        'mp.id AS No',
         // '"action" AS action',
-        'md.department_code AS department_code',
-        'md.department_name AS department_name',
+        'mp.pca_code AS pca_code',
+        'mp.pca_name AS pca_name',
+        'mp.app_code AS app_code',
         '"action" AS action',
     );
     protected $view_tabel = array(
-        'md.id AS id',
-        'md.department_code AS department_code',
-        'md.department_name AS department_name',
+        'mp.id AS id',
+        'mp.pca_code AS pca_code',
+        'mp.pca_name AS pca_name',
         '"action" AS action',
     );
 
@@ -53,9 +55,9 @@ class DepartmentController extends Controller
         $data['page']['new']['active'] = true;
         $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
 
-        $data['page']['js_list'][] = 'js.master-data';
-
         $data = configDefAction($id, $data);
+
+        $data['page']['js_list'][] = 'js.master-data';
 
         $data['page']['id'] = $id;
         $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
@@ -78,19 +80,19 @@ class DepartmentController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['list'] = route('master.pca.index');
         $data['page']['title'] = $sheet_name;
 
         $data['tab-menu']['title'] = 'List ' . $sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_department')) {
+        if (checkPermission('is_admin') || checkPermission('read_pca')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('department')";
+            $data['datatable']['btn']['sync']['act'] = "syncFn('pca')";
         }
 
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_department'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_pca'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -103,16 +105,17 @@ class DepartmentController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_department'))) {
+        if ((checkPermission('is_admin') || checkPermission('read_pca'))) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('getmaster_department/export');
+            $data['datatable']['btn']['export']['url'] = url('master/getmaster_pca/export');
         }
 
-        // $data['page']['import']['layout'] = 'layouts.import.form';
-        // $data['page']['import']['post'] = route('master.department.import');
-        // $data['page']['import']['template'] = url('/templates/DepartmentImportTemplate.xlsx');
+
+        $data['page']['import']['layout'] = 'layouts.import.form';
+        $data['page']['import']['post'] = route('master.pca.import');
+        $data['page']['import']['template'] = url('/templates/PCAImportTemplate.xlsx');
 
         $page_var = compact('data');
 
@@ -147,30 +150,30 @@ class DepartmentController extends Controller
             $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
-            $order = 'md.department_code';
+            $order = 'mp.created_at';
         }
         $dir = $request->input('order.0.dir') ?? 'desc';
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_department as md')->whereNull('md.deleted_at')->count();
+        $totalData = DB::table('master_pca as mp')->whereNull('mp.deleted_at')->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_department as md')
+            $data_tabel = DB::table('master_pca as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('md.deleted_at')
-                ->groupby('md.id');
+                ->whereNull('mp.deleted_at')
+                ->groupby('mp.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
             $totalFiltered = $data_tabel->get()->count();
 
             $data_tabel->offset($start)
-                ->groupby('md.id')
+                ->groupby('mp.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start)
@@ -178,12 +181,12 @@ class DepartmentController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_department as md')
+            $datatb_request = DB::table('master_pca as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('md.deleted_at')
-                ->groupby('md.id')
+                ->whereNull('mp.deleted_at')
+                ->groupby('mp.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);
@@ -203,8 +206,8 @@ class DepartmentController extends Controller
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
             ];
         }
 
@@ -226,15 +229,15 @@ class DepartmentController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_department'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_pca')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                } else {
+                }else {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
-
-                if ((checkPermission('is_admin') || checkPermission('delete_department')) && config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true ) {
+                if ((checkPermission('is_admin') || checkPermission('delete_pca')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
+
 
                 $nestedData['action'] = @$btn;
 
@@ -262,9 +265,9 @@ class DepartmentController extends Controller
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        // $data['page']['list'] = route('module.routing');
+        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
-        $data['page']['readonly'] = $this->readonly;
         $param = null;
 
         return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
@@ -273,24 +276,24 @@ class DepartmentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'department_code' => 'required|unique:master_' . $this->sheet_slug . ',department_code' . ($request->id ? ',' . $request->id : ''),
-            'department_name' => 'required',
+            'pca_code' => 'required|unique:master_' . $this->sheet_slug . ',pca_code' . ($request->id ? ',' . $request->id : ''),
+            'pca_name' => 'required',
         ]);
 
         if ($request->id) {
-            // Update existing department
-            $department = Department::findOrFail($request->id);
-            $update = $department->update([
-                'department_code' => strtoupper($request->department_code),
-                'department_name' => $request->department_name,
+            // Update existing pca
+            $pca = Pca::findOrFail($request->id);
+            $update = $pca->update([
+                'pca_code' => $request->pca_code,
+                'pca_name' => $request->pca_name,
             ]);
 
-            if ($update && $department->wasChanged()) {
+            if ($update && $pca->wasChanged()) {
                 /*sync callback*/
-                $id =  $department->id;
+                $id =  $pca->id;
                 $sync_tabel = 'master_' . $this->sheet_slug;
                 $sync_id = $id;
-                $sync_row = $department->toArray();
+                $sync_row = $pca->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
                 //update ke master DB saja
@@ -301,32 +304,34 @@ class DepartmentController extends Controller
             } else {
                 $message = $this->sheet_name . ' no data changed';
             }
-
         } else {
-            // Create new department
-            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
+            // Create new category
+            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
 
             $modelClass::create([
-                'department_code' => $request->department_code,
-                'department_name' => $request->department_name,
+                'pca_code' => $request->pca_code,
+                'pca_name' => $request->pca_name,
+                'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
-            ]);
+            ]); // ini akan trigger Loggable
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
-                // Create new department
-                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
-
-                $modelClass::create([
-                'department_code' => $request->department_code,
-                'department_name' => $request->department_name,
-                'created_at' => now(),
-                ]);
-            }
+            // DB::table('master_' . $this->sheet_slug)->insert([
+            //     'pca_code' => $request->pca_code,
+            //     'pca_name' => $request->pca_name,
+            //     'app_code' => config('SsoConfig.main.APP_CODE'),
+            //     'created_at' => now(),
+            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }
 
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+    }
+
+    public function show($id)
+    {
+        $this->readonly = true;
+        return self::edit($id);
     }
 
     public function edit($id)
@@ -346,7 +351,14 @@ class DepartmentController extends Controller
 
     public function destroy($id)
     {
-        DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
+        // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
+        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+
+        if (class_exists($modelClass)) {
+            $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
+        }else{
+            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        }
 
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
     }
@@ -360,12 +372,12 @@ class DepartmentController extends Controller
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 
-            $import = new DepartmentImport;
+            $import = new PcaImport;
             Excel::import($import, $file);
             $error = $import->getError();
             $success = $import->getSuccess();
 
-            return redirect()->route('master.department.index')->with('error_message', $error)->with('success_message', $success);
+            return redirect()->route('master.pca.index')->with('error_message', $error)->with('success_message', $success);
         }
     }
 }

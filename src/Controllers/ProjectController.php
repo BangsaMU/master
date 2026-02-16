@@ -16,6 +16,8 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\Company;
 
+use Bangsamu\Master\Exports\Master\ProjectTemplateExport;
+
 class ProjectController extends Controller
 {
     protected $readonly = false;
@@ -535,5 +537,10 @@ class ProjectController extends Controller
 
             return redirect()->route('master.project.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new ProjectTemplateExport, 'ProjectTemplateExport.xlsx');
     }
 }
