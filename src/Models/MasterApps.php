@@ -21,6 +21,6 @@ class MasterApps extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_apps";
+    protected $table = "master_apps";
     protected $guarded = [];
 }

@@ -20,7 +20,7 @@ class Location extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_location";
+    protected $table = "master_location";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

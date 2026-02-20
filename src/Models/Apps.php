@@ -17,7 +17,7 @@ class Apps extends Model
     use HasFactory, SoftDeletes;
     use Loggable;
 
-    public $table = "master_apps";
+    protected $table = "master_apps";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

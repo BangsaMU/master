@@ -17,7 +17,7 @@ class ItemCode extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_item_code";
+    protected $table = "master_item_code";
     protected $primaryKey = 'id';
     protected $guarded = [];
 
@@ -30,26 +30,32 @@ class ItemCode extends Model
         if (!self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create((new static)->getTable(), function (Blueprint $table) {
+            static::booting(function ($model) {
+                $tableName = $model->getTable(); // Mengambil nama tabel secara dinamis
 
-                    $table->id();
-                    $table->string('item_code', 25)->unique()->nullable();
-                    $table->string('item_name')->nullable();
-                    $table->integer('uom_id')->nullable();
-                    $table->integer('pca_id')->nullable();
-                    $table->integer('category_id')->nullable();
-                    $table->integer('group_id')->nullable();
-                    $table->text('remarks')->nullable();
-                    $table->string('app_code', 10)->default('APP03');
-                    $table->longText('attributes')->nullable();
-                    $table->string('nav_code', 25)->nullable();
-                    $table->timestamps(); // created_at & updated_at
-                    $table->softDeletes(); // deleted_at
+                if (!Schema::hasTable($tableName)) {
+                    Schema::create($tableName, function (Blueprint $table) {
 
-                    $table->index('app_code', 'index_app_code');
-                });
-            }
+                        $table->id();
+                        $table->string('item_code', 25)->unique()->nullable();
+                        $table->string('item_name')->nullable();
+                        $table->integer('uom_id')->nullable();
+                        $table->integer('pca_id')->nullable();
+                        $table->integer('category_id')->nullable();
+                        $table->integer('group_id')->nullable();
+                        $table->text('remarks')->nullable();
+                        $table->string('app_code', 10)->default('APP03');
+                        $table->longText('attributes')->nullable();
+                        $table->string('nav_code', 25)->nullable();
+                        $table->timestamps(); // created_at & updated_at
+                        $table->softDeletes(); // deleted_at
+
+                        $table->index('app_code', 'index_app_code');
+                    });
+                }
+
+            });
+            
         }
     }
 }

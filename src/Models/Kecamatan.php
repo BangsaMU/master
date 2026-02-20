@@ -17,7 +17,7 @@ class Kecamatan extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_kecamatan";
+    protected $table = "master_kecamatan";
     protected $primaryKey = 'id';
     protected $guarded = [];
 

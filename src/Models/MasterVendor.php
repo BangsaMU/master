@@ -21,6 +21,6 @@ class MasterVendor extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_vendor";
+    protected $table = "master_vendor";
     protected $guarded = [];
 }

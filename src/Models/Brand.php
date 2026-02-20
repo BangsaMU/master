@@ -17,7 +17,7 @@ class Brand extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_brand";
+    protected $table = "master_brand";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

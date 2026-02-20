@@ -21,6 +21,6 @@ class MasterPriority extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_priority";
+    protected $table = "master_priority";
     protected $guarded = [];
 }

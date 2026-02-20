@@ -18,7 +18,7 @@ class MasterCompany extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_company";
+    protected $table = "master_company";
     protected $guarded = [];
 
 }

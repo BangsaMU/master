@@ -21,6 +21,6 @@ class MasterItemGroup extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_item_group";
+    protected $table = "master_item_group";
     protected $guarded = [];
 }

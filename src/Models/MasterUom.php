@@ -21,6 +21,6 @@ class MasterUom extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_uom";
+    protected $table = "master_uom";
     protected $guarded = [];
 }

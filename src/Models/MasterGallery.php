@@ -21,6 +21,6 @@ class MasterGallery extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_gallery";
+    protected $table = "master_gallery";
     protected $guarded = [];
 }

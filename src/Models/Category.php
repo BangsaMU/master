@@ -17,7 +17,7 @@ class Category extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_category";
+    protected $table = "master_category";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

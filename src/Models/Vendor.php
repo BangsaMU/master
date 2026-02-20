@@ -15,7 +15,7 @@ class Vendor extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_vendor";
+    protected $table = "master_vendor";
     protected $guarded = [];
 
     protected $fillable = [

@@ -17,7 +17,7 @@ class Status extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_status";
+    protected $table = "master_status";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

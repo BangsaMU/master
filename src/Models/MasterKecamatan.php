@@ -21,6 +21,6 @@ class MasterKecamatan extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_kecamatan";
+    protected $table = "master_kecamatan";
     protected $guarded = [];
 }

@@ -21,6 +21,6 @@ class MasterDepartment extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_department";
+    protected $table = "master_department";
     protected $guarded = [];
 }

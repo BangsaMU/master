@@ -20,7 +20,7 @@ class UserDetails extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_user_details";
+    protected $table = "master_user_details";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

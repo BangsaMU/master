@@ -21,6 +21,6 @@ class MasterKota extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_kota";
+    protected $table = "master_kota";
     protected $guarded = [];
 }

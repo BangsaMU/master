@@ -20,7 +20,7 @@ class FileManager extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_file_manager";
+    protected $table = "master_file_manager";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

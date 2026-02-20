@@ -17,7 +17,7 @@ class Employee extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_employee";
+    protected $table = "master_employee";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

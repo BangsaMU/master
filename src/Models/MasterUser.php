@@ -23,7 +23,7 @@ class MasterUser extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_user";
+    protected $table = "master_user";
     protected $guarded = [];
 
 

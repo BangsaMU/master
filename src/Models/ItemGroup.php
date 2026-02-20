@@ -17,7 +17,7 @@ class ItemGroup extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_item_group";
+    protected $table = "master_item_group";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

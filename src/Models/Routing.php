@@ -13,7 +13,7 @@ use Illuminate\Database\Schema\Blueprint;
 
 class Routing extends Model
 {
-    public $table = "routing";
+    protected $table = "routing";
     protected $guarded = ['id'];
 
     /**

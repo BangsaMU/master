@@ -21,6 +21,6 @@ class MasterProvinsi extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_provinsi";
+    protected $table = "master_provinsi";
     protected $guarded = [];
 }

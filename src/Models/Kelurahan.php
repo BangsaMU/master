@@ -17,7 +17,7 @@ class Kelurahan extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_kelurahan";
+    protected $table = "master_kelurahan";
     protected $primaryKey = 'id';
     protected $guarded = [];
 

@@ -21,6 +21,12 @@ class MasterItemCodePicture extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_item_code_picture";
+    protected $table = "master_item_code_picture";
     protected $guarded = [];
+
+    public function item()
+    {
+        return $this->belongsTo(MasterItemCode::class, 'item_code_id', 'id');
+    }
+
 }

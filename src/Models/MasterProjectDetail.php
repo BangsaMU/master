@@ -21,6 +21,6 @@ class MasterProjectDetail extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_project_detail";
+    protected $table = "master_project_detail";
     protected $guarded = [];
 }

@@ -21,6 +21,6 @@ class MasterPca extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_pca";
+    protected $table = "master_pca";
     protected $guarded = [];
 }

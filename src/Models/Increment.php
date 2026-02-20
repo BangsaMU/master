@@ -18,7 +18,7 @@ class Increment extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_increment";
+    protected $table = "master_increment";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

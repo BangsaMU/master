@@ -17,7 +17,7 @@ class Uom extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_uom";
+    protected $table = "master_uom";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

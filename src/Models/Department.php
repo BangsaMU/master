@@ -17,7 +17,7 @@ class Department extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_department";
+    protected $table = "master_department";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

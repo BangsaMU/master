@@ -20,7 +20,7 @@ class ProjectDetail extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_project_detail";
+    protected $table = "master_project_detail";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

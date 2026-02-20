@@ -17,7 +17,7 @@ class ItemCodePicture extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_item_code_picture";
+    protected $table = "master_item_code_picture";
     protected $primaryKey = 'id';
     protected $guarded = [];
 

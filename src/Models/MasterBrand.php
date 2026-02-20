@@ -21,6 +21,6 @@ class MasterBrand extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_brand";
+    protected $table = "master_brand";
     protected $guarded = [];
 }

@@ -21,6 +21,6 @@ class MasterIncrement extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_increment";
+    protected $table = "master_increment";
     protected $guarded = [];
 }

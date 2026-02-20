@@ -17,7 +17,7 @@ class Company extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_company";
+    protected $table = "master_company";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

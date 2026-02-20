@@ -17,7 +17,7 @@ class Kota extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_kota";
+    protected $table = "master_kota";
     protected $primaryKey = 'id';
     protected $guarded = [];
 

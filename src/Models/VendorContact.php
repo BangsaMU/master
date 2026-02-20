@@ -17,7 +17,7 @@ class VendorContact extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_vendor_contact";
+    protected $table = "master_vendor_contact";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

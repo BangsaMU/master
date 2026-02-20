@@ -21,7 +21,7 @@ class MasterJobPosition extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_job_position";
+    protected $table = "master_job_position";
     protected $guarded = [];
 
 

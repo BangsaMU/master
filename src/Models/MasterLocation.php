@@ -22,7 +22,7 @@ class MasterLocation extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_location";
+    protected $table = "master_location";
     protected $guarded = [];
 
     public function scopeIsHrd(Builder $query): Builder

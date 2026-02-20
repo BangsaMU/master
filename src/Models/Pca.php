@@ -17,7 +17,7 @@ class Pca extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_pca";
+    protected $table = "master_pca";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

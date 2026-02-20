@@ -20,7 +20,7 @@ class Priority extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_priority";
+    protected $table = "master_priority";
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;

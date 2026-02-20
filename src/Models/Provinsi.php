@@ -17,7 +17,7 @@ class Provinsi extends Model
     use SoftDeletes;
     use Loggable;
 
-    public $table = "master_provinsi";
+    protected $table = "master_provinsi";
     protected $primaryKey = 'id';
     protected $guarded = [];
 

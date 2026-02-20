@@ -21,6 +21,6 @@ class MasterCategory extends Model
     use Loggable;
 
     protected $connection = 'db_master';
-    public $table = "master_category";
+    protected $table = "master_category";
     protected $guarded = [];
 }
