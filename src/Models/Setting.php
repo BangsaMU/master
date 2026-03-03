@@ -37,7 +37,7 @@ class Setting extends Model
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->string('name', 255);
-                    $table->text('value');
+                    $table->text('value')->comment('buat limit hak akses app yg boleh edit');
                     $table->string('category', 255);
                     $table->timestamps();
                     $table->softDeletes();
