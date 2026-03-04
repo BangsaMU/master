@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Support\Str;
+use Bangsamu\Master\Models\Setting;
 
 class ItemCodeController extends Controller
 {
@@ -168,7 +169,22 @@ class ItemCodeController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_item_code as mic')->whereNull('mic.deleted_at')->count();
+        // Ambil setting
+        $list_app_code = Setting::where('name', 'app_code')
+            ->where('category', 'master_item_code')
+            ->value('value'); // Ambil langsung satu nilai
+        // Konversi string ke array, lalu filter elemen kosong
+        $list_app_code = array_filter(explode(",", $list_app_code));
+        // Jika array kosong setelah difilter, set ke null
+        $list_app_code = !empty($list_app_code) ? $list_app_code : null;
+
+        $totalData = DB::table('master_item_code as mic')
+            ->whereNull('mic.deleted_at')
+            ->when($list_app_code, function ($query, $app_code) {
+                return $query->whereIn('mic.app_code', $app_code);
+            })
+            ->count();
+
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
@@ -182,6 +198,9 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
                 ->whereNull('mic.deleted_at')
+                ->when($list_app_code, function ($query, $app_code) {
+                    return $query->whereIn('mic.app_code', $app_code);
+                })
                 ->groupby('mic.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
@@ -206,6 +225,9 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
                 ->whereNull('mic.deleted_at')
+                ->when($list_app_code, function ($query, $app_code) {
+                    return $query->whereIn('mic.app_code', $app_code);
+                })
                 ->groupby('mic.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
