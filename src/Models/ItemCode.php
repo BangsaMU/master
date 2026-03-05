@@ -44,10 +44,12 @@ class ItemCode extends Model
                     $table->string('app_code', 10)->default('APP03');
                     $table->longText('attributes')->nullable();
                     $table->string('nav_code', 25)->nullable();
+                    $table->integer('company_id')->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
 
                     $table->index('app_code', 'index_app_code');
+                    $table->index('company_id', 'index_company_id');
                 });
             }
         }

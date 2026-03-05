@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Support\Str;
-use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Models\Setting; 
+use Illuminate\Support\Facades\Schema;
 
 class ItemCodeController extends Controller
 {
@@ -31,6 +32,7 @@ class ItemCodeController extends Controller
         'mig.item_group_name AS item_group',
         'mic.attributes AS attributes',
         'mic.app_code AS app_code',
+        'mic.company_id AS company_id',
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.size_1')) AS size_1",
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.size_2')) AS size_2",
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.unit_weight')) AS unit_weight",
@@ -170,26 +172,35 @@ class ItemCodeController extends Controller
         $array_data_maping = $view_tabel_index;
 
         // Ambil setting
-        $list_app_code = Setting::where('name', 'app_code')
-            ->where('category', 'master_item_code')
-            ->value('value'); // Ambil langsung satu nilai
-        // Konversi string ke array, lalu filter elemen kosong
-        $list_app_code = array_filter(explode(",", $list_app_code));
-        // Jika array kosong setelah difilter, set ke null
-        $list_app_code = !empty($list_app_code) ? $list_app_code : null;
+        // 1. Ambil semua setting berdasarkan category master_item_code
+        $category = 'master_item_code';
+        $tableName = 'master_item_code';
 
-        $totalData = DB::table('master_item_code as mic')
-            ->whereNull('mic.deleted_at')
-            ->when($list_app_code, function ($query, $app_code) {
-                return $query->whereIn('mic.app_code', $app_code);
-            })
-            ->count();
-
+        // 1. Ambil semua setting secara dinamis
+        $settings = Setting::where('category', $category)
+                    ->get();
+   
+        $query = DB::table($tableName . ' as mic')
+                ->whereNull('mic.deleted_at');
+        // 2. Tambahkan grup filter dengan logika OR di dalamnya
+        $query->where(function ($q) use ($settings, $tableName) {
+            foreach ($settings as $setting) {
+                $column = $setting->name;
+                $values = array_filter(explode(",", $setting->value));
+                // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
+                if (Schema::hasColumn($tableName, $column) && !empty($values)) {
+                    // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
+                    $q->orWhereIn("mic.$column", $values);
+                }
+            }
+        });
+        $totalData = $query->count();
+ 
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_item_code as mic')
+            $data_tabel = DB::table($tableName.' as mic')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -197,11 +208,19 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
-                ->whereNull('mic.deleted_at')
-                ->when($list_app_code, function ($query, $app_code) {
-                    return $query->whereIn('mic.app_code', $app_code);
-                })
-                ->groupby('mic.id');
+                ->whereNull('mic.deleted_at');
+            $data_tabel->where(function ($q) use ($settings, $tableName) {
+                foreach ($settings as $setting) {
+                    $column = $setting->name;
+                    $values = array_filter(explode(",", $setting->value));
+                    // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
+                    if (Schema::hasColumn($tableName, $column) && !empty($values)) {
+                        // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
+                        $q->orWhereIn("mic.$column", $values);
+                    }
+                }
+            })
+            ->groupby('mic.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -216,7 +235,7 @@ class ItemCodeController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_item_code as mic')
+            $datatb_request = DB::table($tableName.' as mic')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -224,10 +243,18 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
-                ->whereNull('mic.deleted_at')
-                ->when($list_app_code, function ($query, $app_code) {
-                    return $query->whereIn('mic.app_code', $app_code);
-                })
+                ->whereNull('mic.deleted_at');
+            $datatb_request->where(function ($q) use ($settings, $tableName) {
+                foreach ($settings as $setting) {
+                    $column = $setting->name;
+                    $values = array_filter(explode(",", $setting->value));
+                    // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
+                    if (Schema::hasColumn($tableName, $column) && !empty($values)) {
+                        // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
+                        $q->orWhereIn("mic.$column", $values);
+                    }
+                }
+            })
                 ->groupby('mic.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
@@ -275,12 +302,12 @@ class ItemCodeController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) ) {
                     $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) {
                     $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -391,7 +418,7 @@ class ItemCodeController extends Controller
                 $message = $this->sheet_name . ' no data changed';
             }
         } else {
-            // Create new category
+            // Create new Item Code
 
             $item_code_attributes = json_decode($item_group_attributes) ?? (object) [];
             $indexI = 0;
@@ -416,6 +443,7 @@ class ItemCodeController extends Controller
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
+                'company_id' => config('MasterConfig.MASTER_COMPANY_ID'),
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
 
@@ -433,21 +461,10 @@ class ItemCodeController extends Controller
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
+                'company_id' => config('MasterConfig.MASTER_COMPANY_ID'),
                 'created_at' => now(),
                 ]);
             }
-
-            // DB::table('master_' . $this->sheet_slug)->insert([
-            //     'item_code' => $request->item_code,
-            //     'item_name' => $request->item_name,
-            //     'uom_id' => $request->uom_id,
-            //     'pca_id' => $request->pca_id,
-            //     'category_id' => $request->category_id,
-            //     'group_id' => $request->group_id,
-            //     'attributes' => $item_code_attributes,
-            //     'app_code' => config('SsoConfig.main.APP_CODE'),
-            //     'created_at' => now(),
-            // ]);
 
             $message = $this->sheet_name . ' created successfully';
         }
@@ -616,12 +633,12 @@ class ItemCodeController extends Controller
 
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) ) {
                     $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('delete_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) ) {
                     $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
