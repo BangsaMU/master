@@ -11,6 +11,6 @@ return [
     */
 
     'MASTER_DIRECT_EDIT' => env('MASTER_DIRECT_EDIT',false),
-    'MASTER_COMPANY_id' => env('MASTER_COMPANY_id',1),//default ke meindo
+    'MASTER_COMPANY_ID' => env('MASTER_COMPANY_ID',1),//default ke meindo
 
 ];

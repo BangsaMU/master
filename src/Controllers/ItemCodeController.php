@@ -302,12 +302,12 @@ class ItemCodeController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) ) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) ) {
                     $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) {
+                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) {
                     $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -443,7 +443,7 @@ class ItemCodeController extends Controller
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
-                'company_id' => config('MasterConfig.MASTER_COMPANY_ID'),
+                'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
 
@@ -461,7 +461,7 @@ class ItemCodeController extends Controller
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
-                'company_id' => config('MasterConfig.MASTER_COMPANY_ID'),
+                'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
                 'created_at' => now(),
                 ]);
             }
@@ -633,12 +633,12 @@ class ItemCodeController extends Controller
 
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) ) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) ) {
                     $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('delete_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterConfig.MASTER_COMPANY_ID')) ) ) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('delete_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) ) {
                     $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
