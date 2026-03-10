@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Models\Location;
+use App\Models\Location;
 use Illuminate\Support\Str;
 use Bangsamu\Master\Models\Setting;
 

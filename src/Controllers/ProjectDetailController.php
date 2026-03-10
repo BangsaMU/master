@@ -3,13 +3,9 @@
 namespace Bangsamu\Master\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\TelitiGallery;
 use App\Models\Project;
-use App\Models\HseIndicatorMethod;
-use Bangsamu\Master\Models\Empdloyee;
-use App\Http\Controllers\ApiAttachmentsHse;
 use App\Http\Controllers\Controller;
-use Bangsamu\Master\Models\ProjectDetail;
+use App\Models\ProjectDetail;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

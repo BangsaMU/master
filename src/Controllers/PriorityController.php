@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Models\Priority;
+use App\Models\Priority;
 use Illuminate\Support\Str;
 class PriorityController extends Controller
 {

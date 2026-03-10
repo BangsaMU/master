@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Models\Pca;
+use App\Models\Pca;
 use Illuminate\Support\Str;
 class PcaController extends Controller
 {

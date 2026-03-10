@@ -7,7 +7,7 @@ use Bangsamu\Master\Exports\Master\ItemCodeTemplateExport;
 use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\ItemCodeImport;
-use Bangsamu\Master\Models\ItemCode;
+use App\Models\ItemCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

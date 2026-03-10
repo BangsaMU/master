@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
-use Bangsamu\Master\Models\Category;
+use App\Models\Category;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Support\Str;
 class CategoryController extends Controller

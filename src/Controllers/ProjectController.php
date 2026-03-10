@@ -6,15 +6,15 @@ use App\Http\Controllers\Controller;
 
 // use App\Imports\Master\ProjectImport;
 use Bangsamu\Master\Imports\Master\ProjectImport;
-use Bangsamu\Master\Models\ProjectDetail;
+use App\Models\ProjectDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Models\Project;
-use Bangsamu\Master\Models\Company;
+use App\Models\Project;
+use App\Models\Company;
 
 use Bangsamu\Master\Exports\Master\ProjectTemplateExport;
 
