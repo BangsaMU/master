@@ -377,17 +377,24 @@ class ItemCodeController extends Controller
         if ($request->id) {
             // Update existing item code
             $item_code_attributes = json_decode($item_group_attributes) ?? (object) [];
+
             $indexI = 0;
             $attributes = $request->input('attributes');
             if ($attributes) {
                 foreach ($item_code_attributes as $key => $detail) {
-                    if (array_key_exists($key, $attributes)) {
-                        $item_code_attributes->$key = $attributes[$key];
+                    $keyIndex = array_key_exists($key, $attributes) ?  array_key_exists($key, $attributes) : $indexI;//key ganti ke id karena index jika kosong
+                    if (array_key_exists($keyIndex, $attributes)) {
+                        // dd(2,$keyIndex,$attributes);
+                        $item_code_attributes->$key = $attributes[$keyIndex];
                     }
-                    // $indexI++;
+                    $indexI++;
                 }
+
+                // dd(1,$item_code_attributes,$key,$keyIndex, $attributes,array_key_exists($keyIndex, $attributes),@$attributes[$keyIndex]);
             }
             $item_code_attributes = json_encode($item_code_attributes);
+
+            // dd($item_group_attributes,$item_code_attributes, $attributes);
 
             $item_code = ItemCode::findOrFail($request->id);
             // dd($request->all());
@@ -517,7 +524,7 @@ class ItemCodeController extends Controller
         $this->validate($request, [
             'file' => 'required|file|max:2048|mimes:xls,xlsx,txt'
         ]);
-
+        
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 

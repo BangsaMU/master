@@ -419,10 +419,10 @@ class ApiController extends Controller
                                 } else {
                                     // find_in_set[project_remarks]=21317
                                     // dd(2,is_numeric($findVal));
-                                    if (is_numeric($findVal)) {
+                                    if (is_numeric($findVal)) {//dicari jika untuk nilai vlauenya  pemisah koma 1,2,3,4
                                         // dd(2,'numeric');
                                         $query->orWhereRaw("FIND_IN_SET(?,$findKey)", [$findVal]);
-                                    } else {
+                                    } else {//dicari untuk nilai cuman satu aja dalam banyak row
                                         // find_in_set[project_code]=A21317,21318
                                         // dd(3,'list string by koma');
                                         $query->whereRaw("FIND_IN_SET($findKey,?)", [$findVal]);

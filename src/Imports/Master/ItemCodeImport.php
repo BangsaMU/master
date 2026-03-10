@@ -2,16 +2,19 @@
 
 namespace Bangsamu\Master\Imports\Master;
 
-use Bangsamu\Master\Models\MasterCategory;
-use Bangsamu\Master\Models\MasterItemCode;
-use Bangsamu\Master\Models\MasterItemGroup;
-use Bangsamu\Master\Models\MasterPca;
-use Bangsamu\Master\Models\MasterUom;
+use App\Models\Category;
+use App\Models\ItemCode;
+use App\Models\ItemGroup;
+use App\Models\Pca;
+use App\Models\Uom;
+
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class ItemCodeImport implements ToCollection, WithMultipleSheets
 {
@@ -30,6 +33,7 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
         $user = config('SsoConfig.main.APP_CODE');
         $app_code = config('SsoConfig.main.APP_CODE');
         $headers = $rows[0];
+
         foreach ($rows as $key => $row) {
             $row_index = $key;
             if ($row->filter()->isNotEmpty() && $key > 0) {
@@ -69,53 +73,99 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                         $text = "Row " . $row_index . " Item Group Code : field is required.";
                         array_push($this->error, $text);
                     } else {
+                        // validate that config values required for import are present
+                        $company_id = config('MasterCrudConfig.MASTER_COMPANY_ID');
+                        if (empty($app_code)) {
+                            $text = "Row " . $row_index . " APP CODE : configuration is missing.";
+                            array_push($this->error, $text);
+                            continue;
+                        }
+                        if (empty($company_id)) {
+                            $text = "Row " . $row_index . " COMPANY ID : configuration is missing.";
+                            array_push($this->error, $text);
+                            continue;
+                        }
+
                         try {
-                            $uom = MasterUom::select('id')->where('uom_code', $uom_code)->first();
+                            $uom = Uom::select('id')->where('uom_code', $uom_code)->first();
                             if (!empty($uom)) {
                                 $uom_id = $uom->id;
                             } else {
-                                $create_uom = MasterUom::create([
+                                $create_uom = Uom::create([
                                     'uom_code' => strtoupper($uom_code),
                                     'uom_name' => $uom_code,
                                     'app_code' => strtoupper($app_code),
                                 ]);
 
                                 $uom_id = $create_uom->id;
+                                                
+                                /*sync callback master DB*/
+                                $sync_tabel = 'master_uom';
+                                $sync_id = $uom_id;
+                                $sync_row = $create_uom->toArray();
+                                // $sync_row['deleted_at'] = null;
+                                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                                //update ke master DB saja
+                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                                }
                             }
 
-                            $pca = MasterPca::select('id')->where('pca_code', $pca_code)->first();
+                            $pca = Pca::select('id')->where('pca_code', $pca_code)->first();
                             $pca_id = 0;
                             if (!empty($pca_code)) {
                                 if (!empty($pca)) {
                                     $pca_id = $pca->id;
                                 } else {
-                                    $create_pca = MasterPca::create([
+                                    $create_pca = Pca::create([
                                         'pca_code' => strtoupper($pca_code),
                                         'pca_name' => $pca_code,
                                         'app_code' => strtoupper($app_code),
                                     ]);
 
                                     $pca_id = $create_pca->id;
+
+                                    /*sync callback master DB*/
+                                    $sync_tabel = 'master_pca';
+                                    $sync_id = $pca_id;
+                                    $sync_row = $create_pca->toArray();
+                                    // $sync_row['deleted_at'] = null;
+                                    $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                                    //update ke master DB saja
+                                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                                        $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                                    }
                                 }
                             }
 
-                            $category = MasterCategory::select('id')->where('category_code', $category_code)->first();
+                            $category = Category::select('id')->where('category_code', $category_code)->first();
                             $category_id = 0;
                             if (!empty($category_code)) {
                                 if (!empty($category)) {
                                     $category_id = $category->id;
                                 } else {
-                                    $create_category = MasterCategory::create([
+                                    $create_category = Category::create([
                                         'category_code' => strtoupper($category_code),
                                         'category_name' => $category_code,
                                         'app_code' => strtoupper($app_code),
                                     ]);
 
                                     $category_id = $create_category->id;
+
+                                    /*sync callback master DB*/
+                                    $sync_tabel = 'master_category';
+                                    $sync_id = $category_id;
+                                    $sync_row = $create_category->toArray();
+                                    // $sync_row['deleted_at'] = null;
+                                    $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                                    //update ke master DB saja
+                                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                                        $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                                    }
                                 }
                             }
 
-                            $item_group = MasterItemGroup::where('item_group_code', $item_group_code)->first();
+                            $item_group = ItemGroup::where('item_group_code', $item_group_code)->first();
                             $item_group_attributes = [];
                             foreach ($headers as $key => $header_val) {
                                 if ($key > 5) {
@@ -123,6 +173,7 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                     $item_group_attributes[$header_val] = null;
                                 }
                             }
+
                             $item_group_attributes_json = json_encode($item_group_attributes);
                             if (!empty($item_group)) {
                                 $item_group_id = $item_group->id;
@@ -133,14 +184,25 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                     ]);
                                 }
                             } else {
-                                $create_item_group = MasterItemGroup::create([
+                                $item_group = ItemGroup::create([
                                     'item_group_code' => $item_group_code,
                                     'item_group_name' => $item_group_code,
                                     'item_group_attributes' => $item_group_attributes_json,
                                     'app_code' => $app_code,
                                 ]);
 
-                                $item_group_id = $create_item_group->id;
+                                $item_group_id = $item_group->id;
+                            }
+
+                            /*sync callback master DB*/
+                            $sync_tabel = 'master_item_group';
+                            $sync_id = $item_group_id;
+                            $sync_row = $item_group->toArray();
+                            // $sync_row['deleted_at'] = null;
+                            $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                            //update ke master DB saja
+                            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                                $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                             }
 
                             //attribute column
@@ -169,13 +231,27 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 'attributes' => $json,
                             ];
 
-                            $masterItemCode = MasterItemCode::updateOrCreate(
+                            // ensure uniqueness across item_code, app_code, and company_id
+                            $masterItemCode = ItemCode::updateOrCreate(
                                 [
                                     'item_code' => $item_code,
                                     'app_code' => $app_code,
+                                    'company_id' => $company_id,
                                 ],
                                 $data
                             );
+                                                        
+                            /*sync callback master DB*/
+                            $sync_tabel = 'master_item_code';
+                            $sync_id = $masterItemCode->id;
+                            $sync_row = $masterItemCode->toArray();
+
+                            // $sync_row['deleted_at'] = null;
+                            $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                            //update ke master DB saja
+                            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                                $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                            }
 
                             $text = "Row " . $row_index . " : " . $item_code . " has been imported successfully.";
                             array_push($this->success, $text);
