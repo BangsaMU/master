@@ -89,7 +89,7 @@ class ApiController extends Controller
         // contoh joint multi text dari join http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1
         // contoh group multi text dari group http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][|]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1&set[text][]=email&set[text][|]=id&group[]=mu.id&group[]=mup.position_code
         // contoh cek not null http://clay.localhost/api/getmaster_locationbyparams?set[field][]=loc_code&set[field][]=loc_name&set[text][|]=loc_code&set[text][]=loc_name&ap_token=a86a41aabe5fdc9ee11e1cd27af1a920&_token=Gtg1LbQL1yTmkR79Yjc4rHfaPRfeop2JjhorSzmg&not_null[]=loc_code
-
+        // filter join baru bisa di param search
         /*Param serch support array dan string data yg diambil param terakhir */
         $search = $request->search;
         $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {
@@ -339,7 +339,7 @@ class ApiController extends Controller
 
                     if (is_array($search)) {
 
-                        $data_array = $data_array->where(function ($query) use ($search, $tabel) {
+                        $data_array = $data_array->where(function ($query) use ($search, $tabel, $join_tabel) {
 
                             foreach ($search as $searchKey => $searchVal) {
                                 /*validasi kolom pencarian di tabel*/
@@ -365,8 +365,45 @@ class ApiController extends Controller
                                     }
                                     // $query->where($whereKey, $whereVal);
                                     // dd($where, $whereKey, $whereVal);
+                                }elseif(is_array($join_tabel)){
+                                    foreach ($join_tabel as $key_index => $join_val) {
+                                        //jik pakek joint
+                                        if(Schema::hasColumn($join_val['tabel'], $searchKey)){
+                                            // dd($join_val,$join_val['tabel'],$searchKey,$searchVal);
+                                            // array:5 [▼ // vendor/bangsamu/master/src/Controllers/ApiController.php:372
+                                            //         "tabel" => "master_item_code"
+                                            //         "tabel_join" => "mic.id"
+                                            //         "tabel_join_id" => "id"
+                                            //         "tabel_join_alias" => "mic"
+                                            //         "tabel_join_reff" => "item_code_id"
+                                            //         ]
+
+                                            //cek where or atau and
+                                            if (is_array($searchVal)) {
+                                                //cek jika int gunakan where selian itu like
+                                                // if (is_numeric(array_values($searchVal)[0])) {
+                                                //     $query->oRwhere($searchKey, array_values($searchVal)[0]);
+                                                // } else {
+                                                foreach ($searchVal as $searchValdata) {
+                                                    // dd('arrayMulti',$search,$searchVal,$searchValdata,$searchValdata);
+                                                    $query->oRwhere($join_val['tabel_join_alias'].'.'.$searchKey, 'like', '%' . $searchValdata . '%');
+                                                }
+                                                // }
+                                            } else {
+                                                // if (is_numeric($searchVal)) {
+                                                //     $query->where($searchKey, $searchVal);
+                                                // } else {
+                                                // dd('arraySingle',$search,$searchVal);
+                                                $query->where($join_val['tabel_join_alias'].'.'.$searchKey, 'like', '%' . $searchVal . '%');
+                                                // }
+                                            }
+
+                                        }
+                                    }
                                 }
+
                             }
+                            // dd($query->toRawsql());
                         });
                     } elseif (is_string($search)) {
                         $data_array = $data_array->where($search, 'like', '%' . $search . '%');
