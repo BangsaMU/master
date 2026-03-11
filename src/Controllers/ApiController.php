@@ -205,10 +205,10 @@ class ApiController extends Controller
                     // $last = end($text);
                     $last_key = array_key_last($text);
                     $last = $text[$last_key];
-                    // dd($last);
+                    // dd($text,end($text),$last);
                     foreach ($text as $keyText => $field_text) {
                         $sparator = $keyText;
-                        $sparator = $sparator == '0' ? '-' : $sparator;
+                        $sparator = is_numeric($sparator) ? '-' : $sparator;
 
                         if($last_key==$keyText){
                             $sparator='';
@@ -228,15 +228,16 @@ class ApiController extends Controller
                                                 $text_concat .= 'coalesce('.$field_text .',"")' . $sparatorjoin;
                                     }else{
                                         //buang last sparator
-                                        $lastCommaPos = strrpos($text_concat, ',');
+                                        // $lastCommaPos = strrpos($text_concat, ',');
 
-                                        if ($lastCommaPos !== false) {
-                                            $text_concat = substr($text_concat, 0, $lastCommaPos);
-                                        }
+                                        // if ($lastCommaPos !== false) {
+                                            // $text_concat = substr($text_concat, 0, $lastCommaPos);
+                                        // }
 
-                                        // dd($text_concat,$sparator);
                                     };
                             }
+
+                                        // dd($text_concat,$sparator);
                         }
                     }
 
@@ -419,10 +420,10 @@ class ApiController extends Controller
                                 } else {
                                     // find_in_set[project_remarks]=21317
                                     // dd(2,is_numeric($findVal));
-                                    if (is_numeric($findVal)) {//dicari jika untuk nilai vlauenya  pemisah koma 1,2,3,4
+                                    if (is_numeric($findVal)) {
                                         // dd(2,'numeric');
                                         $query->orWhereRaw("FIND_IN_SET(?,$findKey)", [$findVal]);
-                                    } else {//dicari untuk nilai cuman satu aja dalam banyak row
+                                    } else {
                                         // find_in_set[project_code]=A21317,21318
                                         // dd(3,'list string by koma');
                                         $query->whereRaw("FIND_IN_SET($findKey,?)", [$findVal]);
