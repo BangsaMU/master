@@ -2,11 +2,11 @@
 
 namespace Bangsamu\Master\Imports\Master;
 
-use App\Models\Category;
-use App\Models\ItemCode;
-use App\Models\ItemGroup;
-use App\Models\Pca;
-use App\Models\Uom;
+use Bangsamu\Master\Models\Category;
+use Bangsamu\Master\Models\ItemCode;
+use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Models\Pca;
+use Bangsamu\Master\Models\Uom;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;

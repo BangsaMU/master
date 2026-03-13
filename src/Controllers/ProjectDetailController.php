@@ -3,9 +3,9 @@
 namespace Bangsamu\Master\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Project;
+use Bangsamu\Master\Models\Project;
 use App\Http\Controllers\Controller;
-use App\Models\ProjectDetail;
+use Bangsamu\Master\Models\ProjectDetail;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

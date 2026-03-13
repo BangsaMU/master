@@ -2,7 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
-use App\Http\Requests\ProfileUpdateRequest;
+use App\Http\Controllers\Controller;
+use Bangsamu\Master\Rules\ProfileUpdateRequest;
 use App\Models\User; // Import UserDetail
 use App\Models\UserDetail; // Import UserDetail
 use Illuminate\Http\RedirectResponse;
@@ -12,8 +13,8 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage; // Import Storage
 use Illuminate\Support\Facades\DB; // Import DB
 use Illuminate\Support\Facades\Hash; // Import Hash if needed for password
+use Illuminate\Support\Facades\Log;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use App\Http\Controllers\Controller;
 
 class ProfileController extends Controller
 {
@@ -70,7 +71,7 @@ class ProfileController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Error updating user profile (ID: {$request->user()->id}): " . $e->getMessage(), ['exception' => $e]);
+            Log::error("Error updating user profile (ID: {$request->user()->id}): " . $e->getMessage(), ['exception' => $e]);
             // You might want a different flash message or redirect for errors on the profile page
             return Redirect::route('profile.edit')->with('error', 'Error updating profile: ' . $e->getMessage());
         }

@@ -5,7 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\ItemGroupImport;
-use App\Models\ItemGroup;
+use Bangsamu\Master\Models\ItemGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

@@ -5,7 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\Company;
+use Bangsamu\Master\Models\Company;
 use Bangsamu\Master\Models\Gallery;
 use Bangsamu\Master\Models\FileManager;
 use Bangsamu\Master\Models\Setting;
