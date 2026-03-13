@@ -105,6 +105,8 @@ class ApiController extends Controller
         $limit = $request->input("limit", 10);
         $order = $request->input("order");
         $group = $request->input("group");
+
+        $join_tabel= null;
         // dd($order);
         // dd($set,$start,$limit);
         // $field = $request->set['field'];
@@ -220,21 +222,23 @@ class ApiController extends Controller
                             // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
                         }else{
 
-                            foreach ($join_tabel as $key_index => $join_val) {
-                                    // dd($join_val['tabel']);
-                                    if(Schema::hasColumn($join_val['tabel'], $field_text)){
-                                                //jik pakek joint
-                                                $sparatorjoin = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
-                                                $text_concat .= 'coalesce('.$field_text .',"")' . $sparatorjoin;
-                                    }else{
-                                        //buang last sparator
-                                        // $lastCommaPos = strrpos($text_concat, ',');
+                            if (is_array(@$join_tabel)) {
+                                foreach ($join_tabel as $key_index => $join_val) {
+                                        // dd($join_val['tabel']);
+                                        if(Schema::hasColumn($join_val['tabel'], $field_text)){
+                                                    //jik pakek joint
+                                                    $sparatorjoin = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
+                                                    $text_concat .= 'coalesce('.$field_text .',"")' . $sparatorjoin;
+                                        }else{
+                                            //buang last sparator
+                                            // $lastCommaPos = strrpos($text_concat, ',');
 
-                                        // if ($lastCommaPos !== false) {
-                                            // $text_concat = substr($text_concat, 0, $lastCommaPos);
-                                        // }
+                                            // if ($lastCommaPos !== false) {
+                                                // $text_concat = substr($text_concat, 0, $lastCommaPos);
+                                            // }
 
-                                    };
+                                        };
+                                }
                             }
 
                                         // dd($text_concat,$sparator);
