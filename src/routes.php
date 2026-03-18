@@ -10,7 +10,7 @@ Route::get('mud-master', function () {
     echo 'Hello from the master package!' . json_encode($value);
 });
 
-Route::get('mud-view', function () {
+Route::prefix('master')->get('mud-view', function () {
     return view('master::mud');
 });
 

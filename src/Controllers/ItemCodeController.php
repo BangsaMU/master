@@ -406,6 +406,7 @@ class ItemCodeController extends Controller
                 'category_id' => $request->category_id,
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
+                'remarks' => $request->remarks,
             ]);
 
             if ($update && $item_code->wasChanged()) {
@@ -449,6 +450,7 @@ class ItemCodeController extends Controller
                 'category_id' => $request->category_id,
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
+                'remarks' => $request->remarks,
                 'app_code' => config('SsoConfig.main.APP_CODE'),
                 'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
                 'created_at' => now(),

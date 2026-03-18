@@ -1,4 +1,14 @@
-@extends('layouts.tabler')
+@php
+    if (config('app.themes') == '_tabler') {
+        // Cek apakah view "layouts.tabler" ada
+        $themeLayout = view()->exists('layouts.tabler')
+            ? 'layouts.tabler'
+            : 'master::layouts.tabler';
+    } else {
+        $themeLayout = 'adminlte::page';
+    }
+@endphp
+@extends($themeLayout)
 
 @section('title', @$data['page']['title'])
 
@@ -34,12 +44,29 @@
                                 @error('item_code') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div>
-                                <label class="form-label" for="item_name">Description</label>
+                                <label class="form-label" for="item_name">Item Name</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_name" id="item_name" class="form-control"
-                                        value="{{ $param ? $param->item_name : old('item_name') }}" placeholder="Input your Description">
+                                        value="{{ $param ? $param->item_name : old('item_name') }}" placeholder="Input Item Name">
                                 @error('item_name') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                         </div>
+
+                        <div class="row row-cols-12 g-2">
+                            <div>
+                                <label class="form-label" for="remarks">remarks</label>
+                                <textarea 
+                                    {{ $data['page']['readonly'] ? 'readonly' : '' }} 
+                                    name="remarks" 
+                                    id="remarks" 
+                                    class="form-control" 
+                                    rows="3" 
+                                    placeholder="input remarks here">{{ $param ? $param->remarks : old('remarks') }}</textarea>
+                                @error('remarks')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+
 
                         <div class="row row-cols-2 g-2">
                             <div>

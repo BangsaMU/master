@@ -32,6 +32,23 @@
                                    value="{{ $param ? $param->item_name : old('item_name') }}" placeholder="Input your Description">
                             @error('item_name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
+
+                        <div class="row row-cols-12 g-2">
+                            <div>
+                                <label class="form-label" for="remarks">remarks</label>
+                                <textarea 
+                                    {{ $data['page']['readonly'] ? 'readonly' : '' }} 
+                                    name="remarks" 
+                                    id="remarks" 
+                                    class="form-control" 
+                                    rows="3" 
+                                    placeholder="input remarks here">{{ $param ? $param->remarks : old('remarks') }}</textarea>
+                                @error('remarks')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        
                         <div class="form-group">
                             <label for="uom">Unit of Measurement</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('uom_id') is-invalid @enderror" name="uom_id" id="uom">
