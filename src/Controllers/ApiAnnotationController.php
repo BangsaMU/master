@@ -1127,14 +1127,25 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $user = $this->getTokenIdOrEmail($token);
         $user_id = $user->id ?? 0;
         $user_email = $user->email ?? 0;
-        $signature = UserDetail::select('field_value')->where('field_key', 'signature')->where('user_id', $user_id)->orWhere('user_email', $user_email)->first();
+        $signature = UserDetail::select('field_value')->where('field_key', 'signature')->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
         // dd($signature->toRawSql(),$user->toArray(),$user_email,$token, $user_id, $signature);
+
+        Log::info('[ApiAnnotationController.getSignature] ', [
+            'request' => $request->all(),
+            'signature' => $signature?->toArray() ?? null,
+            'query' =>$signature?->toRawSql() ?? null,
+        ]);
+        
         if ($signature) {
             $signature->field_value = str_replace('/media', '', ($signature?->field_value??''));//bug fix karena path nama sudah ada semua storage media
             $signature_path = Storage::disk('media')->path($signature->field_value);
             // dd($request->all(),$request->input('refresh'),$signature_path);
             // Cek apakah file tanda tangan ada
             // dd($signature->field_value,$signature_path,Storage::disk('media')->exists($signature->field_value));
+            Log::info('[ApiAnnotationController.getSignature validate path signature]', [
+                'signature->field_value' => $signature->field_value,
+                'file_exists' => Storage::disk('media')->exists($signature->field_value),
+            ]);
             if (Storage::disk('media')->exists($signature->field_value)) {
                 if ($request->currentTime) {
                     if($request->position=='right'){
