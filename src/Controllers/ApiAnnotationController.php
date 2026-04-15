@@ -1127,13 +1127,19 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $user = $this->getTokenIdOrEmail($token);
         $user_id = $user->id ?? 0;
         $user_email = $user->email ?? 0;
-        $signature = UserDetail::select('field_value')->where('field_key', 'signature')->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
+        $signature_query = UserDetail::select('field_value')->where('field_key', 'signature')
+        ->where(function($query) use ($user_id, $user_email) {
+            $query->where('user_id', $user_id)
+                ->orWhere('user_email', $user_email);
+        })->orderBy('id', 'desc');
+        $signature = $signature_query->first();
+        // ->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
         // dd($signature->toRawSql(),$user->toArray(),$user_email,$token, $user_id, $signature);
 
         Log::info('[ApiAnnotationController.getSignature] ', [
             'request' => $request->all(),
             'signature' => $signature?->toArray() ?? null,
-            'query' =>$signature?->toRawSql() ?? null,
+            'query' =>$signature_query?->toRawSql() ?? null,
         ]);
         
         if ($signature) {
