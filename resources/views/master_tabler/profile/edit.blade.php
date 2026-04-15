@@ -66,7 +66,7 @@
                         {{-- Signature Section --}}
                         <div class="col-6"> {{-- Changed to col-6 for side-by-side with Paraf --}}
                             <label class="form-label">Signature Preview</label>
-                            <img id="signature-image-preview" src="{{ auth()->user()->signature ?? 'https://via.placeholder.com/400x200.png/f0f2f7/99a1b7?text=No+Signature' }}" alt="{{ auth()->user()->signature ?? 'No Signature' }}" class="img-fluid border rounded mb-3" style="max-height: 200px;">
+                            <img id="signature-image-preview" src="{{ auth()->user()->signature ?? 'https://placehold.co/400x200/f0f2f7/99a1b7?text=No+Signature' }}" alt="{{ auth()->user()->signature ?? 'No Signature' }}" class="img-fluid border rounded mb-3" style="max-height: 200px;">
                         </div>
 
                         <div class="col-6">
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     imagePreview.src = existingData;
                 } catch (e) {
                     console.error(`Error loading existing data for ${canvasId}:`, e);
-                    imagePreview.src = 'https://via.placeholder.com/400x200.png/f0f2f7/99a1b7?text=Error+Loading';
+                    imagePreview.src = 'https://placehold.co/400x200/f0f2f7/99a1b7?text=Error+Loading';
                 }
             } else {
                 imagePreview.src = existingData;
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
             signaturePadInstance.clear();
             fileInput.value = '';
             dataInput.value = '';
-            imagePreview.src = 'https://via.placeholder.com/400x200.png/f0f2f7/99a1b7?text=No+Data';
+            imagePreview.src = 'https://placehold.co/400x200/f0f2f7/99a1b7?text=No+Data';
         });
 
         fileInput.addEventListener('change', function() {
@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
                 reader.readAsDataURL(file);
             } else {
-                imagePreview.src = 'https://via.placeholder.com/400x200.png/f0f2f7/99a1b7?text=No+Data';
+                imagePreview.src = 'https://placehold.co/400x200/f0f2f7/99a1b7?text=No+Data';
                 dataInput.value = '';
             }
         });
