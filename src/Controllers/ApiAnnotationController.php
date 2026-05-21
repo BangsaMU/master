@@ -23,6 +23,7 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use App\Models\Gallery;
 use App\Models\Routing;
 use App\Models\Requisition;
+use Illuminate\Support\Facades\Schema;
 
 
 class ApiAnnotationController extends Controller
@@ -1127,15 +1128,22 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $user = $this->getTokenIdOrEmail($token);
         $user_id = $user->id ?? 0;
         $user_email = $user->email ?? 0;
-        $signature_query = UserDetail::select('field_value')->where('field_key', 'signature')
-        ->where(function($query) use ($user_id, $user_email) {
-            $query->where('user_id', $user_id)
-                ->orWhere('user_email', $user_email);
-        })->orderBy('id', 'desc');
-        $signature = $signature_query->first();
-        // ->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
-        // dd($signature->toRawSql(),$user->toArray(),$user_email,$token, $user_id, $signature);
 
+        if (!Schema::hasTable('user_details')) {
+            // Handle jika tabel tidak ditemukan (misal: return default atau log error)
+            $signature = null;
+            $message_error = 'tabel user_details tidak ditemukan';
+
+        } else {
+                $signature_query = UserDetail::select('field_value')->where('field_key', 'signature')
+                ->where(function($query) use ($user_id, $user_email) {
+                    $query->where('user_id', $user_id)
+                        ->orWhere('user_email', $user_email);
+                })->orderBy('id', 'desc');
+                $signature = $signature_query->first();
+                // ->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
+                // dd($signature->toRawSql(),$user->toArray(),$user_email,$token, $user_id, $signature);
+        }
         Log::info('[ApiAnnotationController.getSignature] ', [
             'request' => $request->all(),
             'signature' => $signature?->toArray() ?? null,
@@ -1169,7 +1177,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             }
         } else {
             // Jika signature tidak ditemukan
-            abort(403, 'No signature found for the user.');
+            abort(403, $message_error ?? 'No signature found for the user.');
         }
 
 

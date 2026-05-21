@@ -39,9 +39,13 @@ class ProfileController extends Controller
         try {
             $user = $request->user();
 
+            $data = collect($request->validated())
+                ->filter(fn ($value) => !is_null($value) && !$value instanceof \Illuminate\Http\UploadedFile)
+                ->toArray();
+                
             // Fill standard user fields (name, email) from validated request
-            $user->fill($request->validated());
-
+            $user->fill($data);
+ 
             if ($user->isDirty('email')) {
                 $user->email_verified_at = null;
             }
@@ -89,6 +93,7 @@ class ProfileController extends Controller
     protected function handleImageUpload(Request $request, User $user, string $fieldKey, string $directory)
     {
         if ($request->filled($fieldKey)) {
+            dd(1);
             // Check if the data URL starts with "data:image/", if not, it might be a valid URL already stored
             if (strpos($request->$fieldKey, 'data:image/') === 0) {
                 list($type, $data) = explode(';', $request->$fieldKey);
@@ -125,6 +130,8 @@ class ProfileController extends Controller
                 // contained the existing URL for preview, which is fine.
             }
         } elseif ($request->exists($fieldKey)) { // Handle deletion if input is empty string
+
+            dd(2);
             $imageDetail = $user->details()->where('field_key', $fieldKey)->first();
             if ($imageDetail) {
                 Storage::disk('media')->delete($imageDetail->field_value);

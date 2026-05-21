@@ -13,6 +13,9 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Location;
 use Illuminate\Support\Str;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Models\DashboardSettings;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LocationController extends Controller
 {
@@ -240,6 +243,13 @@ class LocationController extends Controller
             ->where('category', 'master_location')
             ->value('value'); // Ambil langsung satu nilai
 
+        //dashboard_settings
+        if(empty($list_location)){
+            $list_location = DashboardSettings::where('key', 'group_type')
+            ->where('group', 'master_location')
+            ->value('value');
+        }
+
         // Konversi string ke array, lalu filter elemen kosong
         $list_location = array_filter(explode(",", $list_location));
 
@@ -377,6 +387,12 @@ class LocationController extends Controller
         $list_location = Setting::where('name', 'group_type')
             ->where('category', 'master_location')
             ->value('value');
+        //dashboard_settings
+        if(empty($list_location)){
+            $list_location = DashboardSettings::where('key', 'group_type')
+            ->where('group', 'master_location')
+            ->value('value');
+        }
 
         // Konversi string ke array dan filter kosong
         $list_location = array_filter(explode(",", $list_location));
@@ -393,16 +409,40 @@ class LocationController extends Controller
         }
 
         $param = null;
-
+        // dd(1, $list_location, $data['page']['list_group_type'],$param);
         return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
     {
+
+        // 1. Jalankan validasi dasar terlebih dahulu
         $request->validate([
-            'loc_code' => 'required|unique:master_' . $this->sheet_slug . ',loc_code' . ($request->id ? ',' . $request->id : ''),
+            'loc_code' => 'required',
             'loc_name' => 'required',
         ]);
+
+        // 2. Lakukan query manual untuk mencari group apa saja yang sudah memakai loc_code tersebut
+        $existingGroups = DB::table('master_' . $this->sheet_slug)
+            ->where('loc_code', $request->loc_code)
+            ->whereNull('deleted_at')
+            ->when($request->id, function ($query) use ($request) {
+                return $query->where('id', '!=', $request->id); // Abaikan ID saat mode edit
+            })
+            ->pluck('group_type') // Ambil kolom group_type saja
+            ->unique()            // Pastikan nilainya unik di array
+            ->toArray();
+
+        // 3. Jika array ada isinya, berarti kombinasi tersebut melanggar aturan unik
+        if (in_array($request->group_type, $existingGroups)) {
+
+            // Gabungkan list group yang konflik menjadi teks: "office, warehouse"
+            $groupList = implode(', ', $existingGroups);
+
+            throw ValidationException::withMessages([
+                'loc_code' => ["The loc code has already been taken on group: {$groupList}."]
+            ]);
+        }
 
         if ($request->id) {
             // Update existing location
@@ -490,6 +530,13 @@ class LocationController extends Controller
         $list_location = Setting::where('name', 'group_type')
             ->where('category', 'master_location')
             ->value('value');
+
+        //dashboard_settings
+        if(empty($list_location)){
+            $list_location = DashboardSettings::where('key', 'group_type')
+            ->where('group', 'master_location')
+            ->value('value');
+        }
 
         // Konversi string ke array dan filter kosong
         $list_location = array_filter(explode(",", $list_location));
