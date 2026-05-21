@@ -59,13 +59,14 @@
                             <label class="form-label" for="group_type">Group</label>
                             <select {{ $data['page']['readonly'] ? 'readonly' : '' }} name="group_type" id="group_type"
                                 class="form-select @error('group_type') is-invalid @enderror " required>
-                                <option value="">Pilih Tipe Grup</option>
+                                <option value="">Pilih Tipe Grup.</option>
 
-                                @foreach ($data['page']['list_group_type'] as $list_group_type)
-                                    <option value="{{ $list_group_type }}"
-                                        {{ ($param && $param->group_type == $list_group_type) || old('group_type') == $list_group_type ? 'selected' : '' }}>
-                                        {{ ucfirst($list_group_type) }}</option>
-                                @endforeach 
+                                    @foreach ($data['page']['list_group_type'] as $list_group_type)
+                                        <option value="{{ $list_group_type }}"
+                                            {{ ($param && $param->group_type == $list_group_type) || old('group_type') == $list_group_type ? 'selected' : '' }}>
+                                            {{ ucfirst($list_group_type) }}
+                                        </option>
+                                    @endforeach 
 
                             </select>
                             @error('group_type')
