@@ -549,12 +549,20 @@ class MasterCrulController
     public function reset(Request $request)
     {
         $data = $request->all();
+        $logData = $data;
+        if (isset($logData['password'])) {
+            $logData['password'] = '********';
+        }
+        if (isset($logData['password_confirmation'])) {
+            $logData['password_confirmation'] = '********';
+        }
+
         // dd($data, config('MasterConfig.main.URL', url('/')) . 'forgot_password');
         $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
             'verify' => config('MasterConfig.curl.VERIFY', false),
         ])->post(config('MasterConfig.main.URL', url('/')) . 'update_password', $data);
 
-        Log::info('user: sys url: ' . url()->current() . ' message: SSO login request :' . json_encode($data));
+        Log::info('user: sys url: ' . url()->current() . ' message: SSO login request :' . json_encode($logData));
 
         if ($response->ok()) {
             $data = $response->object();
@@ -564,7 +572,7 @@ class MasterCrulController
             $respond = false;
         }
 
-        Log::info('user: sys url: ' . url()->current() . ' message: SSO login respond :' . json_encode($data));
+        Log::info('user: sys url: ' . url()->current() . ' message: SSO login respond :' . json_encode($logData));
 
         // dd( $response->body());
         return $respond;

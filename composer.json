@@ -5,7 +5,8 @@
     "license": "MIT",
     "require": {
         "bangsamu/library-clay": "*",
-        "maatwebsite/excel": "^3.1"
+        "maatwebsite/excel": "*",
+        "jenssegers/agent": "*"
     },
     "autoload": {
         "psr-4": {

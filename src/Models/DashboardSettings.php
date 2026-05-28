@@ -4,24 +4,14 @@ namespace Bangsamu\Master\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
 
 class DashboardSettings extends Model
 {
     use HasFactory;
 
     protected $table = 'dashboard_settings';
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -33,8 +23,11 @@ class DashboardSettings extends Model
         if (!self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create((new static)->getTable(), function (Blueprint $table) {
+            // FIX: Gunakan string langsung, jangan 'new static'
+            $tableName = 'dashboard_settings'; 
+
+            if (!Schema::hasTable($tableName)) {
+                Schema::create($tableName, function (Blueprint $table) {
                     $table->id();
                     $table->string('key')->unique();
                     $table->text('value')->nullable();
