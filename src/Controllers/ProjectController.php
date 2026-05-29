@@ -523,7 +523,7 @@ class ProjectController extends Controller
 
     public function import(Request $request)
     {
-        $this->validate($request, [
+        $request->validate([
             'file' => 'required|file|max:2048|mimes:xls,xlsx,txt'
         ]);
 
