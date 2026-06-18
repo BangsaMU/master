@@ -399,7 +399,7 @@ class ItemGroupController extends Controller
             $error = $import->getError();
             $success = $import->getSuccess();
 
-            return redirect()->route('master.item_group.index')->with('error_message', $error)->with('success_message', $success);
+            return redirect()->route('master.item-group.index')->with('error_message', $error)->with('success_message', $success);
         }
     }
 }
