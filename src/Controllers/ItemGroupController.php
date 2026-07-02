@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\ItemGroupImport;
 use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class ItemGroupController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Master - Item Group'; //nama label untuk FE
     protected $sheet_slug = 'item-group'; //nama routing (slug)
@@ -155,16 +157,27 @@ class ItemGroupController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_item_group as mig')->whereNull('mig.deleted_at')->count();
+        $tableName = 'master_item_group';
+        $category = 'master_item_group';
+        $settings = $this->getSettingsForTable($category);
+
+        $query = DB::table($tableName . ' as mig')
+            ->whereNull('mig.deleted_at');
+
+        $this->applyDynamicFilter($query, $tableName, $settings, 'mig');
+
+        $totalData = $query->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_item_group as mig')
+            $data_tabel = DB::table($tableName . ' as mig')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->whereNull('mig.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mig');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -179,12 +192,15 @@ class ItemGroupController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_item_group as mig')
+            $datatb_request = DB::table($tableName . ' as mig')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mig.deleted_at')
-                ->groupby('mig.id')
+                ->whereNull('mig.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mig');
+
+            $datatb_request = $datatb_request->groupby('mig.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

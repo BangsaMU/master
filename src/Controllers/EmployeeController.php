@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Models\Employee;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Support\Str;
 use Bangsamu\Master\Models\MasterStatus;
 use Carbon\Carbon;
@@ -25,6 +26,7 @@ use Bangsamu\Master\Models\Employee as HrdKaryawan;
 
 class EmployeeController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Master - Employee'; //nama label untuk FE
     protected $sheet_slug = 'employee'; //nama routing (slug)
@@ -379,8 +381,11 @@ class EmployeeController extends Controller
         $dir = $request->input('order.0.dir') ?? 'desc';
 
         $array_data_maping = $view_tabel_index;
-        // APP11 = HRD app
-        $totalData = DB::table('master_employee as m_k')
+        $tableName = 'master_employee';
+        $category = 'master_employee';
+        $settings = $this->getSettingsForTable($category);
+
+        $baseQuery = DB::table($tableName . ' as m_k')
             ->where(function ($query) use ($user_id,$user_location_id) {
                 if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
                     //bisa liat semua employee
@@ -391,14 +396,17 @@ class EmployeeController extends Controller
                     ->whereIn('hire_id', explode(',', $user_location_id))
                     ;
                 }
-            })->whereNull('m_k.deleted_at')->count();
+            })->whereNull('m_k.deleted_at');
 
+        $this->applyDynamicFilter($baseQuery, $tableName, $settings, 'm_k');
+
+        $totalData = $baseQuery->count();
 
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_employee as m_k')
+            $data_tabel = DB::table($tableName . ' as m_k')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -417,6 +425,8 @@ class EmployeeController extends Controller
                     }
                 })->whereNull('m_k.deleted_at');
 
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'm_k');
+
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
             $totalFiltered = $data_tabel->get()->count();
@@ -430,7 +440,7 @@ class EmployeeController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_employee as m_k')
+            $datatb_request = DB::table($tableName . ' as m_k')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -447,8 +457,11 @@ class EmployeeController extends Controller
                         ->whereIn('hire_id', explode(',', $user_location_id))
                         ;
                     }
-                })->whereNull('m_k.deleted_at')
-                ->groupby('m_k.id')
+                })->whereNull('m_k.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'm_k');
+
+            $datatb_request = $datatb_request->groupby('m_k.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

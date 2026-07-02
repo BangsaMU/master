@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Traits\DynamicFilterable;
 
 class VendorController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Master - Vendor'; //nama label untuk FE
     protected $sheet_slug = 'vendor'; //nama routing (slug)
@@ -154,17 +156,28 @@ class VendorController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_vendor as mp')->whereNull('mp.deleted_at')->count();
+        $tableName = 'master_vendor';
+        $category = 'master_vendor';
+        $settings = $this->getSettingsForTable($category);
+
+        $query = DB::table($tableName . ' as mp')
+            ->whereNull('mp.deleted_at');
+
+        $this->applyDynamicFilter($query, $tableName, $settings, 'mp');
+
+        $totalData = $query->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_vendor as mp')
+            $data_tabel = DB::table($tableName . ' as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at')
-                ->groupby('mp.id');
+                ->whereNull('mp.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mp');
+            $data_tabel->groupby('mp.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -179,12 +192,15 @@ class VendorController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_vendor as mp')
+            $datatb_request = DB::table($tableName . ' as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at')
-                ->groupby('mp.id')
+                ->whereNull('mp.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mp');
+
+            $datatb_request = $datatb_request->groupby('mp.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

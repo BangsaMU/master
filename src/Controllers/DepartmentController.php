@@ -5,6 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Module\ControllerModule;
 use App\Imports\Master\DepartmentImport;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ use Bangsamu\Master\Models\Department;
 
 class DepartmentController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Master - Department'; //nama label untuk FE
     protected $sheet_slug = 'department'; //nama routing (slug)
@@ -107,7 +109,7 @@ class DepartmentController extends Controller
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = url('getmaster_department/export');
+            $data['datatable']['btn']['export']['url'] = url('master/getmaster_department/export');
         }
 
         // $data['page']['import']['layout'] = 'layouts.import.form';
@@ -153,17 +155,28 @@ class DepartmentController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_department as md')->whereNull('md.deleted_at')->count();
+        $tableName = 'master_department';
+        $category = 'master_department';
+        $settings = $this->getSettingsForTable($category);
+
+        $query = DB::table($tableName . ' as md')
+            ->whereNull('md.deleted_at');
+
+        $this->applyDynamicFilter($query, $tableName, $settings, 'md');
+
+        $totalData = $query->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_department as md')
+            $data_tabel = DB::table($tableName . ' as md')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('md.deleted_at')
-                ->groupby('md.id');
+                ->whereNull('md.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'md');
+            $data_tabel->groupby('md.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -178,12 +191,15 @@ class DepartmentController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_department as md')
+            $datatb_request = DB::table($tableName . ' as md')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('md.deleted_at')
-                ->groupby('md.id')
+                ->whereNull('md.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'md');
+
+            $datatb_request = $datatb_request->groupby('md.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

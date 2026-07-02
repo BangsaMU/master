@@ -6,6 +6,7 @@ use App\Exports\DataExport;
 use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\CategoryImport;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,7 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Support\Str;
 class CategoryController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Master - Category'; //nama label untuk FE
     protected $sheet_slug = 'category'; //nama routing (slug)
@@ -159,17 +161,29 @@ class CategoryController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_category as mc')->whereNull('mc.deleted_at')->count();
+        $tableName = 'master_category';
+        $category = 'master_category';
+        $settings = $this->getSettingsForTable($category);
+
+        $query = DB::table($tableName . ' as mc')
+            ->whereNull('mc.deleted_at');
+
+        $this->applyDynamicFilter($query, $tableName, $settings, 'mc');
+
+        // dd($settings,$query->toSql(), $query->getBindings(),$query->get());
+        $totalData = $query->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_category as mc')
+            $data_tabel = DB::table($tableName . ' as mc')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mc.deleted_at')
-                ->groupby('mc.id');
+                ->whereNull('mc.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mc');
+            $data_tabel->groupby('mc.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -184,12 +198,15 @@ class CategoryController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_category as mc')
+            $datatb_request = DB::table($tableName . ' as mc')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mc.deleted_at')
-                ->groupby('mc.id')
+                ->whereNull('mc.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mc');
+
+            $datatb_request = $datatb_request->groupby('mc.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

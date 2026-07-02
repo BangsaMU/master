@@ -9,6 +9,7 @@ use Bangsamu\Master\Models\Company;
 use Bangsamu\Master\Models\Gallery;
 use Bangsamu\Master\Models\FileManager;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 
 class CompanyController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Company'; //nama label untuk FE
     protected $sheet_slug = 'company'; //nama routing (slug)
@@ -143,37 +145,30 @@ class CompanyController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $list_company = setting::where('name', 'list_include')
-            ->where('category', 'master_company')
-            ->value('value'); // Ambil langsung satu nilai
+        $tableName = 'master_company';
+        $category = 'master_company';
+        $settings = $this->getSettingsForTable($category);
 
-        // Konversi string ke array, lalu filter elemen kosong
-        $list_company = array_filter(explode(",", $list_company));
+        $query = DB::table($tableName . ' as mc')
+            ->whereNull('mc.deleted_at');
 
-        // Jika array kosong setelah difilter, set ke null
-        $list_company = !empty($list_company) ? $list_company : null;
+        $this->applyDynamicFilter($query, $tableName, $settings, 'mc');
 
-        $totalData = DB::table('master_company as mc')
-            ->whereNull('mc.deleted_at')
-            ->when($list_company, function ($query, $codes) {
-                return $query->whereIn('mc.company_code', $codes);
-            })
-            ->count();
+        $totalData = $query->count();
 
         // $totalData = DB::table('master_company as mc')->whereNull('mc.deleted_at')->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_company as mc')
+            $data_tabel = DB::table($tableName . ' as mc')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mc.deleted_at')
-                ->when($list_company, function ($query, $codes) {
-                    return $query->whereIn('mc.company_code', $codes);
-                })
-                ->groupby('mc.id');
+                ->whereNull('mc.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mc');
+            $data_tabel->groupby('mc.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -188,15 +183,15 @@ class CompanyController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_company as mc')
+            $datatb_request = DB::table($tableName . ' as mc')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mc.deleted_at')
-                ->when($list_company, function ($query, $codes) {
-                    return $query->whereIn('mc.company_code', $codes);
-                })
-                ->groupby('mc.id')
+                ->whereNull('mc.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mc');
+
+            $datatb_request = $datatb_request->groupby('mc.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

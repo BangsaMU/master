@@ -5,6 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\PcaImport;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ use Bangsamu\Master\Models\Pca;
 use Illuminate\Support\Str;
 class PcaController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Master - PCA'; //nama label untuk FE
     protected $sheet_slug = 'pca'; //nama routing (slug)
@@ -155,17 +157,28 @@ class PcaController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_pca as mp')->whereNull('mp.deleted_at')->count();
+        $tableName = 'master_pca';
+        $category = 'master_pca';
+        $settings = $this->getSettingsForTable($category);
+
+        $query = DB::table($tableName . ' as mp')
+            ->whereNull('mp.deleted_at');
+
+        $this->applyDynamicFilter($query, $tableName, $settings, 'mp');
+
+        $totalData = $query->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_pca as mp')
+            $data_tabel = DB::table($tableName . ' as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at')
-                ->groupby('mp.id');
+                ->whereNull('mp.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mp');
+            $data_tabel->groupby('mp.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -180,12 +193,15 @@ class PcaController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_pca as mp')
+            $datatb_request = DB::table($tableName . ' as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at')
-                ->groupby('mp.id')
+                ->whereNull('mp.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mp');
+
+            $datatb_request = $datatb_request->groupby('mp.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

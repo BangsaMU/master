@@ -12,9 +12,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Traits\DynamicFilterable;
 
 class ProjectDetailController extends Controller
 {
+    use DynamicFilterable;
     protected $readonly = false;
     protected $sheet_name = 'Project Detail'; //nama label untuk FE
     protected $sheet_slug = 'project-detail'; //nama routing (slug)
@@ -141,19 +143,32 @@ class ProjectDetailController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $totalData = DB::table('master_project_detail as mpd')->whereNull('mpd.deleted_at')->count();
+        $tableName = 'master_project_detail';
+        $category = 'master_project_detail';
+        $settings = $this->getSettingsForTable($category);
+
+        $query = DB::table($tableName . ' as mpd')
+            ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
+            ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
+            ->whereNull('mpd.deleted_at');
+
+        $this->applyDynamicFilter($query, $tableName, $settings, 'mpd');
+
+        $totalData = $query->count();
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_project_detail as mpd')
+            $data_tabel = DB::table($tableName . ' as mpd')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
                 ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-                ->whereNull('mpd.deleted_at')
-                ->groupby('mpd.id');
+                ->whereNull('mpd.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mpd');
+            $data_tabel->groupby('mpd.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -168,14 +183,17 @@ class ProjectDetailController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_project_detail as mpd')
+            $datatb_request = DB::table($tableName . ' as mpd')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
                 ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-                ->whereNull('mpd.deleted_at')
-                ->groupby('mpd.id')
+                ->whereNull('mpd.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mpd');
+
+            $datatb_request = $datatb_request->groupby('mpd.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);
