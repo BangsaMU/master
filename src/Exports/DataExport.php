@@ -2,11 +2,13 @@
 
 namespace Bangsamu\Master\Exports;
 
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Models\DashboardSettings;
+use Bangsamu\Master\Models\Setting;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
 class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
 {
@@ -34,14 +36,20 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
             }
         }
 
-        $data = DB::connection($databaseConfig)
-        ->table($this->table)
-        ->select($headers)
-        ->whereNull('deleted_at')
-        ->get();
+        $query = DB::connection($databaseConfig)
+            ->table($this->table)
+            ->select($headers)
+            ->whereNull('deleted_at');
 
+        if ($this->table === 'master_location') {
+            $groupTypes = $this->getAllowedGroupTypes();
 
-        return $data;
+            if (!empty($groupTypes)) {
+                $query->whereIn('group_type', $groupTypes);
+            }
+        }
+
+        return $query->get();
     }
 
     public function headings(): array
@@ -61,5 +69,22 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
         }
 
         return $headers;
+    }
+
+    protected function getAllowedGroupTypes(): array
+    {
+        $listLocation = Setting::where('name', 'group_type')
+            ->where('category', 'master_location')
+            ->value('value');
+
+        if (empty($listLocation)) {
+            $listLocation = DashboardSettings::where('key', 'group_type')
+                ->where('group', 'master_location')
+                ->value('value');
+        }
+
+        $listLocation = array_filter(array_map('trim', explode(',', (string) $listLocation)));
+
+        return !empty($listLocation) ? array_values($listLocation) : [];
     }
 }
