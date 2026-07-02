@@ -16,6 +16,7 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Support\Str;
 use Bangsamu\Master\Models\Setting; 
 use Illuminate\Support\Facades\Schema;
+use Bangsamu\Master\Models\DashboardSettings;
 
 class ItemCodeController extends Controller
 {
@@ -139,6 +140,15 @@ class ItemCodeController extends Controller
         return view('master::layouts.dashboard.index', $page_var);
     }
 
+    /**
+     * Handle the incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     * untuk set filter dari db bisa dari setting atau dashboard_settings
+     * INSERT INTO `dashboard_settings`(`key`, `value`, `group`, `type`, `label`, `options`, `order`, `created_at`, `updated_at` ) VALUES ('app_code', 'APP09,APP32', 'master_item_code', 'config', 'Config Master Item Code', NULL, '0', NULL, NULL );
+     * INSERT INTO `setting`(`name`, `value`, `created_at`, `updated_at`, `deleted_at`, `category` ) VALUES ('app_code', 'APP09,APP32', '2026-03-03 10:38:23', NULL, NULL, 'master_item_codeX' );
+     */
     public function dataJson(Request $request)
     {
         $sheet_name = $this->sheet_name;
@@ -175,17 +185,26 @@ class ItemCodeController extends Controller
         // 1. Ambil semua setting berdasarkan category master_item_code
         $category = 'master_item_code';
         $tableName = 'master_item_code';
+        $key = 'app_code';
 
         // 1. Ambil semua setting secara dinamis
         $settings = Setting::where('category', $category)
                     ->get();
-   
+     
+        //dashboard_settings
+        if($settings->isEmpty()){
+            $settings = DashboardSettings::
+            // where('key', $key)
+            where('group', $category)
+            ->get();
+        }
+
         $query = DB::table($tableName . ' as mic')
                 ->whereNull('mic.deleted_at');
         // 2. Tambahkan grup filter dengan logika OR di dalamnya
         $query->where(function ($q) use ($settings, $tableName) {
             foreach ($settings as $setting) {
-                $column = $setting->name;
+                $column = $setting->name ?? $setting->key;
                 $values = array_filter(explode(",", $setting->value));
                 // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
                 if (Schema::hasColumn($tableName, $column) && !empty($values)) {
@@ -211,7 +230,7 @@ class ItemCodeController extends Controller
                 ->whereNull('mic.deleted_at');
             $data_tabel->where(function ($q) use ($settings, $tableName) {
                 foreach ($settings as $setting) {
-                    $column = $setting->name;
+                    $column = $setting->name ?? $setting->key;
                     $values = array_filter(explode(",", $setting->value));
                     // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
                     if (Schema::hasColumn($tableName, $column) && !empty($values)) {
@@ -246,7 +265,7 @@ class ItemCodeController extends Controller
                 ->whereNull('mic.deleted_at');
             $datatb_request->where(function ($q) use ($settings, $tableName) {
                 foreach ($settings as $setting) {
-                    $column = $setting->name;
+                    $column = $setting->name ?? $setting->key;
                     $values = array_filter(explode(",", $setting->value));
                     // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
                     if (Schema::hasColumn($tableName, $column) && !empty($values)) {
