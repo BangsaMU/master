@@ -24,10 +24,12 @@ class CategoryImport implements ToCollection, WithHeadingRow
                 } else if (empty($row['category_name'])) {
                     $text = "Row ".$row_index." Category Name : field is required.";
                     array_push($this->error,$text);
-                } else if (empty($row['remark'])) {
-                    $text = "Row ".$row_index." Remark : field is required.";
-                    array_push($this->error,$text);
-                } else {
+                } 
+                // else if (empty($row['remark'])) {
+                //     $text = "Row ".$row_index." Remark : field is empty.";
+                //     array_push($this->error,$text);
+                // } 
+                else {
                     $category = DB::table('master_category')
                                     ->where('category_code', $row['category_code'])
                                     ->where('category_name', $row['category_name'])
