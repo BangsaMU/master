@@ -312,7 +312,7 @@
 
     @case('button')
         <div class="{{ $form['col'] }}">
-            <button onclick="actionButton(this)" data-url="{{ @$form['url'] }}" type="button"
+            <button onclick="if (window.actionButton) { window.actionButton(this); } else { window.location.assign(this.getAttribute('data-url')); }" data-url="{{ @$form['url'] }}" type="button"
                 class=" btn btn-primary">{{ $form['label'] }}</button>
         </div>
     @break
@@ -397,11 +397,13 @@
 
         });
 
-        function actionButton(e) {
+        window.actionButton = function (e) {
             let goto_url = e.getAttribute("data-url")
-            window.location.assign(goto_url)
-
-        }
+            console.log("goto_url::", goto_url);
+            if (goto_url) {
+                window.location.assign(goto_url)
+            }
+        };
 
         $(".saveButton").click(function(e) {
 

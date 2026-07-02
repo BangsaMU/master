@@ -124,6 +124,9 @@
         </div>
     </div>
 
+    <div class="row">
+        <div class="col-12 col-sm-8">
+            <div class="card">
     @isset($view_form_list)
         <div class="card-body row">
             @foreach ($view_form_list as $keyL => $formL)
@@ -139,7 +142,9 @@
             @endforeach
         </div>
     @endisset
-
+            </div>
+        </div>
+    </div>
 @stop
 
 @push('js')
