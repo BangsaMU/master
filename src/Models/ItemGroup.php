@@ -33,8 +33,8 @@ class ItemGroup extends Model
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();
-                    $table->string('item_group_code', 20)->unique()->nullable();
-                    $table->string('item_group_name', 50)->nullable();
+                    $table->string('item_group_code', 25)->unique()->nullable();
+                    $table->string('item_group_name', 55)->nullable();
                     $table->string('app_code', 10)->default('APP03');
                     $table->longText('item_group_attributes')->nullable();
                     $table->timestamps(); // created_at & updated_at

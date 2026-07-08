@@ -33,8 +33,8 @@ class Category extends Model
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();
-                    $table->string('category_code', 25)->unique()->nullable();
-                    $table->string('category_name', 50)->nullable();
+                    $table->string('category_code', 55)->unique()->nullable();
+                    $table->string('category_name', 110)->nullable();
                     $table->string('remark')->nullable();
                     $table->string('app_code', 10)->default('APP03');
                     $table->timestamps(); // created_at & updated_at

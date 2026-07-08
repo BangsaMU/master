@@ -42,7 +42,7 @@ class Location extends Model
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
                     
-                    $table->unique(['loc_code', 'group_type', 'deleted_at'], 'loc_code_group_deleted_unique');
+                    $table->unique(['loc_code', 'group_type'], 'loc_code_group_unique');
                     $table->index('loc_name');
                     
                 });
