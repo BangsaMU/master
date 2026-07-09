@@ -413,6 +413,106 @@ class LocationController extends Controller
         return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
+    protected function getLocationSyncConfig(): array
+    {
+        return [
+            'vendor' => [
+                'table' => 'master_vendor',
+                'match_column' => 'loc_id',
+                'field_map' => [
+                    'vendor_code' => 'loc_code',
+                    'vendor_description' => 'loc_name',
+                ],
+            ],
+        ];
+    }
+
+    protected function isDuplicateEntryException($exception): bool
+    {
+        return $exception instanceof \Illuminate\Database\QueryException
+            && ($exception->getCode() === '23000' || str_contains($exception->getMessage(), 'Duplicate entry'));
+    }
+
+    protected function syncLocationToRelatedMaster($location): void
+    {
+        $syncConfig = $this->getLocationSyncConfig();
+        $groupType = $location->group_type ?? null;
+
+        if (empty($groupType) || empty($syncConfig[$groupType])) {
+            return;
+        }
+
+        $config = $syncConfig[$groupType];
+        $payload = [];
+
+        foreach (($config['field_map'] ?? []) as $targetField => $sourceField) {
+            $payload[$targetField] = $location->{$sourceField} ?? null;
+        }
+
+        if (empty($payload)) {
+            return;
+        }
+
+        $payload['loc_id'] = $location->id;
+        $payload['updated_at'] = now();
+
+        $match = [$config['match_column'] => $location->id];
+
+        try {
+            $existing = DB::table($config['table'])->where($match)->whereNull('deleted_at')->first();
+
+            if ($existing) {
+                DB::table($config['table'])->where($match)->update($payload);
+                return;
+            }
+
+            DB::table($config['table'])->insert(array_merge($match, $payload, ['created_at' => now()]));
+        } catch (\Illuminate\Database\QueryException $exception) {
+            if ($this->isDuplicateEntryException($exception)) {
+                DB::table($config['table'])->where($match)->update($payload);
+                return;
+            }
+
+            throw $exception;
+        }
+    }
+
+    protected function syncLocationToMasterMirror($location): void
+    {
+        if (!config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+            return;
+        }
+
+        try {
+            $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
+
+            $masterLocationModel::updateOrCreate(
+                [
+                    'loc_code' => strtoupper($location->loc_code),
+                    'group_type' => $location->group_type,
+                ],
+                [
+                    'loc_name' => $location->loc_name,
+                    'updated_at' => now(),
+                ]
+            );
+        } catch (\Illuminate\Database\QueryException $exception) {
+            if ($this->isDuplicateEntryException($exception)) {
+                $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
+
+                $masterLocationModel::where('loc_code', strtoupper($location->loc_code))
+                    ->where('group_type', $location->group_type)
+                    ->whereNull('deleted_at')
+                    ->update([
+                        'loc_name' => $location->loc_name,
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                throw $exception;
+            }
+        }
+    }
+
     public function store(Request $request)
     {
 
@@ -453,6 +553,11 @@ class LocationController extends Controller
                 'group_type' => $request->group_type,
             ]);
 
+            if ($update) {
+                $this->syncLocationToRelatedMaster($location);
+                $this->syncLocationToMasterMirror($location);
+            }
+
             if ($update && $location->wasChanged()) {
                 /*sync callback*/
                 $id =  $location->id;
@@ -473,24 +578,15 @@ class LocationController extends Controller
             // Create new location
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
 
-            $modelClass::create([
+            $location = $modelClass::create([
                 'loc_code' => strtoupper($request->loc_code),
                 'loc_name' => $request->loc_name,
                 'group_type' => $request->group_type,
                 'created_at' => now(),
             ]);
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
-                // Create new location
-                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
-
-                $modelClass::create([
-                    'loc_code' => strtoupper($request->loc_code),
-                    'loc_name' => $request->loc_name,
-                    'group_type' => $request->group_type,
-                    'created_at' => now(),
-                ]);
-            }
+            $this->syncLocationToRelatedMaster($location);
+            $this->syncLocationToMasterMirror($location);
             
             // DB::table('master_' . $this->sheet_slug)->insert([
             //     'loc_code' => $request->loc_code,
