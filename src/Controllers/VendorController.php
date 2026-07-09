@@ -288,6 +288,7 @@ class VendorController extends Controller
 
     protected function syncVendorLocation($vendorCode, $vendorDescription, $oldVendorCode = null)
     {
+        $currentTimestamp = now()->format('Y-m-d H:i:s');
         $locationCode = Str::upper(trim((string) $vendorCode));
         $locationName = $vendorDescription ?? '';
         $locationModel = LibraryClayController::resolveModelFromSheetSlug('location');
@@ -301,10 +302,11 @@ class VendorController extends Controller
                     ->where('loc_code', $oldLocationCode)
                     ->whereNull('deleted_at')
                     ->get()
-                    ->each(function ($location) use ($locationCode, $locationName) {
+                    ->each(function ($location) use ($locationCode, $locationName,$currentTimestamp) {
                         $location->update([
                             'loc_code' => $locationCode,
                             'loc_name' => $locationName,
+                            'created_at' => $currentTimestamp,
                         ]);
                     });
             }
@@ -312,12 +314,12 @@ class VendorController extends Controller
 
         $locationModel::updateOrCreate(
             ['loc_code' => $locationCode, 'group_type' => 'vendor'],
-            ['loc_name' => $locationName]
+            ['loc_name' => $locationName,'created_at' => $currentTimestamp]
         );
 
         $masterLocation = $masterLocationModel::updateOrCreate(
             ['loc_code' => $locationCode, 'group_type' => 'vendor'],
-            ['loc_name' => $locationName]
+            ['loc_name' => $locationName,'created_at' => $currentTimestamp]
         );
 
         return $masterLocation->id;
