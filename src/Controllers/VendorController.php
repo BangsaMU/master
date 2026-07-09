@@ -286,6 +286,69 @@ class VendorController extends Controller
         return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
     }
 
+    protected function syncVendorLocation($vendorCode, $vendorDescription, $oldVendorCode = null)
+    {
+        $locationCode = Str::upper(trim((string) $vendorCode));
+        $locationName = $vendorDescription ?? '';
+        $locationModel = LibraryClayController::resolveModelFromSheetSlug('location');
+        $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
+
+        if ($oldVendorCode !== null && Str::upper(trim((string) $oldVendorCode)) !== $locationCode) {
+            $oldLocationCode = Str::upper(trim((string) $oldVendorCode));
+
+            foreach ([$locationModel, $masterLocationModel] as $modelClass) {
+                $modelClass::where('group_type', 'vendor')
+                    ->where('loc_code', $oldLocationCode)
+                    ->whereNull('deleted_at')
+                    ->get()
+                    ->each(function ($location) use ($locationCode, $locationName) {
+                        $location->update([
+                            'loc_code' => $locationCode,
+                            'loc_name' => $locationName,
+                        ]);
+                    });
+            }
+        }
+
+        $locationModel::updateOrCreate(
+            ['loc_code' => $locationCode, 'group_type' => 'vendor'],
+            ['loc_name' => $locationName]
+        );
+
+        $masterLocation = $masterLocationModel::updateOrCreate(
+            ['loc_code' => $locationCode, 'group_type' => 'vendor'],
+            ['loc_name' => $locationName]
+        );
+
+        return $masterLocation->id;
+    }
+
+    protected function deleteVendorLocation($vendorCode)
+    {
+        $locationCode = Str::upper(trim((string) $vendorCode));
+        $locationModel = LibraryClayController::resolveModelFromSheetSlug('location');
+
+        $locationModel::where('group_type', 'vendor')
+            ->where('loc_code', $locationCode)
+            ->whereNull('deleted_at')
+            ->get()
+            ->each(function ($location) {
+                $location->delete();
+            });
+
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+            $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
+
+            $masterLocationModel::where('group_type', 'vendor')
+                ->where('loc_code', $locationCode)
+                ->whereNull('deleted_at')
+                ->get()
+                ->each(function ($location) {
+                    $location->delete();
+                });
+        }
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -300,15 +363,22 @@ class VendorController extends Controller
             $model = $modelClass::find($request->id);
 
             if ($model) {
-                $update = $model->update([
-                    'vendor_code' => $request->vendor_code,
-                    'vendor_description' => $request->vendor_description,
-                    'vendor_address' => $request->vendor_address,
-                    'vendor_phone' => $request->vendor_phone,
-                    'vendor_fax' => $request->vendor_fax,
-                    'vendor_email' => $request->vendor_email,
-                    'updated_at' => now(),
-                ]); // ini akan trigger Loggable
+                $oldVendorCode = $model->vendor_code;
+                $locId = $this->syncVendorLocation($request->vendor_code, $request->vendor_description, $oldVendorCode);
+                $update = DB::table('master_' . $this->sheet_slug)
+                    ->where('id', $request->id)
+                    ->update([
+                        'vendor_code' => $request->vendor_code,
+                        'vendor_description' => $request->vendor_description,
+                        'vendor_address' => $request->vendor_address,
+                        'vendor_phone' => $request->vendor_phone,
+                        'vendor_fax' => $request->vendor_fax,
+                        'vendor_email' => $request->vendor_email,
+                        'loc_id' => $locId,
+                        'updated_at' => now(),
+                    ]);
+
+                $model->refresh();
             }else {
                 abort(404, 'Model not found');
             }
@@ -394,6 +464,8 @@ class VendorController extends Controller
 
         } else {
             // Create new vendor
+            $locId = $this->syncVendorLocation($request->vendor_code, $request->vendor_description);
+
             $vendor_id = DB::table('master_' . $this->sheet_slug)->insertGetId([
                 'vendor_code' => $request->vendor_code,
                 'vendor_description' => $request->vendor_description,
@@ -401,6 +473,7 @@ class VendorController extends Controller
                 'vendor_phone' => $request->vendor_phone,
                 'vendor_fax' => $request->vendor_fax,
                 'vendor_email' => $request->vendor_email,
+                'loc_id' => $locId,
                 'created_at' => now(),
             ]);
 
@@ -427,6 +500,7 @@ class VendorController extends Controller
                     'vendor_phone' => $request->vendor_phone,
                     'vendor_fax' => $request->vendor_fax,
                     'vendor_email' => $request->vendor_email,
+                    'loc_id' => $locId,
                     'created_at' => now(),
                 ]);
 
@@ -498,7 +572,10 @@ class VendorController extends Controller
         $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
 
         if (class_exists($modelClass)) {
-            $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
+            $model = $modelClass::findOrFail($id);
+            $vendorCode = $model->vendor_code;
+            $model->delete(); // akan melakukan soft delete
+            $this->deleteVendorLocation($vendorCode);
         }else{
             abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
         }
