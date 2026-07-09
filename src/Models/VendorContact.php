@@ -19,6 +19,7 @@ class VendorContact extends Model
 
     protected $table = "master_vendor_contact";
     protected $guarded = [];
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     protected static $hasCheckedTable = false;
 

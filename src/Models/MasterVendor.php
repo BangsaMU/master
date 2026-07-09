@@ -23,4 +23,5 @@ class MasterVendor extends Model
     protected $connection = 'db_master';
     protected $table = "master_vendor";
     protected $guarded = [];
+    protected $dateFormat = 'Y-m-d H:i:s';
 }

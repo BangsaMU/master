@@ -17,6 +17,7 @@ class Vendor extends Model
 
     protected $table = "master_vendor";
     protected $guarded = [];
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     protected $fillable = [
         'vendor_code',
