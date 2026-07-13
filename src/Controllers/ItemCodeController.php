@@ -550,6 +550,7 @@ class ItemCodeController extends Controller
             $file = $request->file('file');
 
             $import = new ItemCodeImport;
+            config(['excel.transactions.handler' => 'null']);
             Excel::import($import, $file);
             $error = $import->getError();
             $success = $import->getSuccess();

@@ -13,10 +13,11 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 
-class ItemCodeImport implements ToCollection, WithMultipleSheets
+class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReading
 {
     private $error = [];
     private $success = [];
@@ -34,6 +35,40 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
         $app_code = config('SsoConfig.main.APP_CODE');
         $headers = $rows[0];
 
+        // Eager load existing database records into memory to prevent N+1 queries and deadlocks
+        $existingItemCodes = DB::table('master_item_code')
+            ->select('id', 'item_code', 'deleted_at')
+            ->get()
+            ->keyBy('item_code');
+
+        $existingUoms = Uom::withTrashed()
+            ->select('id', 'uom_code', 'deleted_at')
+            ->get()
+            ->keyBy(function ($uom) {
+                return strtoupper($uom->uom_code);
+            });
+
+        $existingPcas = Pca::withTrashed()
+            ->select('id', 'pca_code', 'deleted_at')
+            ->get()
+            ->keyBy(function ($pca) {
+                return strtoupper($pca->pca_code);
+            });
+
+        $existingCategories = Category::withTrashed()
+            ->select('id', 'category_code', 'deleted_at')
+            ->get()
+            ->keyBy(function ($cat) {
+                return strtoupper($cat->category_code);
+            });
+
+        $existingItemGroups = ItemGroup::withTrashed()
+            ->select('id', 'item_group_code', 'item_group_attributes', 'deleted_at')
+            ->get()
+            ->keyBy(function ($group) {
+                return strtoupper($group->item_group_code);
+            });
+
         foreach ($rows as $key => $row) {
             $row_index = $key;
             if ($row->filter()->isNotEmpty() && $key > 0) {
@@ -46,9 +81,13 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                 $category_code = $row[4];
                 $item_group_code = $row[5];
 
-                $item_code_exist = DB::table('master_item_code')
-                    ->where('item_code', $item_code)
-                    ->first();
+                $item_code_exist = $existingItemCodes->get($item_code);
+
+                if ($item_code_exist && !empty($item_code_exist->deleted_at)) {
+                    $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists with soft delete status.";
+                    array_push($this->error, $text);
+                    continue;
+                }
 
                 // if(!$item_code_exist){
                 if (true) {
@@ -62,10 +101,6 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                         $text = "Row " . $row_index . " UoM Code : field is required.";
                         array_push($this->error, $text);
                     }
-                    // else if (empty($row['pca_code'])) {
-                    //     $text = "Row ".$row_index." PCA Code : field is required.";
-                    //     array_push($this->error,$text);
-                    // }
                     else if (empty($category_code)) {
                         $text = "Row " . $row_index . " Category Code : field is required.";
                         array_push($this->error, $text);
@@ -87,8 +122,14 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                         }
 
                         try {
-                            $uom = Uom::select('id')->where('uom_code', $uom_code)->first();
+                            $uom_key = strtoupper($uom_code);
+                            $uom = $existingUoms->get($uom_key);
                             if (!empty($uom)) {
+                                if ($uom->deleted_at !== null) {
+                                    $text = "Row " . $row_index . ": UoM Code '" . $uom_code . "' already exists with soft delete status.";
+                                    array_push($this->error, $text);
+                                    continue;
+                                }
                                 $uom_id = $uom->id;
                             } else {
                                 $create_uom = Uom::create([
@@ -98,6 +139,7 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 ]);
 
                                 $uom_id = $create_uom->id;
+                                $existingUoms->put($uom_key, $create_uom);
                                                 
                                 /*sync callback master DB*/
                                 $sync_tabel = 'master_uom';
@@ -111,10 +153,16 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 }
                             }
 
-                            $pca = Pca::select('id')->where('pca_code', $pca_code)->first();
                             $pca_id = 0;
                             if (!empty($pca_code)) {
+                                $pca_key = strtoupper($pca_code);
+                                $pca = $existingPcas->get($pca_key);
                                 if (!empty($pca)) {
+                                    if ($pca->deleted_at !== null) {
+                                        $text = "Row " . $row_index . ": PCA Code '" . $pca_code . "' already exists with soft delete status.";
+                                        array_push($this->error, $text);
+                                        continue;
+                                    }
                                     $pca_id = $pca->id;
                                 } else {
                                     $create_pca = Pca::create([
@@ -124,6 +172,7 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                     ]);
 
                                     $pca_id = $create_pca->id;
+                                    $existingPcas->put($pca_key, $create_pca);
 
                                     /*sync callback master DB*/
                                     $sync_tabel = 'master_pca';
@@ -138,10 +187,16 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 }
                             }
 
-                            $category = Category::select('id')->where('category_code', $category_code)->first();
                             $category_id = 0;
                             if (!empty($category_code)) {
+                                $cat_key = strtoupper($category_code);
+                                $category = $existingCategories->get($cat_key);
                                 if (!empty($category)) {
+                                    if ($category->deleted_at !== null) {
+                                        $text = "Row " . $row_index . ": Category Code '" . $category_code . "' already exists with soft delete status.";
+                                        array_push($this->error, $text);
+                                        continue;
+                                    }
                                     $category_id = $category->id;
                                 } else {
                                     $create_category = Category::create([
@@ -151,6 +206,7 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                     ]);
 
                                     $category_id = $create_category->id;
+                                    $existingCategories->put($cat_key, $create_category);
 
                                     /*sync callback master DB*/
                                     $sync_tabel = 'master_category';
@@ -165,7 +221,8 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 }
                             }
 
-                            $item_group = ItemGroup::where('item_group_code', $item_group_code)->first();
+                            $item_group_key = strtoupper($item_group_code);
+                            $item_group = $existingItemGroups->get($item_group_key);
                             $item_group_attributes = [];
                             foreach ($headers as $key => $header_val) {
                                 if ($key > 5) {
@@ -175,13 +232,20 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                             }
 
                             $item_group_attributes_json = json_encode($item_group_attributes);
+                            $need_sync_group = false;
                             if (!empty($item_group)) {
+                                if ($item_group->deleted_at !== null) {
+                                    $text = "Row " . $row_index . ": Item Group Code '" . $item_group_code . "' already exists with soft delete status.";
+                                    array_push($this->error, $text);
+                                    continue;
+                                }
                                 $item_group_id = $item_group->id;
                                 $item_group_attributes_curr = $item_group->item_group_attributes;
                                 if ($item_group_attributes_curr != $item_group_attributes_json) {
                                     $item_group->update([
                                         'item_group_attributes' => $item_group_attributes_json,
                                     ]);
+                                    $need_sync_group = true;
                                 }
                             } else {
                                 $item_group = ItemGroup::create([
@@ -192,17 +256,21 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 ]);
 
                                 $item_group_id = $item_group->id;
+                                $existingItemGroups->put($item_group_key, $item_group);
+                                $need_sync_group = true;
                             }
 
-                            /*sync callback master DB*/
-                            $sync_tabel = 'master_item_group';
-                            $sync_id = $item_group_id;
-                            $sync_row = $item_group->toArray();
-                            // $sync_row['deleted_at'] = null;
-                            $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                            //update ke master DB saja
-                            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
-                                $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                            if ($need_sync_group) {
+                                /*sync callback master DB*/
+                                $sync_tabel = 'master_item_group';
+                                $sync_id = $item_group_id;
+                                $sync_row = $item_group->toArray();
+                                // $sync_row['deleted_at'] = null;
+                                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                                //update ke master DB saja
+                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                                }
                             }
 
                             //attribute column
@@ -240,17 +308,31 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
                                 ],
                                 $data
                             );
-                                                        
-                            /*sync callback master DB*/
-                            $sync_tabel = 'master_item_code';
-                            $sync_id = $masterItemCode->id;
-                            $sync_row = $masterItemCode->toArray();
 
-                            // $sync_row['deleted_at'] = null;
-                            $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                            //update ke master DB saja
-                            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
-                                $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                            $need_sync_code = false;
+                            if (!$item_code_exist) {
+                                $existingItemCodes->put($item_code, (object)[
+                                    'id' => $masterItemCode->id,
+                                    'item_code' => $item_code,
+                                    'deleted_at' => null
+                                ]);
+                                $need_sync_code = true;
+                            } else if ($masterItemCode->wasChanged()) {
+                                $need_sync_code = true;
+                            }
+                                                        
+                            if ($need_sync_code) {
+                                /*sync callback master DB*/
+                                $sync_tabel = 'master_item_code';
+                                $sync_id = $masterItemCode->id;
+                                $sync_row = $masterItemCode->toArray();
+
+                                // $sync_row['deleted_at'] = null;
+                                $sync_list_callback = config('AppConfig.CALLBACK_URL');
+                                //update ke master DB saja
+                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                                }
                             }
 
                             $text = "Row " . $row_index . " : " . $item_code . " has been imported successfully.";
@@ -276,5 +358,10 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets
     public function getSuccess(): array
     {
         return $this->success;
+    }
+
+    public function chunkSize(): int
+    {
+        return 1000;
     }
 }

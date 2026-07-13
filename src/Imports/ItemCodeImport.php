@@ -15,8 +15,9 @@ use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
 use \Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 
-class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultipleSheets, WithHeadingRow
+class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultipleSheets, WithHeadingRow, WithChunkReading
 {
     private $error = [];
     private $success = [];
@@ -127,6 +128,40 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
         //     }
         // }
 
+        // Eager load existing database records into memory to prevent N+1 queries and deadlocks
+        $existingItemCodes = DB::table('master_item_code')
+            ->select('id', 'item_code', 'deleted_at')
+            ->get()
+            ->keyBy('item_code');
+
+        $existingUoms = UoM::withTrashed()
+            ->select('id', 'uom_code', 'deleted_at')
+            ->get()
+            ->keyBy(function ($uom) {
+                return strtoupper($uom->uom_code);
+            });
+
+        $existingPcas = Pca::withTrashed()
+            ->select('id', 'pca_code', 'deleted_at')
+            ->get()
+            ->keyBy(function ($pca) {
+                return strtoupper($pca->pca_code);
+            });
+
+        $existingCategories = Category::withTrashed()
+            ->select('id', 'category_code', 'deleted_at')
+            ->get()
+            ->keyBy(function ($cat) {
+                return strtoupper($cat->category_code);
+            });
+
+        $existingItemGroups = ItemGroup::withTrashed()
+            ->select('id', 'item_group_code', 'deleted_at')
+            ->get()
+            ->keyBy(function ($group) {
+                return strtoupper($group->item_group_code);
+            });
+
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
             if($row->filter()->isNotEmpty()) {
@@ -163,14 +198,24 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                     array_push($this->error,$text);
                 } else {
 
-                    $item_code = DB::table('master_item_code')
-                        ->where('item_code', $row['item_code'])
-                        ->first();
+                    $item_code = $existingItemCodes->get($row['item_code']);
+
+                    if ($item_code && !empty($item_code->deleted_at)) {
+                        $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists with soft delete status.";
+                        array_push($this->error,$text);
+                        continue;
+                    }
 
                     if(!$item_code){
                         try {
-                            $uom = UoM::select('id')->where('uom_code', $row['uom_code'])->first();
+                            $uom_key = strtoupper($row['uom_code']);
+                            $uom = $existingUoms->get($uom_key);
                             if(!empty($uom)){
+                                if ($uom->deleted_at !== null) {
+                                    $text = "Row ".$row_index.": UoM Code '".$row['uom_code']."' already exists with soft delete status.";
+                                    array_push($this->error,$text);
+                                    continue;
+                                }
                                 $uom_id = $uom->id;
                             }else{
                                 $create_uom = UoM::create([
@@ -179,10 +224,17 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 ]);
 
                                 $uom_id = $create_uom->id;
+                                $existingUoms->put($uom_key, $create_uom);
                             }
 
-                            $pca = Pca::select('id')->where('pca_code', $row['pca_code'])->first();
+                            $pca_key = strtoupper($row['pca_code']);
+                            $pca = $existingPcas->get($pca_key);
                             if(!empty($pca)){
+                                if ($pca->deleted_at !== null) {
+                                    $text = "Row ".$row_index.": PCA Code '".$row['pca_code']."' already exists with soft delete status.";
+                                    array_push($this->error,$text);
+                                    continue;
+                                }
                                 $pca_id = $pca->id;
                             }else{
                                 $create_pca = Pca::create([
@@ -191,10 +243,17 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 ]);
 
                                 $pca_id = $create_pca->id;
+                                $existingPcas->put($pca_key, $create_pca);
                             }
 
-                            $category = Category::select('id')->where('category_code', $row['category_code'])->first();
+                            $cat_key = strtoupper($row['category_code']);
+                            $category = $existingCategories->get($cat_key);
                             if(!empty($category)){
+                                if ($category->deleted_at !== null) {
+                                    $text = "Row ".$row_index.": Category Code '".$row['category_code']."' already exists with soft delete status.";
+                                    array_push($this->error,$text);
+                                    continue;
+                                }
                                 $category_id = $category->id;
                             }else{
                                 $create_category = Category::create([
@@ -203,10 +262,17 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 ]);
 
                                 $category_id = $create_category->id;
+                                $existingCategories->put($cat_key, $create_category);
                             }
 
-                            $item_group = ItemGroup::select('id')->where('item_group_code', $row['item_group_code'])->first();
+                            $item_group_key = strtoupper($row['item_group_code']);
+                            $item_group = $existingItemGroups->get($item_group_key);
                             if(!empty($item_group)){
+                                if ($item_group->deleted_at !== null) {
+                                    $text = "Row ".$row_index.": Item Group Code '".$row['item_group_code']."' already exists with soft delete status.";
+                                    array_push($this->error,$text);
+                                    continue;
+                                }
                                 $item_group_id = $item_group->id;
                             }else{
                                 $create_item_group = ItemGroup::create([
@@ -215,6 +281,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 ]);
 
                                 $item_group_id = $create_item_group->id;
+                                $existingItemGroups->put($item_group_key, $create_item_group);
                             }
 
                             $data = ItemCode::create([
@@ -226,6 +293,12 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 'group_id' => $item_group_id,
                                 'remarks' => $row['remarks'],
                                 'created_at' => now(),
+                            ]);
+
+                            $existingItemCodes->put($row['item_code'], (object)[
+                                'id' => $data->id,
+                                'item_code' => $row['item_code'],
+                                'deleted_at' => null
                             ]);
 
                             if (@$row['url']) {
@@ -273,5 +346,10 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
     public function getSuccess(): array
     {
         return $this->success;
+    }
+
+    public function chunkSize(): int
+    {
+        return 1000;
     }
 }
