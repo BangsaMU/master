@@ -200,13 +200,17 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
 
                     $item_code = $existingItemCodes->get($row['item_code']);
 
-                    if ($item_code && !empty($item_code->deleted_at)) {
-                        $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists with soft delete status.";
+                    if ($item_code) {
+                        if ($item_code->deleted_at !== null) {
+                            $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists with soft delete status.";
+                        } else {
+                            $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists.";
+                        }
                         array_push($this->error,$text);
                         continue;
                     }
 
-                    if(!$item_code){
+                    if (true) {
                         try {
                             $uom_key = strtoupper($row['uom_code']);
                             $uom = $existingUoms->get($uom_key);
@@ -310,7 +314,12 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                             $text = "Row ".$row_index." : ".$row['item_code']." has been imported successfully.";
                             array_push($this->success,$text);
                         } catch (\Throwable $th) {
-                            $text = "Row ".$row_index.": Item Code created failed!";
+                            $errorMessage = $th->getMessage();
+                            if (str_contains($errorMessage, '1062') || str_contains($errorMessage, 'Duplicate entry')) {
+                                $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists.";
+                            } else {
+                                $text = "Row ".$row_index.": Item Code created failed!" . $errorMessage;
+                            }
                             array_push($this->error,$text);
                         }
                     }else{

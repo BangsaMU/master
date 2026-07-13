@@ -83,13 +83,16 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
 
                 $item_code_exist = $existingItemCodes->get($item_code);
 
-                if ($item_code_exist && !empty($item_code_exist->deleted_at)) {
-                    $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists with soft delete status.";
+                if ($item_code_exist) {
+                    if ($item_code_exist->deleted_at !== null) {
+                        $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists with soft delete status.";
+                    } else {
+                        $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists.";
+                    }
                     array_push($this->error, $text);
                     continue;
                 }
 
-                // if(!$item_code_exist){
                 if (true) {
                     if (empty($item_code)) {
                         $text = "Row " . $row_index . " Item Code : field is required.";
@@ -338,7 +341,12 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
                             $text = "Row " . $row_index . " : " . $item_code . " has been imported successfully.";
                             array_push($this->success, $text);
                         } catch (\Throwable $th) {
-                            $text = "Row " . $row_index . ": Item Code created failed!" . $th->getMessage();
+                            $errorMessage = $th->getMessage();
+                            if (str_contains($errorMessage, '1062') || str_contains($errorMessage, 'Duplicate entry')) {
+                                $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists.";
+                            } else {
+                                $text = "Row " . $row_index . ": Item Code created failed!" . $errorMessage;
+                            }
                             array_push($this->error, $text);
                         }
                     }
