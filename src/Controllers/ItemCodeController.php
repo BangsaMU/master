@@ -542,6 +542,9 @@ class ItemCodeController extends Controller
 
     public function import(Request $request)
     {
+        // Set execution time limit to 5 minutes for large imports
+        set_time_limit(300);
+
         $request->validate([
             'file' => 'required|file|max:2048|mimes:xls,xlsx,txt'
         ]);
