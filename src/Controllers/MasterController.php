@@ -35,6 +35,9 @@ class MasterController extends Controller
 
     function tabel(Request $request, $tabel, $id = null)
     {
+        // Prevent execution timeout on large table syncs
+        set_time_limit(300);
+
         $log = [];
         $sync_insert = []; /*list insert array id*/
         $sync_update = []; /*list update array id*/
@@ -56,55 +59,139 @@ class MasterController extends Controller
         $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
         $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master' . Str::studly($tabel));
 
-        // dd($request->_token,$key_lokal,$tabel_lokal, $key_master, $tabel_master);
+        $model_lokal = 'Bangsamu\\Master\\Models\\' . $tabel_lokal;
+        $model_master = 'Bangsamu\\Master\\Models\\' . $tabel_master;
+
         // default $withTrashed true agar bisa sync data yang sudah dihapus
         $withTrashed = $request->input('with_trashed', true);
-        $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'),$withTrashed);
-        extract($getDataSync);
 
-        $jml = $data_sync_lokal->count();
-        $jml_master = $data_sync_master->count();
+        if ($id) {
+            // Case 1: Specific ID sync (original logic)
+            $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'),$withTrashed);
+            extract($getDataSync);
 
-        /*cek jumlah data master dan lokal jika beda maka insert*/
-        $list_id = $data_sync_lokal->pluck('id')->toArray();
-        $list_id_master = $data_sync_master->pluck('id')->toArray();
-        if ($jml != $jml_master) {
-            /*cek list id master dan lokal*/
-            $list_id_diff = array_diff($list_id_master, $list_id);
-            $sync_insert = $list_id_diff;/*list id yang akan di insert*/
-            // dd($list_id_master, $list_id, $list_id_diff);
-        };
+            $jml = $data_sync_lokal->count();
+            $jml_master = $data_sync_master->count();
 
-        $list_id_same = array_intersect($list_id_master, $list_id);
-        $sync_update = $list_id_same;/*list id yang akan di update*/
-        // dd($list_id_same);
+            /*cek jumlah data master dan lokal jika beda maka insert*/
+            $list_id = $data_sync_lokal->pluck('id')->toArray();
+            $list_id_master = $data_sync_master->pluck('id')->toArray();
+            if ($jml != $jml_master) {
+                /*cek list id master dan lokal*/
+                $list_id_diff = array_diff($list_id_master, $list_id);
+                $sync_insert = $list_id_diff;/*list id yang akan di insert*/
+            };
 
-        if ($jml_master) {
-            $data_array = $data_sync_lokal->toArray();
-            $master_array = $data_sync_master->toArray();
+            $list_id_same = array_intersect($list_id_master, $list_id);
+            $sync_update = $list_id_same;/*list id yang akan di update*/
 
-            /*convert array lokal index ke key dengan id */
-            foreach ($data_array as  $key => $val) {
-                $data_array_map_lokal[$val['id']] = $val;
+            if ($jml_master) {
+                $data_array = $data_sync_lokal->toArray();
+                $master_array = $data_sync_master->toArray();
+
+                /*convert array lokal index ke key dengan id */
+                foreach ($data_array as  $key => $val) {
+                    $data_array_map_lokal[$val['id']] = $val;
+                }
+
+                /*convert array master index ke key dengan id */
+                $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+
+                if ($sync_update) {
+                    $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
+                }
+
+                /*cek data master berdasarkan id yang akan di insert*/
+                if ($sync_insert) {
+                    $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
+                }
+
+                $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
+            } else {
+                $respon['data']['message'] = 'Data Not Found';
+                $respon['data']['sync'] = @$data_array_map_master;
             }
-
-            /*convert array master index ke key dengan id */
-            // dd(compact('data_array','master_array', 'key_master', 'key_lokal'));
-            $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
-
-            if ($sync_update) {
-                $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
-            }
-
-            /*cek data master berdasarkan id yang akan di insert*/
-            if ($sync_insert) {
-                $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
-            }
-
-            $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
         } else {
-            $respon['data']['message'] = 'Data Not Found';
-            $respon['data']['sync'] = @$data_array_map_master;
+            // Case 2: Full sync using chunking to prevent memory and timeout issues
+            $query_lokal = $withTrashed ? $model_lokal::withTrashed() : $model_lokal::query();
+            $query_master = $withTrashed ? $model_master::withTrashed() : $model_master::query();
+
+            // Pluck only IDs to keep memory consumption low
+            $list_id = $query_lokal->pluck('id')->toArray();
+            $list_id_master = $query_master->pluck('id')->toArray();
+
+            $sync_insert = array_diff($list_id_master, $list_id);
+            $sync_update = array_intersect($list_id_master, $list_id);
+
+            $data_array_map_master_all = [];
+
+            // Process updates in chunks of 1000
+            if (!empty($sync_update)) {
+                $chunks_update = array_chunk($sync_update, 1000);
+                foreach ($chunks_update as $chunk) {
+                    $data_sync_lokal = $withTrashed 
+                        ? $model_lokal::withTrashed()->whereIn('id', $chunk)->get() 
+                        : $model_lokal::whereIn('id', $chunk)->get();
+
+                    $data_sync_master = $withTrashed 
+                        ? $model_master::withTrashed()->whereIn('id', $chunk)->get() 
+                        : $model_master::whereIn('id', $chunk)->get();
+
+                    $data_array_map_lokal = [];
+                    foreach ($data_sync_lokal as $val) {
+                        $data_array_map_lokal[$val->id] = $val->toArray();
+                    }
+
+                    $master_array = $data_sync_master->toArray();
+                    $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+
+                    $log = LibraryClayController::sync_update([
+                        'sync_update' => $chunk,
+                        'tabel_lokal' => $tabel_lokal,
+                        'data_array_map_master' => $data_array_map_master,
+                        'data_array_map_lokal' => $data_array_map_lokal,
+                        'log' => $log
+                    ]);
+
+                    foreach ($data_array_map_master as $k => $v) {
+                        $data_array_map_master_all[$k] = $v;
+                    }
+                }
+            }
+
+            // Process inserts in chunks of 1000
+            if (!empty($sync_insert)) {
+                $chunks_insert = array_chunk($sync_insert, 1000);
+                foreach ($chunks_insert as $chunk) {
+                    $data_sync_master = $withTrashed 
+                        ? $model_master::withTrashed()->whereIn('id', $chunk)->get() 
+                        : $model_master::whereIn('id', $chunk)->get();
+
+                    $master_array = $data_sync_master->toArray();
+                    $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+
+                    $log = LibraryClayController::sync_insert([
+                        'sync_insert' => $chunk,
+                        'tabel_lokal' => $tabel_lokal,
+                        'data_array_map_master' => $data_array_map_master,
+                        'log' => $log
+                    ]);
+
+                    foreach ($data_array_map_master as $k => $v) {
+                        $data_array_map_master_all[$k] = $v;
+                    }
+                }
+            }
+
+            if (!empty($list_id_master)) {
+                $respon = LibraryClayController::syncLog([
+                    'log' => $log,
+                    'data_array_map_master' => $data_array_map_master_all
+                ]);
+            } else {
+                $respon['data']['message'] = 'Data Not Found';
+                $respon['data']['sync'] = [];
+            }
         }
 
         return LibraryClayController::setOutput($respon);
