@@ -36,21 +36,28 @@
             data: {
                 "_token": "{{ \Bangsamu\LibraryClay\Controllers\LibraryClayController::api_token(null) }}",
             },
-            success: function(data) {
-                console.log('samu data:', data);
-                console.log('samu typeof:', typeof data.success);
-                if (data.code == 200) {
+            success: function(response) {
+                console.log('samu data:', response);
+                if (response.code == 200) {
                     console.log("reload::" + tableName);
                     $(tableName).DataTable().ajax.reload();
-                    Swal.fire("Done!", data.success, "success");
+                    let msg = (response.data && response.data.message) ? response.data.message : "Sync completed successfully";
+                    Swal.fire("Done!", msg, "success");
                     $.LoadingOverlay('hide', true);
                 } else {
-                    Swal.fire("Error!", data.message, "error");
+                    let msg = (response.data && response.data.message) ? response.data.message : (response.message ? response.message : "Sync failed");
+                    Swal.fire("Error!", msg, "error");
                     $.LoadingOverlay('hide', true);
                 }
             },
-            error: function() {
-                    Swal.fire("Error!", data.message, "warning");
+            error: function(xhr) {
+                let msg = "Terjadi kesalahan pada server saat melakukan sync.";
+                if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                    msg = xhr.responseJSON.data.message;
+                } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                Swal.fire("Error!", msg, "warning");
                 $.LoadingOverlay('hide', true);
             }
         });
