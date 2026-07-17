@@ -37,6 +37,7 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
 
     Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('company.import');
+    Route::post('company/{id}/update-template-json', [\Bangsamu\Master\Controllers\CompanyController::class, 'updateTemplateJson'])->name('company.update_template_json');
 
     // Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     Route::resource('department', \Bangsamu\Master\Controllers\DepartmentController::class);

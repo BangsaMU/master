@@ -461,6 +461,52 @@ class CompanyController extends Controller
         return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
     }
 
+    public function updateTemplateJson(Request $request, $id)
+    {
+        $company = Company::findOrFail($id);
+        
+        $request->validate([
+            'template_json' => 'required|json'
+        ]);
+
+        $templateJson = $request->input('template_json');
+        
+        // Cek data saat ini dari database
+        $currentData = json_decode($company->template_json, true) ?? [];
+        $newData = json_decode($templateJson, true) ?? [];
+
+        // Validasi hak akses edit key
+        $isAdmin = checkPermission('is_admin');
+        $appCode = config('SsoConfig.main.APP_CODE');
+
+        if (!$isAdmin) {
+            // Jika bukan admin, user hanya boleh mengedit key yang sesuai config main.APP_CODE
+            // Jadi, pertahankan key lain, hanya timpa key main.APP_CODE dengan input yang baru
+            if (isset($newData[$appCode])) {
+                $currentData[$appCode] = $newData[$appCode];
+            }
+            $finalData = $currentData;
+        } else {
+            // Jika admin, user boleh menyimpan input baru (termasuk penambahan/pengurangan key)
+            $finalData = $newData;
+        }
+
+        $company->template_json = json_encode($finalData);
+        $company->save();
+
+        // Sync ke master db jika MASTER_DIRECT_EDIT aktif
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+            $id =  $company->id;
+            $sync_tabel = 'master_' . $this->sheet_slug;
+            $sync_id = $id;
+            $sync_row = $company->toArray();
+            $sync_list_callback = config('AppConfig.CALLBACK_URL');
+            LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+        }
+
+        return redirect()->back()->with('success_message', 'Template JSON updated successfully');
+    }
+
     public function show($id)
     {
         $this->readonly = true;
@@ -486,9 +532,26 @@ class CompanyController extends Controller
             )
             ->first();
 
+        $appCode = config('SsoConfig.main.APP_CODE');
+        $templateData = [];
+        if ($param && !empty($param->template_json)) {
+            $templateData = json_decode($param->template_json, true);
+        }
+        if (empty($templateData)) {
+            $templateData = [
+                $appCode => [
+                    'form_no' => 'MEI-FLK-MTC-001',
+                    'rev_no' => 1,
+                    'issued_date' => '2026-07-09',
+                    'format_date' => 'F,Y',
+                    'template_header' => '1'
+                ]
+            ];
+        }
+
         // dd($param);
         // return view('company.form', compact('data', 'param'));
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param', 'templateData', 'appCode'));
     }
 
     public function insertNew(Request $request, $query, $id = null)

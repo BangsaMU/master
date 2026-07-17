@@ -40,6 +40,7 @@ class Company extends Model
                     $table->string('company_address', 300)->nullable();
                     $table->bigInteger('company_logo_id')->nullable();
                     $table->text('company_logo')->nullable();
+                    $table->json('template_json')->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
                 });
