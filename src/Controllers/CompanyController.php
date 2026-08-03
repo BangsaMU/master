@@ -82,10 +82,11 @@ class CompanyController extends Controller
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {
-            $data['datatable']['btn']['create']['id'] = 'create';
-            $data['datatable']['btn']['create']['title'] = 'Create';
-            $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            //company hanya ada 3 di lock ga usah add
+            // $data['datatable']['btn']['create']['id'] = 'create';
+            // $data['datatable']['btn']['create']['title'] = 'Create';
+            // $data['datatable']['btn']['create']['icon'] = 'btn-primary';
+            // $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
 
             // $data['datatable']['btn']['import']['id'] = 'importitem';
             // $data['datatable']['btn']['import']['title'] = 'Import';
