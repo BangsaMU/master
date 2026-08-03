@@ -538,14 +538,19 @@ class CompanyController extends Controller
             $templateData = json_decode($param->template_json, true);
         }
         if (empty($templateData)) {
+            $key = $appCode ?: 'APP32';
             $templateData = [
-                $appCode => [
-                    'form_no' => 'MEI-FLK-MTC-001',
+                $key => [
+                    'form_no' => [
+                        'spb' => 'MEI-FLK-MTC-001',
+                        'spj' => 'MEI-FLK-MTC-002',
+                        'spa' => 'MEI-FLK-MTC-003'
+                    ],
                     'rev_no' => 1,
                     'issued_date' => '2026-07-09',
                     'format_date' => 'F,Y',
-                    'template_header' => '1'
-                ]
+                    'template_header' => 1
+                ],
             ];
         }
 

@@ -124,8 +124,13 @@
 
                         <div id="dynamic-form-fields">
                             <div class="form-group mb-3">
-                                <label class="form-label" for="field_form_no">Form No</label>
-                                <input type="text" class="form-control" id="field_form_no" required>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label mb-0">Form No</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_form_no">
+                                        + Add Form No
+                                    </button>
+                                </div>
+                                <div id="form_no_container" class="space-y-2"></div>
                             </div>
                             <div class="form-group mb-3">
                                 <label class="form-label" for="field_rev_no">Rev No</label>
@@ -141,7 +146,7 @@
                             </div>
                             <div class="form-group mb-3">
                                 <label class="form-label" for="field_template_header">Template Header</label>
-                                <input type="text" class="form-control" id="field_template_header" required>
+                                <input type="number" class="form-control" id="field_template_header" required>
                             </div>
                         </div>
 
@@ -167,35 +172,108 @@
             const templateData = @json($templateData);
             const selectedKeySelect = document.getElementById('selected_key');
             const templateJsonInput = document.getElementById('template_json_input');
-            
-            function loadKeyData(key) {
-                if (!templateData[key]) {
-                    templateData[key] = {
-                        form_no: '',
-                        rev_no: 1,
-                        issued_date: '',
-                        format_date: 'F,Y',
-                        template_header: '1'
-                    };
-                }
-                const data = templateData[key];
-                document.getElementById('field_form_no').value = data.form_no || '';
-                document.getElementById('field_rev_no').value = data.rev_no !== undefined ? data.rev_no : 1;
-                document.getElementById('field_issued_date').value = data.issued_date || '';
-                document.getElementById('field_format_date').value = data.format_date || '';
-                document.getElementById('field_template_header').value = data.template_header || '1';
-                
-                updateHiddenInput();
-            }
-            
+            const formNoContainer = document.getElementById('form_no_container');
+            const btnAddFormNo = document.getElementById('btn_add_form_no');
+
             function updateHiddenInput() {
                 if (templateJsonInput) {
                     templateJsonInput.value = JSON.stringify(templateData);
                 }
             }
-            
-            const fields = ['form_no', 'rev_no', 'issued_date', 'format_date', 'template_header'];
-            fields.forEach(field => {
+
+            function syncFormNoData() {
+                const key = selectedKeySelect.value;
+                if (!key) return;
+                if (!templateData[key]) {
+                    templateData[key] = {};
+                }
+                const formNoObj = {};
+                const rows = formNoContainer.querySelectorAll('.form-no-row');
+                rows.forEach(row => {
+                    const k = row.querySelector('.form-no-key').value.trim();
+                    const v = row.querySelector('.form-no-value').value.trim();
+                    if (k !== '') {
+                        formNoObj[k] = v;
+                    }
+                });
+                templateData[key].form_no = formNoObj;
+                updateHiddenInput();
+            }
+
+            function createFormNoRow(subKey = '', subVal = '') {
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2 form-no-row';
+                row.innerHTML = `
+                    <input type="text" class="form-control form-no-key" style="max-width: 35%;" placeholder="Key (e.g. spb)" value="${subKey}">
+                    <input type="text" class="form-control form-no-value" placeholder="Form No (e.g. MEI-FLK-MTC-001)" value="${subVal}">
+                    <button type="button" class="btn btn-outline-danger btn-remove-form-no" title="Remove">&times;</button>
+                `;
+
+                const keyInput = row.querySelector('.form-no-key');
+                const valInput = row.querySelector('.form-no-value');
+                const btnRemove = row.querySelector('.btn-remove-form-no');
+
+                keyInput.addEventListener('input', syncFormNoData);
+                valInput.addEventListener('input', syncFormNoData);
+                btnRemove.addEventListener('click', function() {
+                    row.remove();
+                    syncFormNoData();
+                });
+
+                formNoContainer.appendChild(row);
+            }
+
+            function renderFormNoFields(formNoData) {
+                formNoContainer.innerHTML = '';
+                if (typeof formNoData === 'string' && formNoData !== '') {
+                    createFormNoRow('spb', formNoData);
+                } else if (typeof formNoData === 'object' && formNoData !== null && !Array.isArray(formNoData)) {
+                    const keys = Object.keys(formNoData);
+                    if (keys.length === 0) {
+                        createFormNoRow('', '');
+                    } else {
+                        keys.forEach(k => {
+                            createFormNoRow(k, formNoData[k]);
+                        });
+                    }
+                } else {
+                    createFormNoRow('spb', '');
+                }
+            }
+
+            function loadKeyData(key) {
+                if (!templateData[key]) {
+                    templateData[key] = {
+                        form_no: {
+                            spb: 'MEI-FLK-MTC-001',
+                            spj: 'MEI-FLK-MTC-002',
+                            spa: 'MEI-FLK-MTC-003'
+                        },
+                        rev_no: 1,
+                        issued_date: '',
+                        format_date: 'F,Y',
+                        template_header: 1
+                    };
+                }
+                const data = templateData[key];
+                renderFormNoFields(data.form_no);
+                document.getElementById('field_rev_no').value = data.rev_no !== undefined ? data.rev_no : 1;
+                document.getElementById('field_issued_date').value = data.issued_date || '';
+                document.getElementById('field_format_date').value = data.format_date || '';
+                document.getElementById('field_template_header').value = data.template_header !== undefined ? data.template_header : 1;
+
+                updateHiddenInput();
+            }
+
+            if (btnAddFormNo) {
+                btnAddFormNo.addEventListener('click', function() {
+                    createFormNoRow('', '');
+                    syncFormNoData();
+                });
+            }
+
+            const scalarFields = ['rev_no', 'issued_date', 'format_date', 'template_header'];
+            scalarFields.forEach(field => {
                 const el = document.getElementById('field_' + field);
                 if (el) {
                     const updateValue = function() {
@@ -203,7 +281,7 @@
                         if (!templateData[key]) {
                             templateData[key] = {};
                         }
-                        if (field === 'rev_no') {
+                        if (field === 'rev_no' || field === 'template_header') {
                             templateData[key][field] = parseInt(el.value) || 0;
                         } else {
                             templateData[key][field] = el.value;
@@ -214,15 +292,15 @@
                     el.addEventListener('change', updateValue);
                 }
             });
-            
+
             if (selectedKeySelect) {
                 selectedKeySelect.addEventListener('change', function() {
                     loadKeyData(this.value);
                 });
-                
+
                 loadKeyData(selectedKeySelect.value);
             }
-            
+
             const btnAddKey = document.getElementById('btn_add_key');
             if (btnAddKey) {
                 btnAddKey.addEventListener('click', function() {
@@ -230,27 +308,31 @@
                     if (newKey) {
                         const sanitizedKey = newKey.trim().toUpperCase();
                         if (sanitizedKey === '') return;
-                        
+
                         if (templateData[sanitizedKey]) {
                             alert('Key already exists!');
                             selectedKeySelect.value = sanitizedKey;
                             loadKeyData(sanitizedKey);
                             return;
                         }
-                        
+
                         templateData[sanitizedKey] = {
-                            form_no: 'MEI-FLK-MTC-001',
+                            form_no: {
+                                spb: 'MEI-FLK-MTC-001',
+                                spj: 'MEI-FLK-MTC-002',
+                                spa: 'MEI-FLK-MTC-003'
+                            },
                             rev_no: 1,
                             issued_date: '2026-07-09',
                             format_date: 'F,Y',
-                            template_header: '1'
+                            template_header: 1
                         };
-                        
+
                         const opt = document.createElement('option');
                         opt.value = sanitizedKey;
                         opt.innerHTML = sanitizedKey;
                         selectedKeySelect.appendChild(opt);
-                        
+
                         selectedKeySelect.value = sanitizedKey;
                         loadKeyData(sanitizedKey);
                     }
