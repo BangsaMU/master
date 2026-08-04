@@ -133,12 +133,22 @@
                                 <div id="form_no_container" class="space-y-2"></div>
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label" for="field_rev_no">Rev No</label>
-                                <input type="number" class="form-control" id="field_rev_no" required>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label mb-0">Rev No</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rev_no">
+                                        + Add Rev No
+                                    </button>
+                                </div>
+                                <div id="rev_no_container" class="space-y-2"></div>
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label" for="field_issued_date">Issued Date</label>
-                                <input type="date" class="form-control" id="field_issued_date" required>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label mb-0">Issued Date</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_issued_date">
+                                        + Add Issued Date
+                                    </button>
+                                </div>
+                                <div id="issued_date_container" class="space-y-2"></div>
                             </div>
                             <div class="form-group mb-3">
                                 <label class="form-label" for="field_format_date">Format Date</label>
@@ -146,7 +156,7 @@
                             </div>
                             <div class="form-group mb-3">
                                 <label class="form-label" for="field_template_header">Template Header</label>
-                                <input type="number" class="form-control" id="field_template_header" required>
+                                <input type="text" class="form-control" id="field_template_header" required>
                             </div>
                         </div>
 
@@ -172,8 +182,7 @@
             const templateData = @json($templateData);
             const selectedKeySelect = document.getElementById('selected_key');
             const templateJsonInput = document.getElementById('template_json_input');
-            const formNoContainer = document.getElementById('form_no_container');
-            const btnAddFormNo = document.getElementById('btn_add_form_no');
+            const dynamicFields = ['form_no', 'rev_no', 'issued_date'];
 
             function updateHiddenInput() {
                 if (templateJsonInput) {
@@ -181,63 +190,106 @@
                 }
             }
 
-            function syncFormNoData() {
+            function syncFieldData(fieldName) {
                 const key = selectedKeySelect.value;
                 if (!key) return;
                 if (!templateData[key]) {
                     templateData[key] = {};
                 }
-                const formNoObj = {};
-                const rows = formNoContainer.querySelectorAll('.form-no-row');
+
+                const container = document.getElementById(`${fieldName}_container`);
+                if (!container) return;
+
+                const rows = container.querySelectorAll(`.${fieldName}-row`);
+                
+                if (rows.length === 0) {
+                    templateData[key][fieldName] = "";
+                    updateHiddenInput();
+                    return;
+                }
+
+                if (rows.length === 1) {
+                    const firstKey = rows[0].querySelector(`.${fieldName}-key`).value.trim();
+                    const firstVal = rows[0].querySelector(`.${fieldName}-value`).value.trim();
+                    if (firstKey === '') {
+                        if (fieldName === 'rev_no' && /^\d+$/.test(firstVal)) {
+                            templateData[key][fieldName] = parseInt(firstVal);
+                        } else {
+                            templateData[key][fieldName] = firstVal;
+                        }
+                        updateHiddenInput();
+                        return;
+                    }
+                }
+
+                const obj = {};
                 rows.forEach(row => {
-                    const k = row.querySelector('.form-no-key').value.trim();
-                    const v = row.querySelector('.form-no-value').value.trim();
+                    const k = row.querySelector(`.${fieldName}-key`).value.trim();
+                    const v = row.querySelector(`.${fieldName}-value`).value.trim();
                     if (k !== '') {
-                        formNoObj[k] = v;
+                        if (fieldName === 'rev_no' && /^\d+$/.test(v)) {
+                            obj[k] = parseInt(v);
+                        } else {
+                            obj[k] = v;
+                        }
                     }
                 });
-                templateData[key].form_no = formNoObj;
+                templateData[key][fieldName] = obj;
                 updateHiddenInput();
             }
 
-            function createFormNoRow(subKey = '', subVal = '') {
+            function createFieldRow(containerId, subKey = '', subVal = '', fieldName = 'form_no') {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                let placeholderVal = 'Value (e.g. MEI-FLK-MTC-001)';
+                if (fieldName === 'rev_no') {
+                    placeholderVal = 'Rev No (e.g. 1 or 1-spb)';
+                } else if (fieldName === 'issued_date') {
+                    placeholderVal = 'Issued Date (e.g. 2026-07-09)';
+                }
+
                 const row = document.createElement('div');
-                row.className = 'input-group mb-2 form-no-row';
+                row.className = `input-group mb-2 ${fieldName}-row`;
                 row.innerHTML = `
-                    <input type="text" class="form-control form-no-key" style="max-width: 35%;" placeholder="Key (e.g. spb)" value="${subKey}">
-                    <input type="text" class="form-control form-no-value" placeholder="Form No (e.g. MEI-FLK-MTC-001)" value="${subVal}">
-                    <button type="button" class="btn btn-outline-danger btn-remove-form-no" title="Remove">&times;</button>
+                    <input type="text" class="form-control ${fieldName}-key" style="max-width: 35%;" placeholder="Key (e.g. spb)" value="${subKey}">
+                    <input type="text" class="form-control ${fieldName}-value" placeholder="${placeholderVal}" value="${subVal}">
+                    <button type="button" class="btn btn-outline-danger btn-remove-row" title="Remove">&times;</button>
                 `;
 
-                const keyInput = row.querySelector('.form-no-key');
-                const valInput = row.querySelector('.form-no-value');
-                const btnRemove = row.querySelector('.btn-remove-form-no');
+                const keyInput = row.querySelector(`.${fieldName}-key`);
+                const valInput = row.querySelector(`.${fieldName}-value`);
+                const btnRemove = row.querySelector('.btn-remove-row');
 
-                keyInput.addEventListener('input', syncFormNoData);
-                valInput.addEventListener('input', syncFormNoData);
+                keyInput.addEventListener('input', () => syncFieldData(fieldName));
+                valInput.addEventListener('input', () => syncFieldData(fieldName));
                 btnRemove.addEventListener('click', function() {
                     row.remove();
-                    syncFormNoData();
+                    syncFieldData(fieldName);
                 });
 
-                formNoContainer.appendChild(row);
+                container.appendChild(row);
             }
 
-            function renderFormNoFields(formNoData) {
-                formNoContainer.innerHTML = '';
-                if (typeof formNoData === 'string' && formNoData !== '') {
-                    createFormNoRow('spb', formNoData);
-                } else if (typeof formNoData === 'object' && formNoData !== null && !Array.isArray(formNoData)) {
-                    const keys = Object.keys(formNoData);
+            function renderFieldContainer(fieldName, fieldValue) {
+                const containerId = `${fieldName}_container`;
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                container.innerHTML = '';
+
+                if (typeof fieldValue === 'string' || typeof fieldValue === 'number') {
+                    createFieldRow(containerId, '', fieldValue, fieldName);
+                } else if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
+                    const keys = Object.keys(fieldValue);
                     if (keys.length === 0) {
-                        createFormNoRow('', '');
+                        createFieldRow(containerId, '', '', fieldName);
                     } else {
                         keys.forEach(k => {
-                            createFormNoRow(k, formNoData[k]);
+                            createFieldRow(containerId, k, fieldValue[k], fieldName);
                         });
                     }
                 } else {
-                    createFormNoRow('spb', '');
+                    createFieldRow(containerId, '', '', fieldName);
                 }
             }
 
@@ -245,34 +297,47 @@
                 if (!templateData[key]) {
                     templateData[key] = {
                         form_no: {
-                            spb: 'MEI-FLK-MTC-001',
-                            spj: 'MEI-FLK-MTC-002',
-                            spa: 'MEI-FLK-MTC-003'
+                            spb: 'MEI-FLK-SPB-001',
+                            spj: 'MEI-FLK-SPJ-001',
+                            spa: 'MEI-FLK-SPA-001'
                         },
-                        rev_no: 1,
-                        issued_date: '',
+                        rev_no: {
+                            spb: '1-spb',
+                            spj: '1-spj',
+                            spa: '1-spa'
+                        },
+                        issued_date: {
+                            spb: '2026-07-09',
+                            spj: '2026-07-10',
+                            spa: '2026-07-11'
+                        },
                         format_date: 'F,Y',
                         template_header: 1
                     };
                 }
                 const data = templateData[key];
-                renderFormNoFields(data.form_no);
-                document.getElementById('field_rev_no').value = data.rev_no !== undefined ? data.rev_no : 1;
-                document.getElementById('field_issued_date').value = data.issued_date || '';
+                
+                dynamicFields.forEach(fieldName => {
+                    renderFieldContainer(fieldName, data[fieldName]);
+                });
+
                 document.getElementById('field_format_date').value = data.format_date || '';
                 document.getElementById('field_template_header').value = data.template_header !== undefined ? data.template_header : 1;
 
                 updateHiddenInput();
             }
 
-            if (btnAddFormNo) {
-                btnAddFormNo.addEventListener('click', function() {
-                    createFormNoRow('', '');
-                    syncFormNoData();
-                });
-            }
+            dynamicFields.forEach(fieldName => {
+                const btnAdd = document.getElementById(`btn_add_${fieldName}`);
+                if (btnAdd) {
+                    btnAdd.addEventListener('click', function() {
+                        createFieldRow(`${fieldName}_container`, '', '', fieldName);
+                        syncFieldData(fieldName);
+                    });
+                }
+            });
 
-            const scalarFields = ['rev_no', 'issued_date', 'format_date', 'template_header'];
+            const scalarFields = ['format_date', 'template_header'];
             scalarFields.forEach(field => {
                 const el = document.getElementById('field_' + field);
                 if (el) {
@@ -281,8 +346,8 @@
                         if (!templateData[key]) {
                             templateData[key] = {};
                         }
-                        if (field === 'rev_no' || field === 'template_header') {
-                            templateData[key][field] = parseInt(el.value) || 0;
+                        if (field === 'template_header') {
+                            templateData[key][field] = /^\d+$/.test(el.value.trim()) ? parseInt(el.value.trim()) : el.value.trim();
                         } else {
                             templateData[key][field] = el.value;
                         }
@@ -304,7 +369,7 @@
             const btnAddKey = document.getElementById('btn_add_key');
             if (btnAddKey) {
                 btnAddKey.addEventListener('click', function() {
-                    const newKey = prompt('Enter new App Code key (e.g. APP33):');
+                    const newKey = prompt('Enter new App Code key (e.g. APP09):');
                     if (newKey) {
                         const sanitizedKey = newKey.trim().toUpperCase();
                         if (sanitizedKey === '') return;
@@ -318,12 +383,20 @@
 
                         templateData[sanitizedKey] = {
                             form_no: {
-                                spb: 'MEI-FLK-MTC-001',
-                                spj: 'MEI-FLK-MTC-002',
-                                spa: 'MEI-FLK-MTC-003'
+                                spb: 'MEI-FLK-SPB-001',
+                                spj: 'MEI-FLK-SPJ-001',
+                                spa: 'MEI-FLK-SPA-001'
                             },
-                            rev_no: 1,
-                            issued_date: '2026-07-09',
+                            rev_no: {
+                                spb: '1-spb',
+                                spj: '1-spj',
+                                spa: '1-spa'
+                            },
+                            issued_date: {
+                                spb: '2026-07-09',
+                                spj: '2026-07-10',
+                                spa: '2026-07-11'
+                            },
                             format_date: 'F,Y',
                             template_header: 1
                         };

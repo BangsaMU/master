@@ -3,38 +3,41 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Company;
-use Bangsamu\Master\Models\Gallery;
 use Bangsamu\Master\Models\FileManager;
-use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Models\Gallery;
 use Bangsamu\Master\Traits\DynamicFilterable;
-use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Illuminate\Support\Facades\Log;
 
 class CompanyController extends Controller
 {
     use DynamicFilterable;
+
     protected $readonly = false;
-    protected $sheet_name = 'Company'; //nama label untuk FE
-    protected $sheet_slug = 'company'; //nama routing (slug)
-    protected $view_tabel_index = array(
+
+    protected $sheet_name = 'Company'; // nama label untuk FE
+
+    protected $sheet_slug = 'company'; // nama routing (slug)
+
+    protected $view_tabel_index = [
         'mc.id AS No',
         'mc.company_code AS company_code',
         'mc.company_name AS company_name',
         '"action" AS action',
-    );
-    protected $view_tabel = array(
+    ];
+
+    protected $view_tabel = [
         'mc.id AS id',
         'mc.brand_code AS brand_code',
         'mc.brand_description AS brand_description',
         '"action" AS action',
-    );
+    ];
 
     public function config($id = null, $data = null)
     {
@@ -45,7 +48,7 @@ class CompanyController extends Controller
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
+        $data['page']['new']['url'] = route('master.'.$sheet_slug.'.create');
 
         $data['page']['js_list'][] = 'js.master-data';
 
@@ -69,10 +72,10 @@ class CompanyController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['list'] = route('master.'.$sheet_slug.'.index');
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_company')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -82,7 +85,7 @@ class CompanyController extends Controller
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {
-            //company hanya ada 3 di lock ga usah add
+            // company hanya ada 3 di lock ga usah add
             // $data['datatable']['btn']['create']['id'] = 'create';
             // $data['datatable']['btn']['create']['title'] = 'Create';
             // $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -102,7 +105,6 @@ class CompanyController extends Controller
             $data['datatable']['btn']['export']['url'] = url('master/getmaster_company/export');
         }
 
-
         // $data['page']['import']['layout'] = 'layouts.import.form';
         // $data['page']['import']['post'] = route('company.import');
         // $data['page']['import']['template'] = url('/templates/BrandImportTemplate.xlsx');
@@ -121,11 +123,11 @@ class CompanyController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -136,8 +138,8 @@ class CompanyController extends Controller
         $user_id = Auth::user()->id ?? 0;
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'mc.created_at';
@@ -150,7 +152,7 @@ class CompanyController extends Controller
         $category = 'master_company';
         $settings = $this->getSettingsForTable($category);
 
-        $query = DB::table($tableName . ' as mc')
+        $query = DB::table($tableName.' as mc')
             ->whereNull('mc.deleted_at');
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mc');
@@ -162,7 +164,7 @@ class CompanyController extends Controller
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table($tableName . ' as mc')
+            $data_tabel = DB::table($tableName.' as mc')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -179,12 +181,11 @@ class CompanyController extends Controller
                 ->groupby('mc.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table($tableName . ' as mc')
+            $datatb_request = DB::table($tableName.' as mc')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -204,21 +205,21 @@ class CompanyController extends Controller
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
-        if (!empty($data_tabel)) {
+        $data = [];
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -227,8 +228,8 @@ class CompanyController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
@@ -236,12 +237,12 @@ class CompanyController extends Controller
                 $nestedData['No'] = $DT_RowIndex;
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_company'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_company'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
                 $nestedData['action'] = @$btn;
@@ -251,13 +252,14 @@ class CompanyController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
 
@@ -269,19 +271,19 @@ class CompanyController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = null;
 
         // return view('master::master.company.form', compact('data', 'param'));
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'company_code' => 'required|unique:master_company,company_code,' . ($request->id ?? 'NULL'),
+            'company_code' => 'required|unique:master_company,company_code,'.($request->id ?? 'NULL'),
             'company_name' => 'required',
         ]);
         $message = '';
@@ -300,7 +302,7 @@ class CompanyController extends Controller
             if ($request->file('company_logo') && $company->company_logo_id) {
                 $existingGallery = Gallery::find($company->company_logo_id);
                 if ($existingGallery) {
-                    $existingPath = $existingGallery->path . '/' . $existingGallery->filename;
+                    $existingPath = $existingGallery->path.'/'.$existingGallery->filename;
 
                     if (Storage::disk(config('app.storage_disk_master'))->exists($existingPath)) {
                         Storage::disk(config('app.storage_disk_master'))->delete($existingPath);
@@ -310,20 +312,20 @@ class CompanyController extends Controller
             }
 
             if ($update && $company->wasChanged()) {
-                /*sync callback*/
-                $id =  $company->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+                /* sync callback */
+                $id = $company->id;
+                $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
                 $sync_row = $company->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
+                // update ke master DB saja
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message .= ' '.$this->sheet_name . ' updated successfully';
+                $message .= ' '.$this->sheet_name.' updated successfully';
             } else {
-                $message .= ' '.$this->sheet_name . ' no data changed';
+                $message .= ' '.$this->sheet_name.' no data changed';
             }
         } else {
             // Create new company
@@ -349,7 +351,7 @@ class CompanyController extends Controller
                 ]);
             }
 
-            $message .= ' '.$this->sheet_name . ' created successfully';
+            $message .= ' '.$this->sheet_name.' created successfully';
         }
 
         if ($request->file('company_logo')) {
@@ -359,7 +361,7 @@ class CompanyController extends Controller
             $prefix = $file->getClientOriginalExtension();
             $caption = $file->getClientOriginalName();
             $url = null;
-            $path = 'company/' . $prefix;
+            $path = 'company/'.$prefix;
             $filename = null;
             $size = $file->getSize();
             $header_type = $file->getClientMimeType();
@@ -378,8 +380,8 @@ class CompanyController extends Controller
                 'file_group' => $file_group,
                 'hash_file' => $hash_file,
                 'file_type' => $file_type,
-            ]);            
-            
+            ]);
+
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
                 // Create new gallery
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_gallery');
@@ -399,38 +401,37 @@ class CompanyController extends Controller
                 ]);
             }
 
-            $filename = $gallery->id . "-" . $file->getClientOriginalName();
-            $filePath = $file->storeAs('company/' . $prefix, $filename, config('app.storage_disk_master'));
+            $filename = $gallery->id.'-'.$file->getClientOriginalName();
+            $filePath = $file->storeAs('company/'.$prefix, $filename, config('app.storage_disk_master'));
             // dd($filePath);
             if ($filePath && Storage::disk(config('app.storage_disk_master'))->exists($filePath)) {
                 // Upload sukses dan file ada di storage
                 // Log::info("Upload sukses: " . $filePath);
 
-                Log::info('user: sys url: ' . url()->current() . ' message: Upload sukses json:' . json_encode($filePath));
+                Log::info('user: sys url: '.url()->current().' message: Upload sukses json:'.json_encode($filePath));
             } else {
                 // Gagal upload atau file tidak ada
                 // Log::error("Gagal upload file ke: " . $filePath);
-                Log::error('user: sys url: ' . url()->current() . ' message: Upload Gagal json:' . json_encode($filePath));
-                abort(500, "Upload gagal atau file tidak ditemukan.");
+                Log::error('user: sys url: '.url()->current().' message: Upload Gagal json:'.json_encode($filePath));
+                abort(500, 'Upload gagal atau file tidak ditemukan.');
             }
 
-
             $gallery->filename = $filename;
-            $gallery->url = Storage::disk(config('app.storage_disk_master'))->url($path . '/' . $filename);
+            $gallery->url = Storage::disk(config('app.storage_disk_master'))->url($path.'/'.$filename);
             $gallery->save();
 
             $company->company_logo_id = $gallery->id;
             $company->save();
 
             if ($gallery->wasChanged()) {
-                /*sync callback gallery*/
-                $id =  $gallery->id;
+                /* sync callback gallery */
+                $id = $gallery->id;
                 $sync_tabel = 'master_gallery';
                 $sync_id = $id;
                 $sync_row = $gallery->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
+                // update ke master DB saja
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
                     // dd(2,compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
@@ -441,37 +442,37 @@ class CompanyController extends Controller
             }
 
             if ($company->wasChanged()) {
-                /*sync callback*/
-                $id =  $company->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+                /* sync callback */
+                $id = $company->id;
+                $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
                 $sync_row = $company->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
+                // update ke master DB saja
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message .= ' Logo '.$this->sheet_name . ' updated successfully';
+                $message .= ' Logo '.$this->sheet_name.' updated successfully';
             } else {
-                $message .= ' Logo '.$this->sheet_name . ' no data changed';
+                $message .= ' Logo '.$this->sheet_name.' no data changed';
             }
 
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
 
     public function updateTemplateJson(Request $request, $id)
     {
         $company = Company::findOrFail($id);
-        
+
         $request->validate([
-            'template_json' => 'required|json'
+            'template_json' => 'required|json',
         ]);
 
         $templateJson = $request->input('template_json');
-        
+
         // Cek data saat ini dari database
         $currentData = json_decode($company->template_json, true) ?? [];
         $newData = json_decode($templateJson, true) ?? [];
@@ -480,7 +481,7 @@ class CompanyController extends Controller
         $isAdmin = checkPermission('is_admin');
         $appCode = config('SsoConfig.main.APP_CODE');
 
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             // Jika bukan admin, user hanya boleh mengedit key yang sesuai config main.APP_CODE
             // Jadi, pertahankan key lain, hanya timpa key main.APP_CODE dengan input yang baru
             if (isset($newData[$appCode])) {
@@ -497,8 +498,8 @@ class CompanyController extends Controller
 
         // Sync ke master db jika MASTER_DIRECT_EDIT aktif
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
-            $id =  $company->id;
-            $sync_tabel = 'master_' . $this->sheet_slug;
+            $id = $company->id;
+            $sync_tabel = 'master_'.$this->sheet_slug;
             $sync_id = $id;
             $sync_row = $company->toArray();
             $sync_list_callback = config('AppConfig.CALLBACK_URL');
@@ -511,6 +512,7 @@ class CompanyController extends Controller
     public function show($id)
     {
         $this->readonly = true;
+
         return self::edit($id);
     }
 
@@ -521,10 +523,10 @@ class CompanyController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
-        $param = DB::table('master_' . $this->sheet_slug . ' as tbl1')
+        $param = DB::table('master_'.$this->sheet_slug.' as tbl1')
             ->leftJoin('master_gallery as tbl2', 'tbl2.id', '=', 'tbl1.company_logo_id')
             ->where('tbl1.id', $id)
             ->select(
@@ -535,7 +537,7 @@ class CompanyController extends Controller
 
         $appCode = config('SsoConfig.main.APP_CODE');
         $templateData = [];
-        if ($param && !empty($param->template_json)) {
+        if ($param && ! empty($param->template_json)) {
             $templateData = json_decode($param->template_json, true);
         }
         if (empty($templateData)) {
@@ -543,21 +545,29 @@ class CompanyController extends Controller
             $templateData = [
                 $key => [
                     'form_no' => [
-                        'spb' => 'MEI-FLK-MTC-001',
-                        'spj' => 'MEI-FLK-MTC-002',
-                        'spa' => 'MEI-FLK-MTC-003'
+                        'spb' => 'MEI-FLK-SPB-001',
+                        'spj' => 'MEI-FLK-SPJ-001',
+                        'spa' => 'MEI-FLK-SPA-001',
                     ],
-                    'rev_no' => 1,
-                    'issued_date' => '2026-07-09',
+                    'rev_no' => [
+                        'spb' => '1-spb',
+                        'spj' => '1-spj',
+                        'spa' => '1-spa',
+                    ],
+                    'issued_date' => [
+                        'spb' => '2026-07-09',
+                        'spj' => '2026-07-10',
+                        'spa' => '2026-07-11',
+                    ],
                     'format_date' => 'F,Y',
-                    'template_header' => 1
+                    'template_header' => 1,
                 ],
             ];
         }
 
         // dd($param);
         // return view('company.form', compact('data', 'param'));
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param', 'templateData', 'appCode'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param', 'templateData', 'appCode'));
     }
 
     public function insertNew(Request $request, $query, $id = null)
@@ -567,7 +577,6 @@ class CompanyController extends Controller
         $data_config = self::config($id);
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
-
 
         if ($auto_insert) {
             $company_code = $request->company_code;
@@ -602,7 +611,7 @@ class CompanyController extends Controller
                 ,mc.company_start_date AS company_start_date
                 ,mc.company_complete_date AS company_complete_date
                 from master_company  as mp
-                where mc.id="' . $id . '"
+                where mc.id="'.$id.'"
                 limit 1
             ';
         }
@@ -618,19 +627,19 @@ class CompanyController extends Controller
         $view_tabel_index = $this->view_tabel_index;
         $data = self::config($id);
         $data['page']['slug'] = 'dttable_master';
-        $data['page']['title'] = 'Master ' . $sheet_name;
+        $data['page']['title'] = 'Master '.$sheet_name;
         $data['page']['sheet_name'] = $sheet_name;
-        $data['tab-menu']['title'] = Str::headline('Master ' . $sheet_name);
+        $data['tab-menu']['title'] = Str::headline('Master '.$sheet_name);
 
         $user_id = auth()->user()->id;
-        $form_row_type = 'multi';/*single / multi kalo single cek detail kosong redirect*/
+        $form_row_type = 'multi'; /* single / multi kalo single cek detail kosong redirect */
         $id = $id;
         // $indicator_method_id = 45; dinamic dari tabel hse_indicator_method
         $type = $this->sheet_name;
 
         $data_config = self::config($id);
-        if (!is_numeric($id) && $id !== null && $id !== 'new') {
-            return redirect()->route($data_config['ajax']['url_prefix'] . '.index')->with('status', 'Please created/save Form request!');
+        if (! is_numeric($id) && $id !== null && $id !== 'new') {
+            return redirect()->route($data_config['ajax']['url_prefix'].'.index')->with('status', 'Please created/save Form request!');
         }
 
         $formdata = null;
@@ -692,14 +701,13 @@ class CompanyController extends Controller
         //     'col' => 'col-12 col-md-2 mc-2',
         // ];
 
-
         $query = '
             select
-                ' . implode(',', $view_tabel) . '
+                '.implode(',', $view_tabel).'
             from master_company as mc
             left join master_file_manager mfm on mc.company_logo_id=mfm.id
             left join master_gallery mg on mg.id=mfm.wgallery_id
-            where mc.id = "' . $id . '"
+            where mc.id = "'.$id.'"
         ';
 
         if ($id || $id == 0) {
@@ -708,17 +716,17 @@ class CompanyController extends Controller
             // dd($query,$formdata);
             // redirect jika bukan bulti insert
             if (empty($formdata) && $form_row_type == 'single') {
-                return redirect()->route($data_config['ajax']['url_prefix'] . '.index')->with('error_message', 'Data not found with id ' . $id . ' not found in database.');
+                return redirect()->route($data_config['ajax']['url_prefix'].'.index')->with('error_message', 'Data not found with id '.$id.' not found in database.');
             }
 
-            $data_config = self::config($id, (array)$formdata);
+            $data_config = self::config($id, (array) $formdata);
         }
         if (empty($formdata)) {
             $insertNew = self::insertNew($request, $query, $id);
             if (empty($insertNew)) {
                 $formdata = [0];
             } else {
-                $formdata =  $insertNew;
+                $formdata = $insertNew;
             }
         }
 
@@ -762,6 +770,7 @@ class CompanyController extends Controller
         // }
         // dd($formdata);
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form', 'view_form_list', 'view_form_listDetail');
+
         // dd($page_var);
         // return view('hse-dar.' . $sheet_slug . '.request', $page_var);
         return view('master::layouts.request', $page_var);
@@ -815,7 +824,7 @@ class CompanyController extends Controller
 
             $caption = $file->getClientOriginalName();
             $url = null;
-            $path = 'app/public/gallery/' . $prefix;
+            $path = 'app/public/gallery/'.$prefix;
             $filename = null;
             $size = $file->getSize();
             $header_type = $file->getClientMimeType();
@@ -836,17 +845,16 @@ class CompanyController extends Controller
                 'file_type' => $file_type,
             ]);
 
-            $filename = $Gallery->id . "-" . $file->getClientOriginalName();
-            $filePath = $file->storeAs('public/gallery/' . $prefix, $filename, 'local');
+            $filename = $Gallery->id.'-'.$file->getClientOriginalName();
+            $filePath = $file->storeAs('public/gallery/'.$prefix, $filename, 'local');
 
             $Gallery->filename = $filename;
-            $Gallery->url = config('app.url') . '/storage/gallery/' . $prefix . '/' . $filename;
+            $Gallery->url = config('app.url').'/storage/gallery/'.$prefix.'/'.$filename;
             $Gallery->save();
 
             array_push($return_id, $Gallery->id);
             array_push($return_name, $Gallery->filename);
         }
-
 
         foreach ($return_id as $wgallery_id) {
             $list_data[] = FileManager::create([
@@ -862,8 +870,9 @@ class CompanyController extends Controller
         $response[] = [
             'success' => true,
             'data' => @$list_data,
-            'message' => count($return_id) . ' Attachment berhasil di submit!',
+            'message' => count($return_id).' Attachment berhasil di submit!',
         ];
+
         return $response;
     }
 
@@ -883,9 +892,9 @@ class CompanyController extends Controller
         $company->delete();
 
         if ($company) {
-            return redirect()->route($this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
+            return redirect()->route($this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
         } else {
-            return redirect()->route($this->sheet_slug . '.index')->with('error', $this->sheet_slug . ' failed to delete');
+            return redirect()->route($this->sheet_slug.'.index')->with('error', $this->sheet_slug.' failed to delete');
         }
     }
 }
