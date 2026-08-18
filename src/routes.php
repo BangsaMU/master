@@ -218,13 +218,7 @@ Route::middleware(['web','auth'])->group(function () {
 
 // =======================================
 
-/*
-|--------------------------------------------------------------------------
-| Master Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
+Route::middleware(['web'])->group(function () {
+    Route::get('/dynamic-logo.png', [\Bangsamu\Master\Controllers\DynamicAssetController::class, 'logo'])->name('dynamic.logo');
+    Route::get('/dynamic-favicon.ico', [\Bangsamu\Master\Controllers\DynamicAssetController::class, 'favicon'])->name('dynamic.favicon');
+});

@@ -23,7 +23,9 @@ class MasterPackageServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\Bangsamu\Master\Services\DynamicAssetService::class, function ($app) {
+            return new \Bangsamu\Master\Services\DynamicAssetService();
+        });
     }
 
     /**

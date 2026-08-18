@@ -129,18 +129,31 @@ class Menu extends Component
             if (!empty($item['can'])) {
                 $can = $item['can'];
                 if (function_exists('auth') && Auth::check()) {
-                    if (is_array($can)) {
-                        $hasPermission = false;
-                        foreach ($can as $perm) {
-                            if (Auth::user()->can($perm) || (method_exists(Auth::user(), 'hasPermissionTo') && Auth::user()->hasPermissionTo($perm))) {
+                    $canList = is_array($can) ? $can : [$can];
+                    $hasPermission = false;
+                    foreach ($canList as $perm) {
+                        if (function_exists('checkPermission')) {
+                            if (checkPermission($perm)) {
                                 $hasPermission = true;
                                 break;
                             }
+                        } else {
+                            try {
+                                $user = Auth::user();
+                                if (method_exists($user, 'hasRole') && $user->hasRole($perm)) {
+                                    $hasPermission = true;
+                                    break;
+                                }
+                                if ($user->can($perm)) {
+                                    $hasPermission = true;
+                                    break;
+                                }
+                            } catch (\Throwable $e) {
+                                // Ignore non-existent permission in database
+                            }
                         }
-                        if (!$hasPermission) {
-                            continue;
-                        }
-                    } elseif (!Auth::user()->can($can)) {
+                    }
+                    if (!$hasPermission) {
                         continue;
                     }
                 }
