@@ -64,6 +64,17 @@
     }
 
     function syncFn(tabel) {
+        if (typeof Swal === 'undefined') {
+            if (typeof window.Sweetalert2 !== 'undefined') {
+                window.Swal = window.Sweetalert2;
+            } else {
+                if (confirm("Apa ingin melakukan sync ke database master " + tabel + "?")) {
+                    if (typeof $.LoadingOverlay !== 'undefined') $.LoadingOverlay('show');
+                    processTabelString(tabel);
+                }
+                return;
+            }
+        }
         tableName = "#{{ $data['page']['slug'] }}_tabel";
         Swal.fire({
                 title: "Sync",

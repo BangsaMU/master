@@ -245,6 +245,9 @@
                         @isset($data['datatable']['btn'])
                             <div class="flex items-center gap-2 mb-4">
                                 @foreach ($data['datatable']['btn'] as $key => $item)
+                                    @if(($key === 'sync' || str_contains(($item['act'] ?? ''), 'syncFn')) && function_exists('is_master_db_same_as_default') && is_master_db_same_as_default())
+                                        @continue
+                                    @endif
                                     @php
                                         $btnClass = 'button button--sm';
                                         $iconClass = $item['icon'] ?? '';
@@ -308,6 +311,9 @@
                     <div class="card-body table-responsive">
                         @isset($data['datatable']['btn'])
                             @foreach ($data['datatable']['btn'] as $key => $item)
+                                @if(($key === 'sync' || str_contains(($item['act'] ?? ''), 'syncFn')) && function_exists('is_master_db_same_as_default') && is_master_db_same_as_default())
+                                    @continue
+                                @endif
                                 <a id="{{ $item['id'] }}"
                                     @isset($item['url']) href="{!! $item['url'] !!}" @endisset
                                     @isset($item['act']) onclick="{!! $item['act'] !!}" @endisset

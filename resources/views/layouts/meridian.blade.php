@@ -195,6 +195,7 @@
 
     <!-- Scripts -->
     <script src="{{ asset('jquery.js') }}"></script>
+    <script src="{{ asset('assets/vendor/cdn-fallback/loadingoverlay.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/@stisla/vanilla@3/dist/stisla.js"></script>
     <script src="{{ asset('assets/js/app-shell.js') }}"></script>
@@ -205,8 +206,19 @@
     <script src="{{ asset('assets/vendor/select2.min.js') }}"></script>
     <script src="{{ asset('datatables/dataTables.js') }}"></script>
     <script src="{{ asset('assets/js/fancybox.umd.js') }}"></script>
+    <script src="{{ asset('assets/vendor/cdn-fallback/sweetalert2.all.min.js') }}"></script>
 
     <script>
+        if (typeof window.Swal === 'undefined' && typeof window.Sweetalert2 !== 'undefined') {
+            window.Swal = window.Sweetalert2;
+        }
+
+        if (typeof $.LoadingOverlay === 'undefined') {
+            $.LoadingOverlay = function(action) {
+                console.log('LoadingOverlay:', action);
+            };
+        }
+
         function filterSidebarMenu(query) {
             query = query.toLowerCase();
             $('#sidebar-menu-list li').each(function() {
