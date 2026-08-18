@@ -40,10 +40,22 @@
             {{-- Brand Header --}}
             <header class="sidebar__header p-4 border-b border-border flex items-center justify-between">
                 <a class="sidebar__brand flex items-center gap-2 font-bold text-lg text-primary" href="{{ url('/') }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 1.5l3.4 7.1 7.1 3.4-7.1 3.4-3.4 7.1-3.4-7.1L1.5 12l7.1-3.4z" opacity=".45"/>
-                        <path d="M12 1.5l3.4 7.1L12 12 8.6 8.6z"/>
-                    </svg>
+                    @php
+                        $userCompanyLogo = get_user_company_logo();
+                    @endphp
+                    @if($userCompanyLogo)
+                        <img src="{{ $userCompanyLogo }}" alt="Company Logo" class="h-7 w-auto max-w-[140px] object-contain" onError="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-block';" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+                            <path d="M12 1.5l3.4 7.1 7.1 3.4-7.1 3.4-3.4 7.1-3.4-7.1L1.5 12l7.1-3.4z" opacity=".45"/>
+                            <path d="M12 1.5l3.4 7.1L12 12 8.6 8.6z"/>
+                        </svg>
+                    @else
+                        <img src="{{ asset('logo.png') }}" alt="Logo" class="h-7 w-auto max-w-[140px] object-contain" onError="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-block';" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+                            <path d="M12 1.5l3.4 7.1 7.1 3.4-7.1 3.4-3.4 7.1-3.4-7.1L1.5 12l7.1-3.4z" opacity=".45"/>
+                            <path d="M12 1.5l3.4 7.1L12 12 8.6 8.6z"/>
+                        </svg>
+                    @endif
                     <span>{{ Bangsamu\LibraryClay\Controllers\LibraryClayController::getSettings('application.name', config('app.name', 'Laravel')) }}</span>
                 </a>
             </header>
