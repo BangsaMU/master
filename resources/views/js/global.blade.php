@@ -30,8 +30,6 @@
         let class_code = respon_code != 200 ? 'bg-warning' : 'bg-success';
         console.log('class_code::', class_code);
         var data_body = '';
-        {{-- let myAlert = document.querySelector('.toast');
-    var bsAlert = new bootstrap.Toast(myAlert); --}}
 
         var i = 0;
         if (typeof data === 'object' && data !== null) {
@@ -42,36 +40,88 @@
             });
         } else {
             i++;
-            // data_body += 'Silahkan Hubungi admin ato pastikan data di input sesuai dan unik <br>';
             data_body += i + '.' + data + '<br>';
         }
 
-        $(document).Toasts('create', {
-            class: class_code,
-            title: judul,
-            subtitle: ' {{ now() }}',
-            delay: 3000,
-            autohide: true,
-            fade: true,
-            body: data_body
-        })
+        if (typeof $.fn.Toasts === 'function') {
+            $(document).Toasts('create', {
+                class: class_code,
+                title: judul,
+                subtitle: ' {{ now() }}',
+                delay: 3000,
+                autohide: true,
+                fade: true,
+                body: data_body
+            });
+        } else {
+            alert(judul + '\n' + data_body.replace(/<br>/g, '\n'));
+        }
     }
 
     Fancybox.bind('[data-fancybox="slip-route"]', {
-            // Your custom options for a specific gallery
-        });
-
+        // Your custom options for a specific gallery
+    });
 
     Fancybox.bind('[data-fancybox="notif"]', {
-            // Your custom options for a specific gallery
-        });
+        // Your custom options for a specific gallery
+    });
 
     Fancybox.bind('[data-fancybox="route-slip"]', {
         // Your custom options for a specific gallery
     });
 
     function importFn() {
-            $('#importItemDiv').toggleClass('d-none');
-            return false;
+        const importEl = document.getElementById('importItemDiv');
+        if (importEl) {
+            const isCurrentlyClosed = importEl.classList.contains('hidden') || 
+                                      importEl.classList.contains('d-none') || 
+                                      importEl.getAttribute('data-state') === 'closed' || 
+                                      !importEl.open;
+
+            if (isCurrentlyClosed) {
+                importEl.classList.remove('hidden', 'd-none');
+                importEl.setAttribute('data-state', 'open');
+                importEl.setAttribute('open', '');
+
+                if (typeof importEl.showModal === 'function' && importEl.tagName.toLowerCase() === 'dialog') {
+                    try {
+                        if (!importEl.open) {
+                            importEl.showModal();
+                        }
+                    } catch (e) {
+                        console.warn('showModal:', e);
+                    }
+                }
+            } else {
+                importFnClose();
+            }
         }
+        return false;
+    }
+
+    function importFnClose() {
+        const importEl = document.getElementById('importItemDiv');
+        if (importEl) {
+            if (typeof importEl.close === 'function' && importEl.tagName.toLowerCase() === 'dialog') {
+                try {
+                    if (importEl.open) {
+                        importEl.close();
+                    }
+                } catch (e) {
+                    console.warn('close:', e);
+                }
+            }
+            importEl.classList.add('hidden');
+            importEl.setAttribute('data-state', 'closed');
+            importEl.removeAttribute('open');
+        }
+        return false;
+    }
+
+    $(document).on('click', '[data-dismiss="alert"], .alert-dismissible .close, .alert .close', function(e) {
+        e.preventDefault();
+        $(this).closest('.alert').fadeOut(150, function() {
+            $(this).remove();
+        });
+    });
 </script>

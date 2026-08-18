@@ -1,5 +1,10 @@
 @php
-    if (config('app.themes') == '_tabler') {
+    $theme = config('app.themes');
+    if ($theme == '_meridian') {
+        $themeLayout = view()->exists('layouts.meridian')
+            ? 'layouts.meridian'
+            : 'master::layouts.meridian';
+    } elseif ($theme == '_tabler') {
         // Cek apakah view "layouts.tabler" ada
         $themeLayout = view()->exists('layouts.tabler')
             ? 'layouts.tabler'
@@ -17,113 +22,251 @@
 @stop
 
 @section('content')
-    @if (session('error_message'))
-        <div class="row">
-            <div class="col-12 alert alert-danger alert-dismissible" role="alert">
-                @if (is_array(Session::get('error_message')))
-                    @foreach (Session::get('error_message') as $error)
-                        {!! $error . '<br/>' !!}
-                    @endforeach
-                @else
-                    {!! Session::get('error_message') . '<br/>' !!}
-                @endif
-
-                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+    @if(config('app.themes') == '_meridian')
+        @if (session('error_message'))
+            <div class="alert alert--danger alert-danger alert-dismissible mb-4 flex items-center justify-between" role="alert">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-exclamation-circle text-lg"></i>
+                    <div>
+                        @if (is_array(Session::get('error_message')))
+                            @foreach (Session::get('error_message') as $error)
+                                {!! $error . '<br/>' !!}
+                            @endforeach
+                        @else
+                            {!! Session::get('error_message') . '<br/>' !!}
+                        @endif
+                    </div>
+                </div>
+                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-        </div>
-    @endif
+        @endif
 
-    @if (session('success_message'))
-        <div class="row">
-            <div class="col-12 alert alert-success alert-dismissible" role="alert">
-                @if (is_array(Session::get('success_message')))
-                    @foreach (Session::get('success_message') as $error)
-                        {!! $error . '<br/>' !!}
-                    @endforeach
-                @else
-                    {!! Session::get('success_message') . '<br/>' !!}
-                @endif
-
-                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+        @if (session('success_message'))
+            <div class="alert alert--success alert-success alert-dismissible mb-4 flex items-center justify-between" role="alert">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-check-circle text-lg"></i>
+                    <div>
+                        @if (is_array(Session::get('success_message')))
+                            @foreach (Session::get('success_message') as $error)
+                                {!! $error . '<br/>' !!}
+                            @endforeach
+                        @else
+                            {!! Session::get('success_message') . '<br/>' !!}
+                        @endif
+                    </div>
+                </div>
+                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-        </div>
-    @endif
+        @endif
 
-    @if (Session::has('error'))
-        @if (!empty(Session::get('error')))
+        @if (Session::has('error') && !empty(Session::get('error')))
+            <div class="alert alert--danger alert-danger alert-dismissible mb-4 flex items-center justify-between" role="alert">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-exclamation-circle text-lg"></i>
+                    <div>
+                        @php
+                            foreach (Session::get('error') as $error):
+                                echo (is_array($error) ? ($error['message'] ?? implode('<br/>', $error)) : $error) . '<br/>';
+                            endforeach;
+                        @endphp
+                    </div>
+                </div>
+                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        @endif
+
+        @if (Session::has('success') && !empty(Session::get('success')))
+            <div class="alert alert--success alert-success alert-dismissible mb-4 flex items-center justify-between" role="alert">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-check-circle text-lg"></i>
+                    <div>
+                        @php
+                            foreach (Session::get('success') as $success):
+                                echo (is_array($success) ? ($success['message'] ?? implode('<br/>', $success)) : $success) . '<br/>';
+                            endforeach;
+                        @endphp
+                    </div>
+                </div>
+                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        @endif
+    @else
+        @if (session('error_message'))
             <div class="row">
-                <div class="col-xs-12 alert alert-danger alert-dismissible" role="alert">
-                    @php
-                        foreach (Session::get('error') as $error):
-                            echo $error['message'] . '<br/>';
-                        endforeach;
-                    @endphp
+                <div class="col-12 alert alert-danger alert-dismissible" role="alert">
+                    @if (is_array(Session::get('error_message')))
+                        @foreach (Session::get('error_message') as $error)
+                            {!! $error . '<br/>' !!}
+                        @endforeach
+                    @else
+                        {!! Session::get('error_message') . '<br/>' !!}
+                    @endif
+
                     <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 </div>
             </div>
         @endif
-    @endif
 
-    @if (Session::has('success'))
-        @if (!empty(Session::get('success')))
+        @if (session('success_message'))
             <div class="row">
-                <div class="col-xs-12 alert alert-success alert-dismissible" role="alert">
-                    @php
-                        foreach (Session::get('success') as $success):
-                            echo $success['message'] . '<br/>';
-                        endforeach;
-                    @endphp
+                <div class="col-12 alert alert-success alert-dismissible" role="alert">
+                    @if (is_array(Session::get('success_message')))
+                        @foreach (Session::get('success_message') as $error)
+                            {!! $error . '<br/>' !!}
+                        @endforeach
+                    @else
+                        {!! Session::get('success_message') . '<br/>' !!}
+                    @endif
+
                     <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 </div>
             </div>
+        @endif
+
+        @if (Session::has('error'))
+            @if (!empty(Session::get('error')))
+                <div class="row">
+                    <div class="col-xs-12 alert alert-danger alert-dismissible" role="alert">
+                        @php
+                            foreach (Session::get('error') as $error):
+                                echo $error['message'] . '<br/>';
+                            endforeach;
+                        @endphp
+                        <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                    </div>
+                </div>
+            @endif
+        @endif
+
+        @if (Session::has('success'))
+            @if (!empty(Session::get('success')))
+                <div class="row">
+                    <div class="col-xs-12 alert alert-success alert-dismissible" role="alert">
+                        @php
+                            foreach (Session::get('success') as $success):
+                                echo $success['message'] . '<br/>';
+                            endforeach;
+                        @endphp
+                        <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                    </div>
+                </div>
+            @endif
         @endif
     @endif
 
     @include('layouts.dashboard.comment', ['data' => @$data])
 
-    <div class="row">
-        <div class="col-12">
-            {{-- card Import Item --}}
-            @isset($data['page']['import'])
-                @include($data['page']['import']['layout'])
-            @endisset
+    @if(config('app.themes') == '_meridian')
+        <div class="grid grid-cols-12 gap-4">
+            <div class="col-span-12">
+                @isset($data['page']['import'])
+                    @include($data['page']['import']['layout'])
+                @endisset
 
-            <div class="card card-outline card-primary ">
-                <div class="card-body table-responsive">
+                <div class="card">
+                    <div class="card__body p-6">
+                        @isset($data['datatable']['btn'])
+                            <div class="flex items-center gap-2 mb-4">
+                                @foreach ($data['datatable']['btn'] as $key => $item)
+                                    @php
+                                        $btnClass = 'button button--sm';
+                                        $iconClass = $item['icon'] ?? '';
+                                        if (str_contains($iconClass, 'btn-primary')) {
+                                            $btnClass .= ' button--primary';
+                                        } elseif (str_contains($iconClass, 'btn-warning')) {
+                                            $btnClass .= ' button--warning';
+                                        } elseif (str_contains($iconClass, 'btn-danger')) {
+                                            $btnClass .= ' button--danger';
+                                        } elseif (str_contains($iconClass, 'btn-info')) {
+                                            $btnClass .= ' button--info';
+                                        } elseif (str_contains($iconClass, 'btn-secondary') || str_contains($iconClass, 'btn-default')) {
+                                            $btnClass .= ' button--neutral button--outline';
+                                        } else {
+                                            $btnClass .= ' ' . $iconClass;
+                                        }
+                                    @endphp
+                                    <a id="{{ $item['id'] }}"
+                                        @if(($item['id'] ?? '') === 'importitem' || str_contains(($item['act'] ?? ''), 'importFn'))
+                                            data-stisla-dialog-trigger="importItemDiv"
+                                        @endif
+                                        @isset($item['url']) href="{!! $item['url'] !!}" @endisset
+                                        @isset($item['act']) onclick="{!! $item['act'] !!}" @endisset
+                                        class="{{ $btnClass }}">
+                                        {{ $item['title'] }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endisset
 
-                    @isset($data['datatable']['btn'])
-                        @foreach ($data['datatable']['btn'] as $key => $item)
-                            <a id="{{ $item['id'] }}"
-                                @isset($item['url'])
-                                    href="{!! $item['url'] !!}"
-                                @endisset
-                                @isset($item['act'])
-                                    onclick="{!! $item['act'] !!}"
-                                @endisset
-                                class="btn btn-sm {{ $item['icon'] }} mb-3">
-                                {{ $item['title'] }}
-                            </a>
-                        @endforeach
-                    @endisset
-
-                    <table id="{{ $data['page']['tabel'] }}_tabel" class="table table-hover table-bordered table-striped"
-                        style="width:100%">
-                        <thead>
-                            <tr class="header"></tr>
-                            <tr class="cari d-none"></tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                        <tfoot id="{{ $data['page']['slug'] }}_footer">
-                            <tr class="header"></tr>
-                            <tr class="cari d-none"></tr>
-                        </tfoot>
-                    </table>
-
+                        <div class="table-responsive">
+                            <table id="{{ $data['page']['tabel'] }}_tabel" class="table table-hover"
+                                style="width:100%">
+                                <thead>
+                                    <tr class="header"></tr>
+                                    <tr class="cari hidden"></tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                                <tfoot id="{{ $data['page']['slug'] }}_footer">
+                                    <tr class="header"></tr>
+                                    <tr class="cari hidden"></tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    @else
+        <div class="row">
+            <div class="col-12">
+                @isset($data['page']['import'])
+                    @include($data['page']['import']['layout'])
+                @endisset
+
+                <div class="card card-outline card-primary ">
+                    <div class="card-body table-responsive">
+                        @isset($data['datatable']['btn'])
+                            @foreach ($data['datatable']['btn'] as $key => $item)
+                                <a id="{{ $item['id'] }}"
+                                    @isset($item['url'])
+                                        href="{!! $item['url'] !!}"
+                                    @endisset
+                                    @isset($item['act'])
+                                        onclick="{!! $item['act'] !!}"
+                                    @endisset
+                                    class="btn btn-sm {{ $item['icon'] }} mb-3">
+                                    {{ $item['title'] }}
+                                </a>
+                            @endforeach
+                        @endisset
+
+                        <table id="{{ $data['page']['tabel'] }}_tabel" class="table table-hover table-bordered table-striped"
+                            style="width:100%">
+                            <thead>
+                                <tr class="header"></tr>
+                                <tr class="cari d-none"></tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                            <tfoot id="{{ $data['page']['slug'] }}_footer">
+                                <tr class="header"></tr>
+                                <tr class="cari d-none"></tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 @stop
 
 @push('js')
