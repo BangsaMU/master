@@ -6,6 +6,8 @@ use Illuminate\View\Component;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use JeroenNoten\LaravelAdminLte\Events\BuildingMenu;
+use JeroenNoten\LaravelAdminLte\Menu\Builder as MenuBuilder;
 
 class Menu extends Component
 {
@@ -24,7 +26,42 @@ class Menu extends Component
      */
     public function __construct($menu = 'main_menu')
     {
-        $rawItems = config("adminlte.menu");
+        $rawItems = [];
+
+        if (class_exists(MenuBuilder::class) && class_exists(BuildingMenu::class)) {
+            try {
+                $filters = config('adminlte.filters', []);
+                $resolvedFilters = array_map([app(), 'make'], $filters);
+                $builder = new MenuBuilder($resolvedFilters);
+
+                $staticMenu = config('adminlte.menu', []);
+                if (is_array($staticMenu)) {
+                    $builder->add(...$staticMenu);
+                }
+
+                // Dispatch BuildingMenu event so EventServiceProvider listeners run every time
+                event(new BuildingMenu($builder));
+
+                $rawItems = $builder->menu;
+            } catch (\Throwable $e) {
+                $rawItems = [];
+            }
+        }
+
+        if (empty($rawItems) && app()->bound('adminlte')) {
+            try {
+                $rawItems = app('adminlte')->menu('sidebar');
+                if (empty($rawItems)) {
+                    $rawItems = app('adminlte')->menu();
+                }
+            } catch (\Throwable $e) {
+                $rawItems = [];
+            }
+        }
+
+        if (empty($rawItems)) {
+            $rawItems = config("adminlte.menu", []);
+        }
 
         if (empty($rawItems)) {
             $rawItems = config("menu.{$menu}") ?? config("MasterMenu.{$menu}", []);
@@ -60,7 +97,18 @@ class Menu extends Component
             if (!empty($item['can'])) {
                 $can = $item['can'];
                 if (function_exists('auth') && Auth::check()) {
-                    if (!Auth::user()->can($can)) {
+                    if (is_array($can)) {
+                        $hasPermission = false;
+                        foreach ($can as $perm) {
+                            if (Auth::user()->can($perm) || (method_exists(Auth::user(), 'hasPermissionTo') && Auth::user()->hasPermissionTo($perm))) {
+                                $hasPermission = true;
+                                break;
+                            }
+                        }
+                        if (!$hasPermission) {
+                            continue;
+                        }
+                    } elseif (!Auth::user()->can($can)) {
                         continue;
                     }
                 }
@@ -85,7 +133,13 @@ class Menu extends Component
                     ? $item['url']
                     : url($item['url']);
             } elseif (!empty($item['route'])) {
-                $url = Route::has($item['route']) ? route($item['route']) : '#';
+                if (is_array($item['route'])) {
+                    $routeName = $item['route'][0] ?? '';
+                    $routeParams = $item['route'][1] ?? [];
+                    $url = Route::has($routeName) ? route($routeName, $routeParams) : '#';
+                } else {
+                    $url = Route::has($item['route']) ? route($item['route']) : '#';
+                }
             }
 
             // Submenu handling
