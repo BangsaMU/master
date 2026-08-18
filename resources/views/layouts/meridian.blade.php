@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', Bangsamu\LibraryClay\Controllers\LibraryClayController::getSettings('application.name', config('app.name', 'Laravel')))</title>
 
-    <!-- Theme initialization (prevents flash) -->
+    <!-- Theme initialization (prevents flash)  -->
     <script>
         (function () {
             var t = localStorage.getItem("stisla-theme");
