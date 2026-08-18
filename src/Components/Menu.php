@@ -71,16 +71,33 @@ class Menu extends Component
     }
 
     /**
-     * Normalize menu items for unified rendering across themes.
+     * Normalize menu items for unified rendering across themes, removing dummy anchors and duplicates.
      *
      * @param array $items
+     * @param array $seenKeys
+     * @param array $seenSignatures
      * @return array
      */
-    protected function normalizeMenuItems(array $items): array
+    protected function normalizeMenuItems(array $items, array &$seenKeys = [], array &$seenSignatures = []): array
     {
         $normalized = [];
 
         foreach ($items as $item) {
+            // Support raw string headers (e.g. 'MASTER', 'CMS Menu')
+            if (is_string($item)) {
+                $headerTitle = trim($item);
+                $headerSig = 'header|' . strtolower($headerTitle);
+                if (in_array($headerSig, $seenSignatures, true)) {
+                    continue;
+                }
+                $seenSignatures[] = $headerSig;
+                $normalized[] = [
+                    'type' => 'header',
+                    'title' => $headerTitle,
+                ];
+                continue;
+            }
+
             if (!is_array($item)) {
                 continue;
             }
@@ -90,6 +107,21 @@ class Menu extends Component
                 continue;
             }
             if (!empty($item['type']) && in_array($item['type'], ['navbar-search', 'fullscreen-widget', 'sidebar-menu-search'])) {
+                continue;
+            }
+
+            // Header item defined as array ['header' => 'Title']
+            if (isset($item['header'])) {
+                $headerTitle = trim($item['header']);
+                $headerSig = 'header|' . strtolower($headerTitle);
+                if (in_array($headerSig, $seenSignatures, true)) {
+                    continue;
+                }
+                $seenSignatures[] = $headerSig;
+                $normalized[] = [
+                    'type' => 'header',
+                    'title' => $headerTitle,
+                ];
                 continue;
             }
 
@@ -114,13 +146,11 @@ class Menu extends Component
                 }
             }
 
-            // Header item
-            if (isset($item['header'])) {
-                $normalized[] = [
-                    'type' => 'header',
-                    'title' => $item['header'],
-                ];
-                continue;
+            // Check for duplicate key
+            if (!empty($item['key'])) {
+                if (in_array($item['key'], $seenKeys, true)) {
+                    continue;
+                }
             }
 
             // Title / Text resolution
@@ -146,7 +176,31 @@ class Menu extends Component
             $submenuRaw = $item['submenu'] ?? $item['children'] ?? [];
             $submenu = [];
             if (!empty($submenuRaw)) {
-                $submenu = $this->normalizeMenuItems($submenuRaw);
+                $submenu = $this->normalizeMenuItems($submenuRaw, $seenKeys, $seenSignatures);
+            }
+
+            // Skip dummy anchor keys (e.g. cms-item, module-item, master-item) used only for addBefore placement
+            if (!empty($item['key']) && Str::endsWith($item['key'], '-item') && empty($submenu)) {
+                continue;
+            }
+
+            // Skip items with no URL, no route, no submenu, and no icon
+            if (($url === '#' || empty($url)) && empty($submenu) && empty($item['icon'])) {
+                continue;
+            }
+
+            // Check for duplicate signature (Title + URL)
+            $signature = strtolower($title) . '|' . strtolower($url);
+            if ($url !== '#' && in_array($signature, $seenSignatures, true)) {
+                continue;
+            }
+
+            // Mark key and signature as seen
+            if (!empty($item['key'])) {
+                $seenKeys[] = $item['key'];
+            }
+            if ($url !== '#') {
+                $seenSignatures[] = $signature;
             }
 
             $type = !empty($submenu) ? 'dropdown' : ($item['type'] ?? 'item');
