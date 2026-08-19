@@ -124,6 +124,7 @@
                                         @endforeach
                                     </select>
                                     <button type="button" class="button button--neutral button--outline button--sm ms-2" id="btn_add_key">Add Key</button>
+                                    <button type="button" class="button button--info button--outline button--sm ms-1" id="btn_add_field">+ Add Field</button>
                                 </div>
                             </div>
                         @else
@@ -246,19 +247,15 @@
                 const container = document.getElementById(containerId);
                 if (!container) return;
 
-                let placeholderVal = 'Value (e.g. MEI-FLK-MTC-001)';
-                if (fieldName === 'rev_no') {
-                    placeholderVal = 'Rev No (e.g. 1 or 1-spb)';
-                } else if (fieldName === 'issued_date') {
-                    placeholderVal = 'Issued Date (e.g. 2026-07-09)';
-                }
+                let labelText = fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                let placeholderVal = `${labelText} (e.g. value)`;
 
                 const row = document.createElement('div');
                 row.className = `flex items-center gap-2 mb-2 ${fieldName}-row`;
                 row.innerHTML = `
-                    <input type="text" class="input ${fieldName}-key w-1/3" placeholder="Key (e.g. spb)" value="${subKey}">
-                    <input type="text" class="input ${fieldName}-value flex-1" placeholder="${placeholderVal}" value="${subVal}">
-                    <button type="button" class="button button--danger button--ghost button--icon-only button--sm btn-remove-row" title="Remove">&times;</button>
+                    <input type="text" class="input ${fieldName}-key" style="max-width: 35%;" placeholder="Key (e.g. spb)" value="${subKey}">
+                    <input type="text" class="input flex-1 ${fieldName}-value" placeholder="${placeholderVal}" value="${subVal}">
+                    <button type="button" class="button button--danger button--outline button--sm btn-remove-row" title="Remove">&times;</button>
                 `;
 
                 const keyInput = row.querySelector(`.${fieldName}-key`);
@@ -297,6 +294,49 @@
                 }
             }
 
+            function ensureFieldContainer(fieldName) {
+                let container = document.getElementById(`${fieldName}_container`);
+                if (container) return container;
+
+                const dynamicFieldsWrapper = document.getElementById('dynamic-form-fields');
+                if (!dynamicFieldsWrapper) return null;
+
+                const labelText = fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+                const fieldGroup = document.createElement('div');
+                fieldGroup.className = 'field flex flex-col gap-1 custom-dynamic-field-group';
+                fieldGroup.id = `field_group_${fieldName}`;
+
+                fieldGroup.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="field__label text-sm font-medium text-foreground m-0">${labelText}</label>
+                        <button type="button" class="button button--sm button--neutral button--outline text-xs" id="btn_add_${fieldName}">
+                            + Add ${labelText}
+                        </button>
+                    </div>
+                    <div id="${fieldName}_container" class="flex flex-col gap-2"></div>
+                `;
+
+                const formatDateEl = document.getElementById('field_format_date');
+                const formatDateGroup = formatDateEl ? formatDateEl.closest('.field') : null;
+
+                if (formatDateGroup && formatDateGroup.parentNode === dynamicFieldsWrapper) {
+                    dynamicFieldsWrapper.insertBefore(fieldGroup, formatDateGroup);
+                } else {
+                    dynamicFieldsWrapper.appendChild(fieldGroup);
+                }
+
+                const btnAdd = fieldGroup.querySelector(`#btn_add_${fieldName}`);
+                if (btnAdd) {
+                    btnAdd.addEventListener('click', function() {
+                        createFieldRow(`${fieldName}_container`, '', '', fieldName);
+                        syncFieldData(fieldName);
+                    });
+                }
+
+                return document.getElementById(`${fieldName}_container`);
+            }
+
             function loadKeyData(key) {
                 if (!templateData[key]) {
                     templateData[key] = {
@@ -321,12 +361,21 @@
                 }
                 const data = templateData[key];
                 
-                dynamicFields.forEach(fieldName => {
-                    renderFieldContainer(fieldName, data[fieldName]);
-                });
+                document.querySelectorAll('.custom-dynamic-field-group').forEach(el => el.remove());
 
-                document.getElementById('field_format_date').value = data.format_date || '';
-                document.getElementById('field_template_header').value = data.template_header !== undefined ? data.template_header : 1;
+                const allKeys = Object.keys(data);
+                allKeys.forEach(fieldName => {
+                    if (fieldName === 'format_date') {
+                        const el = document.getElementById('field_format_date');
+                        if (el) el.value = data.format_date || '';
+                    } else if (fieldName === 'template_header') {
+                        const el = document.getElementById('field_template_header');
+                        if (el) el.value = data.template_header !== undefined ? data.template_header : 1;
+                    } else {
+                        ensureFieldContainer(fieldName);
+                        renderFieldContainer(fieldName, data[fieldName]);
+                    }
+                });
 
                 updateHiddenInput();
             }
@@ -412,6 +461,30 @@
 
                         selectedKeySelect.value = sanitizedKey;
                         loadKeyData(sanitizedKey);
+                    }
+                });
+            }
+
+            const btnAddField = document.getElementById('btn_add_field');
+            if (btnAddField) {
+                btnAddField.addEventListener('click', function() {
+                    const newFieldName = prompt('Enter new field name (e.g. header, footer, remarks):');
+                    if (newFieldName) {
+                        const sanitizedField = newFieldName.trim().toLowerCase().replace(/\s+/g, '_');
+                        if (sanitizedField === '') return;
+
+                        const key = selectedKeySelect.value;
+                        if (!templateData[key]) {
+                            templateData[key] = {};
+                        }
+
+                        if (templateData[key][sanitizedField] !== undefined) {
+                            alert('Field already exists!');
+                            return;
+                        }
+
+                        templateData[key][sanitizedField] = "";
+                        loadKeyData(key);
                     }
                 });
             }

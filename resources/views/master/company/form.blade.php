@@ -96,6 +96,7 @@
                                     </select>
                                     <div class="input-group-append">
                                         <button type="button" class="btn btn-outline-secondary" id="btn_add_key">Add Key</button>
+                                        <button type="button" class="btn btn-outline-info" id="btn_add_field">+ Add Field</button>
                                     </div>
                                 </div>
                             </div>
@@ -219,12 +220,8 @@
                 const container = document.getElementById(containerId);
                 if (!container) return;
 
-                let placeholderVal = 'Value (e.g. MEI-FLK-MTC-001)';
-                if (fieldName === 'rev_no') {
-                    placeholderVal = 'Rev No (e.g. 1 or 1-spb)';
-                } else if (fieldName === 'issued_date') {
-                    placeholderVal = 'Issued Date (e.g. 2026-07-09)';
-                }
+                let labelText = fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                let placeholderVal = `${labelText} (e.g. value)`;
 
                 const row = document.createElement('div');
                 row.className = `input-group mb-2 ${fieldName}-row`;
@@ -272,6 +269,49 @@
                 }
             }
 
+            function ensureFieldContainer(fieldName) {
+                let container = document.getElementById(`${fieldName}_container`);
+                if (container) return container;
+
+                const dynamicFieldsWrapper = document.getElementById('dynamic-form-fields');
+                if (!dynamicFieldsWrapper) return null;
+
+                const labelText = fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+                const fieldGroup = document.createElement('div');
+                fieldGroup.className = 'form-group mb-3 custom-dynamic-field-group';
+                fieldGroup.id = `field_group_${fieldName}`;
+
+                fieldGroup.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="mb-0">${labelText}</label>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_${fieldName}">
+                            + Add ${labelText}
+                        </button>
+                    </div>
+                    <div id="${fieldName}_container"></div>
+                `;
+
+                const formatDateEl = document.getElementById('field_format_date');
+                const formatDateGroup = formatDateEl ? formatDateEl.closest('.form-group') : null;
+
+                if (formatDateGroup && formatDateGroup.parentNode === dynamicFieldsWrapper) {
+                    dynamicFieldsWrapper.insertBefore(fieldGroup, formatDateGroup);
+                } else {
+                    dynamicFieldsWrapper.appendChild(fieldGroup);
+                }
+
+                const btnAdd = fieldGroup.querySelector(`#btn_add_${fieldName}`);
+                if (btnAdd) {
+                    btnAdd.addEventListener('click', function() {
+                        createFieldRow(`${fieldName}_container`, '', '', fieldName);
+                        syncFieldData(fieldName);
+                    });
+                }
+
+                return document.getElementById(`${fieldName}_container`);
+            }
+
             function loadKeyData(key) {
                 if (!templateData[key]) {
                     templateData[key] = {
@@ -296,12 +336,21 @@
                 }
                 const data = templateData[key];
                 
-                dynamicFields.forEach(fieldName => {
-                    renderFieldContainer(fieldName, data[fieldName]);
-                });
+                document.querySelectorAll('.custom-dynamic-field-group').forEach(el => el.remove());
 
-                document.getElementById('field_format_date').value = data.format_date || '';
-                document.getElementById('field_template_header').value = data.template_header !== undefined ? data.template_header : 1;
+                const allKeys = Object.keys(data);
+                allKeys.forEach(fieldName => {
+                    if (fieldName === 'format_date') {
+                        const el = document.getElementById('field_format_date');
+                        if (el) el.value = data.format_date || '';
+                    } else if (fieldName === 'template_header') {
+                        const el = document.getElementById('field_template_header');
+                        if (el) el.value = data.template_header !== undefined ? data.template_header : 1;
+                    } else {
+                        ensureFieldContainer(fieldName);
+                        renderFieldContainer(fieldName, data[fieldName]);
+                    }
+                });
 
                 updateHiddenInput();
             }
@@ -387,6 +436,30 @@
 
                         selectedKeySelect.value = sanitizedKey;
                         loadKeyData(sanitizedKey);
+                    }
+                });
+            }
+
+            const btnAddField = document.getElementById('btn_add_field');
+            if (btnAddField) {
+                btnAddField.addEventListener('click', function() {
+                    const newFieldName = prompt('Enter new field name (e.g. header, footer, remarks):');
+                    if (newFieldName) {
+                        const sanitizedField = newFieldName.trim().toLowerCase().replace(/\s+/g, '_');
+                        if (sanitizedField === '') return;
+
+                        const key = selectedKeySelect.value;
+                        if (!templateData[key]) {
+                            templateData[key] = {};
+                        }
+
+                        if (templateData[key][sanitizedField] !== undefined) {
+                            alert('Field already exists!');
+                            return;
+                        }
+
+                        templateData[key][sanitizedField] = "";
+                        loadKeyData(key);
                     }
                 });
             }
