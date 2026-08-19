@@ -313,14 +313,14 @@
             let id = $("input#id").val();
             let tanggal_akhir_kerja = $("input#tanggal_akhir_kerja").val();
 
-            let list_karyawan_read_premission = '{{ optional(auth()->user())->can('list_karyawan_read') }}';
+            let list_karyawan_read_premission = '{{ checkPermission('list_karyawan_read') ? '1' : '' }}';
             if (list_karyawan_read_premission) {
                 $("input, textarea").attr("readonly", true);
                 $("select").attr("disabled", true);
             }
 
             if (id && id.length > 0) {
-                let list_karyawan_update_premission = '{{ optional(auth()->user())->can('list_karyawan_update') }}';
+                let list_karyawan_update_premission = '{{ checkPermission('list_karyawan_update') ? '1' : '' }}';
                 if (list_karyawan_update_premission) {
                     $("#status_id, #hire_id,  #tanggal_join, #no_id_karyawan").attr("readonly", true);
                     $("#nama, #email, #no_ktp, #posisi, #tanggal_akhir_kerja, #tanggal_akhir_kontrak, #email_corporate, #keterangan")
@@ -328,7 +328,7 @@
                     $("#inputWorkLocation").attr("disabled", false);
                 }
             } else {
-                let list_karyawan_create_premission = '{{ optional(auth()->user())->can('list_karyawan_create') }}';
+                let list_karyawan_create_premission = '{{ checkPermission('list_karyawan_create') ? '1' : '' }}';
                 if (list_karyawan_create_premission) {
                     $("input, textarea").attr("readonly", false);
                     $("select").attr("readonly", false);
@@ -336,7 +336,7 @@
                 }
             }
 
-            let admin_permission = '{{ optional(auth()->user())->can('admin') }}';
+            let admin_permission = '{{ checkPermission('admin') ? '1' : '' }}';
             if (admin_permission) {
                 $("input, textarea").attr("readonly", false);
                 $("select").attr("readonly", false);

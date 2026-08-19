@@ -103,13 +103,13 @@
                     <ul class="sidebar__list flex flex-col gap-1 list-none p-0 m-0 mb-2">
                         <li class="sidebar__item">
                             <a class="sidebar__button flex items-center gap-2 p-2 rounded-md transition-colors hover:bg-surface-2" href="{{ url('/profile') }}">
-                                <i class="fas fa-cog text-muted-foreground"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                                 <span>Settings</span>
                             </a>
                         </li>
                         <li class="sidebar__item">
                             <a class="sidebar__button flex items-center gap-2 p-2 rounded-md text-danger transition-colors hover:bg-surface-2" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form-sidebar').submit();">
-                                <i class="fas fa-sign-out-alt"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                                 <span>Log out</span>
                             </a>
                             <form id="logout-form-sidebar" action="{{ route('logout') }}" method="POST" class="hidden">@csrf</form>
@@ -143,7 +143,7 @@
                 <div class="ms-auto flex items-center gap-2">
                     <!-- Theme Toggle Button -->
                     <button type="button" class="button button--ghost button--neutral button--icon-only" data-theme-toggle aria-label="Toggle theme">
-                        <i class="fas fa-moon"></i>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
                     </button>
 
                     @if(Auth::user())
@@ -153,15 +153,21 @@
                                 <span class="avatar avatar--sm avatar--circle">
                                     <span class="avatar__fallback">{{ strtoupper(substr(Auth::user()->name, 0, 2)) }}</span>
                                 </span>
-                                <i class="fas fa-chevron-down text-xs"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div class="menu__popup w-48 shadow-xl" id="topbarUser" data-stisla-menu role="menu" data-state="closed">
                                 <div class="menu__group">
                                     <h3 class="menu__group-label">{{ Auth::user()->name }}</h3>
-                                    <a href="{{ url('/profile') }}" class="menu__item" role="menuitem"><i class="fas fa-user me-2"></i> Profile</a>
+                                    <a href="{{ url('/profile') }}" class="menu__item flex items-center gap-2" role="menuitem">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        <span>Profile</span>
+                                    </a>
                                 </div>
                                 <hr class="menu__separator" role="separator" />
-                                <a href="{{ route('logout') }}" class="menu__item menu__item--danger" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" role="menuitem"><i class="fas fa-sign-out-alt me-2"></i> Log out</a>
+                                <a href="{{ route('logout') }}" class="menu__item menu__item--danger flex items-center gap-2" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" role="menuitem">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                    <span>Log out</span>
+                                </a>
                             </div>
                         </div>
                         <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">@csrf</form>
