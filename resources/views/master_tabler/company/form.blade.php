@@ -212,11 +212,7 @@
                     const firstKey = rows[0].querySelector(`.${fieldName}-key`).value.trim();
                     const firstVal = rows[0].querySelector(`.${fieldName}-value`).value.trim();
                     if (firstKey === '') {
-                        if (fieldName === 'rev_no' && /^\d+$/.test(firstVal)) {
-                            templateData[key][fieldName] = parseInt(firstVal);
-                        } else {
-                            templateData[key][fieldName] = firstVal;
-                        }
+                        templateData[key][fieldName] = firstVal;
                         updateHiddenInput();
                         return;
                     }
@@ -227,11 +223,7 @@
                     const k = row.querySelector(`.${fieldName}-key`).value.trim();
                     const v = row.querySelector(`.${fieldName}-value`).value.trim();
                     if (k !== '') {
-                        if (fieldName === 'rev_no' && /^\d+$/.test(v)) {
-                            obj[k] = parseInt(v);
-                        } else {
-                            obj[k] = v;
-                        }
+                        obj[k] = v;
                     }
                 });
                 templateData[key][fieldName] = obj;
