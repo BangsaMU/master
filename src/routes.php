@@ -195,28 +195,125 @@ Route::get('session-crul',  [Bangsamu\Master\Controllers\MasterCrulController::c
 
 
 
-Route::get('/optimize', function (Request $request) {
+Route::middleware(['web'])->group(function () {
+    Route::get('/optimize', function (Request $request) {
 
-    try {
-        $exitCode = $request->clear ? Artisan::call('optimize:clear') : Artisan::call('optimize');
-        $output = Artisan::output();
-    } catch (\Throwable $e) {
-        $exitCode = 1;
-        $output = $e->getMessage();
-    }
+        try {
+            $exitCode = $request->clear ? Artisan::call('optimize:clear') : Artisan::call('optimize');
+            $output = Artisan::output();
+        } catch (\Throwable $e) {
+            $exitCode = 1;
+            $output = $e->getMessage();
+        }
 
-    if (function_exists('opcache_reset')) {
-        $opcacheReset = @opcache_reset();
-        $output .= "\nOpcache reset: " . ($opcacheReset ? 'success' : 'failed');
-    }
+        if (function_exists('opcache_reset')) {
+            $opcacheReset = @opcache_reset();
+            $output .= "\nOpcache reset: " . ($opcacheReset ? 'success' : 'failed');
+        }
 
-    if ($exitCode == 0) {
-        return "<pre>Optimize successfully $output</pre>";
-    } else {
-        return "<pre>Optimize failed $output</pre>";
-    }
-    return "<pre>$output</pre>";
+        if ($exitCode == 0) {
+            return "<pre>Optimize successfully $output</pre>";
+        } else {
+            return "<pre>Optimize failed $output</pre>";
+        }
+        return "<pre>$output</pre>";
 
+    });
+
+    Route::get('/composer', function (Request $request) {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '-1');
+
+        $composerBin = 'composer';
+        if (is_executable('/usr/bin/composer')) {
+            $composerBin = '/usr/bin/composer';
+        } elseif (is_executable('/usr/local/bin/composer')) {
+            $composerBin = '/usr/local/bin/composer';
+        }
+
+        $command = null;
+        $action = null;
+
+        if ($request->has('update')) {
+            $action = 'update';
+            $updateVal = $request->get('update');
+            if ($updateVal === '1' || $updateVal === 'true' || empty($updateVal)) {
+                $command = [$composerBin, 'update', '--no-interaction'];
+            } else {
+                $command = [$composerBin, 'update', $updateVal, '--no-interaction'];
+            }
+        } elseif ($request->has('install') || $request->has('instal')) {
+            $action = 'install';
+            $command = [$composerBin, 'install', '--no-interaction'];
+        } elseif ($request->has('require')) {
+            $action = 'require';
+            $package = $request->get('require');
+            $command = [$composerBin, 'require', $package, '--no-interaction'];
+        } elseif ($request->has('remove')) {
+            $action = 'remove';
+            $package = $request->get('remove');
+            $command = [$composerBin, 'remove', $package, '--no-interaction'];
+        } elseif ($request->has('autoload') || $request->has('dump-autoload')) {
+            $action = 'dump-autoload';
+            $command = [$composerBin, 'dump-autoload', '--no-interaction'];
+        }
+
+        if (! $command) {
+            if (! auth()->check()) {
+                abort(404);
+            }
+
+            return "<pre>Composer Management Route\n\n" .
+                "Available parameters:\n" .
+                "  - ?update=1               : Run composer update\n" .
+                "  - ?update=vendor/package  : Run composer update for specific package\n" .
+                "  - ?install=1 / ?instal=1  : Run composer install\n" .
+                "  - ?require=vendor/package : Run composer require vendor/package\n" .
+                "  - ?remove=vendor/package  : Run composer remove vendor/package\n" .
+                "  - ?autoload=1             : Run composer dump-autoload\n" .
+                "</pre>";
+        }
+
+        $env = [
+            'COMPOSER_HOME' => sys_get_temp_dir() . '/.composer',
+            'COMPOSER_MEMORY_LIMIT' => '-1',
+            'PATH' => getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin',
+            'HOME' => getenv('HOME') ?: sys_get_temp_dir(),
+        ];
+
+        try {
+            $process = new \Symfony\Component\Process\Process(
+                $command,
+                base_path(),
+                $env,
+                null,
+                600
+            );
+
+            $process->run();
+            $output = $process->getOutput() . $process->getErrorOutput();
+            $exitCode = $process->getExitCode();
+        } catch (\Throwable $e) {
+            $output = $e->getMessage();
+            $exitCode = 1;
+        }
+
+        $opcacheStatus = '';
+        if (function_exists('opcache_reset')) {
+            $opcacheReset = @opcache_reset();
+            $opcacheStatus = "\nOpcache reset: " . ($opcacheReset ? 'success' : 'failed');
+        }
+
+        $statusText = ($exitCode === 0) ? 'successfully' : 'failed';
+        $cmdString = implode(' ', $command);
+
+        return "<pre>Composer Command: {$cmdString}\nStatus: {$statusText} (Exit Code: {$exitCode}){$opcacheStatus}\n\n" .
+            htmlspecialchars($output, ENT_QUOTES, 'UTF-8') .
+            "</pre>";
+    });
 });
 
 
