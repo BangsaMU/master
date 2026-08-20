@@ -197,8 +197,18 @@ Route::get('session-crul',  [Bangsamu\Master\Controllers\MasterCrulController::c
 
 Route::get('/optimize', function (Request $request) {
 
-    $exitCode = $request->clear ? Artisan::call('optimize:clear') : Artisan::call('optimize');
-    $output = Artisan::output();
+    try {
+        $exitCode = $request->clear ? Artisan::call('optimize:clear') : Artisan::call('optimize');
+        $output = Artisan::output();
+    } catch (\Throwable $e) {
+        $exitCode = 1;
+        $output = $e->getMessage();
+    }
+
+    if (function_exists('opcache_reset')) {
+        $opcacheReset = @opcache_reset();
+        $output .= "\nOpcache reset: " . ($opcacheReset ? 'success' : 'failed');
+    }
 
     if ($exitCode == 0) {
         return "<pre>Optimize successfully $output</pre>";
