@@ -13,6 +13,10 @@ use Throwable;
 class MasterBroadcastService
 {
     /**
+     * Cache broadcasted events in the current request to prevent duplicates.
+     */
+    protected static array $broadcastedInRequest = [];
+    /**
      * Broadcast an item creation or update event to Senada Reverb Hub.
      *
      * @param Model|array<string, mixed>|object $item
@@ -111,6 +115,114 @@ class MasterBroadcastService
             payload: $payload,
             isPrivate: false
         );
+    }
+
+    /**
+     * Broadcast a table modification event for any of the 15 master tables.
+     *
+     * @param string $table
+     * @param Model|array<string, mixed>|object $model
+     * @param string $action 'created'|'updated'|'deleted'
+     * @return array<string, mixed>
+     */
+    public function broadcastTableChange(string $table, $model, string $action = 'updated'): array
+    {
+        $id = is_object($model) ? (int) ($model->id ?? 0) : (int) ($model['id'] ?? 0);
+
+        // Deduplicate events in the same HTTP lifecycle
+        $dedupKey = "{$table}:{$id}:{$action}";
+        if ($id > 0 && isset(self::$broadcastedInRequest[$dedupKey])) {
+            return [
+                'success' => true,
+                'message' => 'Duplicate broadcast in same request skipped.',
+            ];
+        }
+        if ($id > 0) {
+            self::$broadcastedInRequest[$dedupKey] = true;
+        }
+
+        // Determine human-readable identifier for notifications (e.g. no_ktp for employee per user request)
+        $identifier = $this->resolveEntityIdentifier($table, $model, $id);
+
+        $maxId = $id;
+        try {
+            $tableMax = DB::table($table)->max('id');
+            if ($tableMax) {
+                $maxId = (int) $tableMax;
+            }
+        } catch (Throwable $e) {
+            $maxId = $id;
+        }
+
+        $tableConfig = MasterDataSyncService::TABLES[$table] ?? null;
+        $label = $tableConfig['label'] ?? ucwords(str_replace(['master_', '_'], ['', ' '], $table));
+
+        $payload = [
+            'table' => $table,
+            'label' => $label,
+            'action' => $action,
+            'id' => $id,
+            'max_id' => $maxId,
+            'identifier' => $identifier,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        // If it's master_item_code, retain item_code for backward compatibility
+        if ($table === 'master_item_code') {
+            $payload['item_code'] = $identifier;
+        }
+
+        $channel = config('MasterConfig.senada.channel', env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'));
+
+        // Always dispatch MasterDataUpdated
+        $res = $this->dispatchToSenada($channel, 'MasterDataUpdated', $payload, false);
+
+        // Also dispatch MasterItemUpdated for backward compatibility if table is master_item_code
+        if ($table === 'master_item_code') {
+            $this->dispatchToSenada($channel, 'MasterItemUpdated', $payload, false);
+        }
+
+        return $res;
+    }
+
+    /**
+     * Resolve human-readable identifier from model attributes.
+     */
+    protected function resolveEntityIdentifier(string $table, $model, int $id): string
+    {
+        $get = function (string $attr) use ($model) {
+            if (is_object($model)) {
+                return $model->$attr ?? null;
+            }
+            return $model[$attr] ?? null;
+        };
+
+        return match ($table) {
+            'master_employee' => (string) ($get('no_ktp') ?: $get('employee_name') ?: "ID #{$id}"),
+            'master_item_code' => (string) ($get('item_code') ?: "ID #{$id}"),
+            'master_category' => (string) ($get('category_code') ?: $get('category_name') ?: "ID #{$id}"),
+            'master_company' => (string) ($get('company_code') ?: $get('company_name') ?: "ID #{$id}"),
+            'master_department' => (string) ($get('department_code') ?: $get('department_name') ?: "ID #{$id}"),
+            'master_item_group' => (string) ($get('item_group_code') ?: $get('item_group_name') ?: "ID #{$id}"),
+            'master_job_position' => (string) ($get('position_code') ?: $get('position_name') ?: "ID #{$id}"),
+            'master_location' => (string) ($get('loc_code') ?: $get('loc_name') ?: "ID #{$id}"),
+            'master_pca' => (string) ($get('pca_code') ?: $get('pca_name') ?: "ID #{$id}"),
+            'master_project' => (string) ($get('project_code') ?: $get('project_name') ?: "ID #{$id}"),
+            'master_project_detail' => (string) ($get('project_code_client') ?: $get('project_name_client') ?: "ID #{$id}"),
+            'master_status' => (string) ($get('kode') ?: $get('status') ?: "ID #{$id}"),
+            'master_uom' => (string) ($get('uom_code') ?: $get('uom_name') ?: "ID #{$id}"),
+            'master_vendor' => (string) ($get('vendor_code') ?: $get('vendor_description') ?: "ID #{$id}"),
+            'master_vendor_contact' => (string) ($get('vendor_contact_name') ?: "ID #{$id}"),
+            default => "ID #{$id}",
+        };
+    }
+
+    /**
+     * Static helper for quick broadcasting of any table.
+     */
+    public static function broadcastTable(string $table, $model, string $action = 'updated'): array
+    {
+        return app(self::class)->broadcastTableChange($table, $model, $action);
     }
 
     /**

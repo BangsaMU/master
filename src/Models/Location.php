@@ -16,6 +16,8 @@ use Bangsamu\LibraryClay\Traits\Loggable;
 
 class Location extends Model
 {
+    use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
+
     use HasFactory, Notifiable;
     use SoftDeletes;
     use Loggable;

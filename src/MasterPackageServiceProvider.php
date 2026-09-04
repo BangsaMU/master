@@ -34,6 +34,10 @@ class MasterPackageServiceProvider extends ServiceProvider
         $this->app->singleton(\Bangsamu\Master\Services\MasterItemSyncService::class, function ($app) {
             return new \Bangsamu\Master\Services\MasterItemSyncService();
         });
+
+        $this->app->singleton(\Bangsamu\Master\Services\MasterDataSyncService::class, function ($app) {
+            return new \Bangsamu\Master\Services\MasterDataSyncService();
+        });
     }
 
     /**

@@ -11,6 +11,8 @@ use Illuminate\Database\Schema\Blueprint;
 
 class JobPosition extends Model
 {
+    use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
+
     use HasFactory, SoftDeletes;
     use Loggable;
 

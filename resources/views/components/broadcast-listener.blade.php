@@ -5,7 +5,7 @@
     $reverbAppKey = env('REVERB_APP_KEY', config('MasterConfig.senada.app_key', 'senada_hub_key'));
     $userEmail = auth()->check() ? auth()->user()->email : null;
     $authEndpoint = route('master.sync.channel-auth');
-    $syncApiUrl = route('master.sync.items');
+    $syncApiUrl = \Illuminate\Support\Facades\Route::has('master.sync.sync') ? route('master.sync.sync') : route('master.sync.items');
 @endphp
 
 <!-- Master Data Broadcast & Realtime Sync Listener -->
@@ -87,12 +87,14 @@
             const masterChannel = pusher.subscribe('masterdata.items');
 
             const handleMasterUpdate = function (payload) {
-                console.log('[MasterBroadcast] MasterItemUpdated received:', payload);
+                console.log('[MasterBroadcast] Master update received:', payload);
 
-                const itemCode = payload.item_code || ('ID #' + (payload.id || payload.max_id));
+                const table = payload.table || 'master_item_code';
+                const label = payload.label || 'Data Master';
+                const identifier = payload.identifier || payload.item_code || ('ID #' + (payload.id || payload.max_id));
                 const actionText = payload.action === 'created' ? 'ditambahkan' : (payload.action === 'deleted' ? 'dihapus' : 'diperbarui');
 
-                showBroadcastToast('info', 'Master Data Item ' + actionText, `Item <b>${itemCode}</b> sedang disinkronkan ke database lokal...`);
+                showBroadcastToast('info', `${label} ${actionText}`, `${label} <b>${identifier}</b> sedang disinkronkan ke database lokal...`);
 
                 // Automatically trigger backend sync
                 fetch(syncApiUrl, {
@@ -103,6 +105,7 @@
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
+                        table: table,
                         id: payload.id,
                         item_id: payload.id,
                         max_id: payload.max_id,
@@ -114,9 +117,10 @@
                 .then(data => {
                     if (data.success) {
                         const count = data.synced_count || 1;
-                        showBroadcastToast('success', 'Sinkronisasi Selesai', `${count} item master berhasil disinkronkan.`);
+                        showBroadcastToast('success', 'Sinkronisasi Selesai', `${count} data ${label.toLowerCase()} berhasil disinkronkan.`);
 
                         // Dispatch window custom event for reactive UI
+                        window.dispatchEvent(new CustomEvent('master-data-synced', { detail: data }));
                         window.dispatchEvent(new CustomEvent('master-item-synced', { detail: data }));
 
                         // Refresh active DataTables if present
@@ -128,10 +132,11 @@
                             }
                         }
 
-                        // If user is currently viewing/editing this item, auto reload to show updated clone
+                        // If user is currently viewing/editing this entity, auto reload
                         const currentPath = window.location.pathname;
-                        if (payload.id && currentPath.indexOf('/master/item-code/' + payload.id) !== -1) {
-                            showBroadcastToast('info', 'Memuat Ulang Halaman', 'Data item telah diperbarui dari Master Data...');
+                        const slug = table.replace('master_', '').replace('_', '-');
+                        if (payload.id && currentPath.indexOf('/' + slug + '/' + payload.id) !== -1) {
+                            showBroadcastToast('info', 'Memuat Ulang Halaman', `Data ${label} telah diperbarui dari Master Data...`);
                             setTimeout(function () {
                                 window.location.reload();
                             }, 1000);
@@ -145,6 +150,7 @@
                 });
             };
 
+            masterChannel.bind('MasterDataUpdated', handleMasterUpdate);
             masterChannel.bind('MasterItemUpdated', handleMasterUpdate);
             masterChannel.bind('master-data-created', handleMasterUpdate);
 

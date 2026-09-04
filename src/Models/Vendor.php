@@ -11,6 +11,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Bangsamu\LibraryClay\Traits\Loggable;
 class Vendor extends Model
 {
+    use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
+
     use HasFactory;
     use SoftDeletes;
     use Loggable;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-use Bangsamu\Master\Services\MasterItemSyncService;
+use Bangsamu\Master\Services\MasterDataSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,14 +15,13 @@ use Symfony\Component\HttpFoundation\Response;
 class MasterSyncController extends Controller
 {
     public function __construct(
-        protected readonly MasterItemSyncService $syncService
+        protected readonly MasterDataSyncService $syncService
     ) {}
 
     /**
-     * Trigger synchronization of master items.
-     * Accessible by authenticated users or backend webhooks.
+     * Universal sync endpoint for all 15 master tables.
      */
-    public function syncItems(Request $request): JsonResponse
+    public function sync(Request $request): JsonResponse
     {
         $payload = $request->all();
         $chunkSize = (int) $request->input('chunk_size', 250);
@@ -34,6 +33,14 @@ class MasterSyncController extends Controller
             : Response::HTTP_UNPROCESSABLE_ENTITY;
 
         return response()->json($result, $statusCode);
+    }
+
+    /**
+     * Trigger synchronization of master items (backward-compatible alias).
+     */
+    public function syncItems(Request $request): JsonResponse
+    {
+        return $this->sync($request);
     }
 
     /**

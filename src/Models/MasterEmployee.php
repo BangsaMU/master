@@ -13,6 +13,8 @@ use Bangsamu\LibraryClay\Traits\Loggable;
 
 class MasterEmployee extends Model
 {
+    use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
+
     use HasFactory;
     use SoftDeletes;
     use Loggable;
