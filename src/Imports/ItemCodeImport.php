@@ -16,11 +16,21 @@ use \Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 
-class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultipleSheets, WithHeadingRow, WithChunkReading
+class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultipleSheets, WithHeadingRow, WithChunkReading, WithEvents
 {
+    use HandlesBatchImportBroadcast;
+
     private $error = [];
     private $success = [];
+
+    public function getImportTable(): string
+    {
+        return 'master_item_code';
+    }
+
 
     public function sheets(): array
     {

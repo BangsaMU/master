@@ -1,48 +1,70 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bangsamu\Master\Imports;
 
 use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ItemGroupImport implements ToCollection, WithHeadingRow
+class ItemGroupImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
 {
+    use HandlesBatchImportBroadcast;
+
     private $error = [];
     private $success = [];
+    protected ?Collection $existingItemGroups = null;
+
+    public function getImportTable(): string
+    {
+        return 'master_item_group';
+    }
 
     public function collection(Collection $rows)
     {
+        if ($this->existingItemGroups === null) {
+            $this->existingItemGroups = DB::table('master_item_group')
+                ->select('id', 'item_group_code', 'item_group_name', 'deleted_at')
+                ->get()
+                ->keyBy(fn ($item) => strtoupper(trim((string) $item->item_group_code)) . '|' . strtoupper(trim((string) $item->item_group_name)));
+        }
+
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if($row->filter()->isNotEmpty()) {
-                if (empty($row['item_group_code'])) {
-                    $text = "Row ".$row_index." Item Group Code : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['item_group_name'])) {
-                    $text = "Row ".$row_index." Item Group Name : field is required.";
-                    array_push($this->error,$text);
+            if ($row->filter()->isNotEmpty()) {
+                $code = trim((string) ($row['item_group_code'] ?? ''));
+                $name = trim((string) ($row['item_group_name'] ?? ''));
+
+                if (empty($code)) {
+                    $this->error[] = "Row {$row_index} Item Group Code : field is required.";
+                } elseif (empty($name)) {
+                    $this->error[] = "Row {$row_index} Item Group Name : field is required.";
                 } else {
-                    $item_group = DB::table('master_item_group')
-                                    ->where('item_group_code', $row['item_group_code'])
-                                    ->where('item_group_name', $row['item_group_name'])
-                                    ->first();
+                    $lookupKey = strtoupper($code) . '|' . strtoupper($name);
+                    $exists = $this->existingItemGroups->get($lookupKey);
 
-
-                    if(!$item_group){
+                    if (! $exists) {
                         $data = new ItemGroup();
-                        $data->item_group_code = strtoupper($row['item_group_code']);
-                        $data->item_group_name = $row['item_group_name'];
+                        $data->item_group_code = strtoupper($code);
+                        $data->item_group_name = $name;
                         $data->save();
 
-                        $text = "Row ".$row_index." : ".$row['item_group_code']." has been imported successfully.";
-                        array_push($this->success,$text);
+                        $this->existingItemGroups->put($lookupKey, (object) [
+                            'id' => $data->id,
+                            'item_group_code' => $data->item_group_code,
+                            'item_group_name' => $data->item_group_name,
+                            'deleted_at' => null,
+                        ]);
 
-                    }else{
-                        $text = "Row ".$row_index.": Item Group already exists!";
-                        array_push($this->error,$text);
+                        $this->success[] = "Row {$row_index} : {$code} has been imported successfully.";
+                    } else {
+                        $this->error[] = "Row {$row_index}: Item Group already exists!";
                     }
                 }
             }
@@ -57,5 +79,10 @@ class ItemGroupImport implements ToCollection, WithHeadingRow
     public function getSuccess(): array
     {
         return $this->success;
+    }
+
+    public function chunkSize(): int
+    {
+        return 1000;
     }
 }

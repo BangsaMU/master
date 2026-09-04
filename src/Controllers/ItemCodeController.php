@@ -546,11 +546,11 @@ class ItemCodeController extends Controller
 
     public function import(Request $request)
     {
-        // Set execution time limit to 5 minutes for large imports
-        set_time_limit(300);
+        set_time_limit(600);
+        ini_set('memory_limit', '512M');
 
         $request->validate([
-            'file' => 'required|file|max:2048|mimes:xls,xlsx,txt'
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv'
         ]);
         
         if ($request->hasFile('file')) {
@@ -558,7 +558,14 @@ class ItemCodeController extends Controller
 
             $import = new ItemCodeImport;
             config(['excel.transactions.handler' => 'null']);
-            Excel::import($import, $file);
+
+            MasterBroadcastService::withoutBroadcasting(function () use ($import, $file) {
+                Excel::import($import, $file);
+            });
+
+            // Ensure single batch summary broadcast is dispatched to Senada
+            $import->sendBatchBroadcastSummary();
+
             $error = $import->getError();
             $success = $import->getSuccess();
 

@@ -4,7 +4,8 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Module\ControllerModule;
-use App\Imports\Master\DepartmentImport;
+use Bangsamu\Master\Imports\Master\DepartmentImport;
+use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -369,15 +370,25 @@ class DepartmentController extends Controller
 
     public function import(Request $request)
     {
+        set_time_limit(600);
+        ini_set('memory_limit', '512M');
+
         $request->validate([
-            'file' => 'required|file|max:2048|mimes:xls,xlsx,txt'
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv'
         ]);
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 
             $import = new DepartmentImport;
-            Excel::import($import, $file);
+
+            MasterBroadcastService::withoutBroadcasting(function () use ($import, $file) {
+                Excel::import($import, $file);
+            });
+
+            // Ensure single batch summary broadcast is dispatched to Senada
+            $import->sendBatchBroadcastSummary();
+
             $error = $import->getError();
             $success = $import->getSuccess();
 

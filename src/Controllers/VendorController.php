@@ -5,6 +5,7 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 
 use Bangsamu\Master\Imports\Master\VendorImport;
+use Bangsamu\Master\Services\MasterBroadcastService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -560,15 +561,25 @@ class VendorController extends Controller
 
     public function import(Request $request)
     {
+        set_time_limit(600);
+        ini_set('memory_limit', '512M');
+
         $request->validate([
-            'file' => 'required|file|max:2048|mimes:xls,xlsx,txt'
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv'
         ]);
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 
             $import = new VendorImport;
-            Excel::import($import, $file);
+
+            MasterBroadcastService::withoutBroadcasting(function () use ($import, $file) {
+                Excel::import($import, $file);
+            });
+
+            // Ensure single batch summary broadcast is dispatched to Senada
+            $import->sendBatchBroadcastSummary();
+
             $error = $import->getError();
             $success = $import->getSuccess();
 

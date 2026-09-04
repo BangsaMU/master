@@ -20,7 +20,7 @@ trait BroadcastsMasterChanges
     public static function bootBroadcastsMasterChanges(): void
     {
         static::saved(function ($model) {
-            if (static::$disableMasterBroadcast) {
+            if (static::$disableMasterBroadcast || MasterBroadcastService::isBroadcastingDisabled()) {
                 return;
             }
 
@@ -36,7 +36,7 @@ trait BroadcastsMasterChanges
         });
 
         static::deleted(function ($model) {
-            if (static::$disableMasterBroadcast) {
+            if (static::$disableMasterBroadcast || MasterBroadcastService::isBroadcastingDisabled()) {
                 return;
             }
 

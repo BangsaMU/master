@@ -1,47 +1,71 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bangsamu\Master\Imports\Master;
 
 use Bangsamu\Master\Models\MasterVendor;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class VendorImport implements ToCollection, WithHeadingRow
+class VendorImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
 {
+    use HandlesBatchImportBroadcast;
+
     private $error = [];
     private $success = [];
+    protected ?Collection $existingVendors = null;
+
+    public function getImportTable(): string
+    {
+        return 'master_vendor';
+    }
 
     public function collection(Collection $rows)
     {
+        if ($this->existingVendors === null) {
+            $this->existingVendors = DB::table('master_vendor')
+                ->select('id', 'vendor_code', 'vendor_description', 'deleted_at')
+                ->get()
+                ->keyBy(fn ($v) => strtoupper(trim((string) $v->vendor_code)) . '|' . strtoupper(trim((string) $v->vendor_description)));
+        }
+
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if($row->filter()->isNotEmpty()) {
-                $pca = DB::table('master_vendor')
-                                ->where('vendor_code', $row['vendor_code'])
-                                ->where('vendor_description', $row['vendor_description'])
-                                ->first();
+            if ($row->filter()->isNotEmpty()) {
+                $vendorCode = trim((string) ($row['vendor_code'] ?? ''));
+                $vendorDesc = trim((string) ($row['vendor_description'] ?? ''));
 
-                if(!$pca){
-                    if (empty($row['vendor_code'])) {
-                        $text = "Row ".$row_index." Vendor Code : field is required.";
-                        array_push($this->error,$text);
-                    } else if (empty($row['vendor_description'])) {
-                        $text = "Row ".$row_index." Vendor Description : field is required.";
-                        array_push($this->error,$text);
-                    } else {
+                if (empty($vendorCode)) {
+                    $this->error[] = "Row {$row_index} Vendor Code : field is required.";
+                } elseif (empty($vendorDesc)) {
+                    $this->error[] = "Row {$row_index} Vendor Description : field is required.";
+                } else {
+                    $lookupKey = strtoupper($vendorCode) . '|' . strtoupper($vendorDesc);
+                    $exists = $this->existingVendors->get($lookupKey);
+
+                    if (! $exists) {
                         $data = MasterVendor::create([
-                            'vendor_code' => strtoupper($row['vendor_code']),
-                            'vendor_description' => $row['vendor_description'],
+                            'vendor_code' => strtoupper($vendorCode),
+                            'vendor_description' => $vendorDesc,
                         ]);
 
-                        $text = "Row ".$row_index." : ".$row['vendor_code']." has been imported successfully.";
-                        array_push($this->success,$text);
+                        $this->existingVendors->put($lookupKey, (object) [
+                            'id' => $data->id,
+                            'vendor_code' => $data->vendor_code,
+                            'vendor_description' => $data->vendor_description,
+                            'deleted_at' => null,
+                        ]);
+
+                        $this->success[] = "Row {$row_index} : {$vendorCode} has been imported successfully.";
+                    } else {
+                        $this->error[] = "Row {$row_index}: Vendor already exists!";
                     }
-                }else{
-                    $text = "Row ".$row_index.": Vendor already exists!";
-                    array_push($this->error,$text);
                 }
             }
         }
@@ -55,5 +79,10 @@ class VendorImport implements ToCollection, WithHeadingRow
     public function getSuccess(): array
     {
         return $this->success;
+    }
+
+    public function chunkSize(): int
+    {
+        return 1000;
     }
 }

@@ -8,14 +8,30 @@ use Bangsamu\Master\Models\MasterIncrement as HrdIncrement;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 
-class EmployeeImport implements ToCollection, WithHeadingRow
+class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
 {
+    use HandlesBatchImportBroadcast;
+
     private $error = [];
     private $success = [];
+
+    public function getImportTable(): string
+    {
+        return 'master_employee';
+    }
+
+    public function chunkSize(): int
+    {
+        return 500;
+    }
+
 
     // protected $request;
 

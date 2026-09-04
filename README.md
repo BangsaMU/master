@@ -154,3 +154,31 @@ $result = $syncService->syncTable('master_employee', 12, 450, 'updated');
 // 2. Jalankan Catch-Up event terlewat
 $catchUpResult = $syncService->catchUpMissedBroadcasts();
 ```
+
+---
+
+### 5. Optimasi Bulk Import (10.000+ Data) & Single Summary Broadcast
+
+Untuk mencegah **Broadcast Storm** (di mana pengunggahan 10.000 data memicu 10.000 panggilan HTTP ke Senada, menyebabkan HTTP 429 Rate Limit dan browser freeze):
+
+1. **Suppression Selama Proses Import**:
+   Semua per-row broadcast dinonaktifkan sementara via `MasterBroadcastService::withoutBroadcasting(...)` dan event hook `BeforeImport`.
+2. **1 Kali Ringkasan Broadcast di Akhir Batch**:
+   Setelah seluruh sheet dan chunk selesai dibaca, dikirimkan **1 kali ringkasan event** `MasterDataUpdated` ke Senada:
+   ```json
+   {
+       "table": "master_item_code",
+       "action": "created",
+       "id": 26500,
+       "max_id": 26500,
+       "batch_count": 10000,
+       "is_batch": true,
+       "identifier": "Batch Import (10.000 data)",
+       "item_code": "Batch Import (10.000 data)"
+   }
+   ```
+3. **Cloning Otomatis Sisi Klien**:
+   Aplikasi klien yang menerima event ini mendeteksi bahwa `max_id` master (misal: 26.500) melompat melampaui `max_id` lokal (misal: 16.500). Klien otomatis mengeksekusi `syncRange()` dengan batch 250 record secara langsung dari `db_master` via MySQL upsert.
+4. **Trait `HandlesBatchImportBroadcast`**:
+   Semua class Import (Item Code, Category, Department, Employee, Item Group, Location, PCA, Project, UoM, Vendor) mengimplementasikan trait `HandlesBatchImportBroadcast` serta `WithChunkReading` (chunk 1.000) dan koleksi lookup in-memory (memoized) untuk menghindari N+1 kueri ke database master.
+

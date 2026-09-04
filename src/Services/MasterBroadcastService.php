@@ -16,6 +16,45 @@ class MasterBroadcastService
      * Cache broadcasted events in the current request to prevent duplicates.
      */
     protected static array $broadcastedInRequest = [];
+
+    /**
+     * Global flag to disable broadcasting (e.g. during batch imports or seeders).
+     */
+    public static bool $isBroadcastingDisabled = false;
+
+    public static function disableBroadcasting(): void
+    {
+        self::$isBroadcastingDisabled = true;
+    }
+
+    public static function enableBroadcasting(): void
+    {
+        self::$isBroadcastingDisabled = false;
+    }
+
+    public static function isBroadcastingDisabled(): bool
+    {
+        return self::$isBroadcastingDisabled;
+    }
+
+    /**
+     * Execute a callback with broadcasting temporarily suppressed.
+     *
+     * @param callable $callback
+     * @return mixed
+     */
+    public static function withoutBroadcasting(callable $callback): mixed
+    {
+        $previous = self::$isBroadcastingDisabled;
+        self::$isBroadcastingDisabled = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$isBroadcastingDisabled = $previous;
+        }
+    }
+
     /**
      * Broadcast an item creation or update event to Senada Reverb Hub.
      *
@@ -271,6 +310,55 @@ class MasterBroadcastService
     }
 
     /**
+     * Broadcast a single batch summary event to Senada after a bulk operation (like Excel import).
+     *
+     * @param string $table e.g. 'master_item_code'
+     * @param int $maxId Highest record ID after import
+     * @param int $batchCount Total records processed/imported
+     * @param string $action e.g. 'created' or 'imported'
+     * @return array<string, mixed>
+     */
+    public static function broadcastBatchSummary(
+        string $table,
+        int $maxId = 0,
+        int $batchCount = 0,
+        string $action = 'created'
+    ): array {
+        if ($maxId <= 0) {
+            try {
+                $maxId = (int) (DB::table($table)->max('id') ?? 0);
+            } catch (Throwable $e) {
+                $maxId = 0;
+            }
+        }
+
+        $tableConfig = MasterDataSyncService::TABLES[$table] ?? null;
+        $label = $tableConfig['label'] ?? ucwords(str_replace(['master_', '_'], ['', ' '], $table));
+        $formattedCount = number_format($batchCount, 0, ',', '.');
+        $identifier = "Batch Import ({$formattedCount} data)";
+
+        $payload = [
+            'table' => $table,
+            'label' => $label,
+            'action' => $action,
+            'id' => $maxId,
+            'max_id' => $maxId,
+            'batch_count' => $batchCount,
+            'is_batch' => true,
+            'identifier' => $identifier,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        if ($table === 'master_item_code') {
+            $payload['item_code'] = $identifier;
+        }
+
+        $channel = config('MasterConfig.senada.channel', env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'));
+
+        return app(self::class)->dispatchToSenada($channel, 'MasterDataUpdated', $payload, false);
+    }
+
+    /**
      * Static helper for quick broadcast dispatching.
      *
      * @param Model|array<string, mixed>|object $item
@@ -282,3 +370,4 @@ class MasterBroadcastService
         return app(self::class)->broadcastItemChange($item, $action);
     }
 }
+

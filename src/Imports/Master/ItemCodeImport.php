@@ -15,12 +15,27 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 
-class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReading
+class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReading, WithEvents
 {
+    use HandlesBatchImportBroadcast;
+
     private $error = [];
     private $success = [];
+
+    protected ?Collection $existingItemCodes = null;
+    protected ?Collection $existingUoms = null;
+    protected ?Collection $existingPcas = null;
+    protected ?Collection $existingCategories = null;
+    protected ?Collection $existingItemGroups = null;
+
+    public function getImportTable(): string
+    {
+        return 'master_item_code';
+    }
 
     public function sheets(): array
     {
@@ -35,39 +50,55 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
         $app_code = config('SsoConfig.main.APP_CODE');
         $headers = $rows[0];
 
-        // Eager load existing database records into memory to prevent N+1 queries and deadlocks
-        $existingItemCodes = DB::table('master_item_code')
-            ->select('id', 'item_code', 'deleted_at')
-            ->get()
-            ->keyBy('item_code');
+        // Eager load existing database records into memory once to prevent N+1 queries and repeated DB scans
+        if ($this->existingItemCodes === null) {
+            $this->existingItemCodes = DB::table('master_item_code')
+                ->select('id', 'item_code', 'deleted_at')
+                ->get()
+                ->keyBy('item_code');
+        }
 
-        $existingUoms = Uom::withTrashed()
-            ->select('id', 'uom_code', 'deleted_at')
-            ->get()
-            ->keyBy(function ($uom) {
-                return strtoupper($uom->uom_code);
-            });
+        if ($this->existingUoms === null) {
+            $this->existingUoms = Uom::withTrashed()
+                ->select('id', 'uom_code', 'deleted_at')
+                ->get()
+                ->keyBy(function ($uom) {
+                    return strtoupper($uom->uom_code);
+                });
+        }
 
-        $existingPcas = Pca::withTrashed()
-            ->select('id', 'pca_code', 'deleted_at')
-            ->get()
-            ->keyBy(function ($pca) {
-                return strtoupper($pca->pca_code);
-            });
+        if ($this->existingPcas === null) {
+            $this->existingPcas = Pca::withTrashed()
+                ->select('id', 'pca_code', 'deleted_at')
+                ->get()
+                ->keyBy(function ($pca) {
+                    return strtoupper($pca->pca_code);
+                });
+        }
 
-        $existingCategories = Category::withTrashed()
-            ->select('id', 'category_code', 'deleted_at')
-            ->get()
-            ->keyBy(function ($cat) {
-                return strtoupper($cat->category_code);
-            });
+        if ($this->existingCategories === null) {
+            $this->existingCategories = Category::withTrashed()
+                ->select('id', 'category_code', 'deleted_at')
+                ->get()
+                ->keyBy(function ($cat) {
+                    return strtoupper($cat->category_code);
+                });
+        }
 
-        $existingItemGroups = ItemGroup::withTrashed()
-            ->select('id', 'item_group_code', 'item_group_attributes', 'deleted_at')
-            ->get()
-            ->keyBy(function ($group) {
-                return strtoupper($group->item_group_code);
-            });
+        if ($this->existingItemGroups === null) {
+            $this->existingItemGroups = ItemGroup::withTrashed()
+                ->select('id', 'item_group_code', 'item_group_attributes', 'deleted_at')
+                ->get()
+                ->keyBy(function ($group) {
+                    return strtoupper($group->item_group_code);
+                });
+        }
+
+        $existingItemCodes = $this->existingItemCodes;
+        $existingUoms = $this->existingUoms;
+        $existingPcas = $this->existingPcas;
+        $existingCategories = $this->existingCategories;
+        $existingItemGroups = $this->existingItemGroups;
 
         foreach ($rows as $key => $row) {
             $row_index = $key;

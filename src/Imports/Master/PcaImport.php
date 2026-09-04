@@ -1,48 +1,71 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bangsamu\Master\Imports\Master;
 
 use Bangsamu\Master\Models\Pca;
-use Bangsamu\Master\Models\MasterPca;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class PcaImport implements ToCollection, WithHeadingRow
+class PcaImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
 {
+    use HandlesBatchImportBroadcast;
+
     private $error = [];
     private $success = [];
+    protected ?Collection $existingPcas = null;
+
+    public function getImportTable(): string
+    {
+        return 'master_pca';
+    }
 
     public function collection(Collection $rows)
     {
+        if ($this->existingPcas === null) {
+            $this->existingPcas = DB::table('master_pca')
+                ->select('id', 'pca_code', 'pca_name', 'deleted_at')
+                ->get()
+                ->keyBy(fn ($pca) => strtoupper(trim((string) $pca->pca_code)) . '|' . strtoupper(trim((string) $pca->pca_name)));
+        }
+
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if($row->filter()->isNotEmpty()) {
-                $pca = DB::table('master_pca')
-                                ->where('pca_code', $row['pca_code'])
-                                ->where('pca_name', $row['pca_name'])
-                                ->first();
+            if ($row->filter()->isNotEmpty()) {
+                $pcaCode = trim((string) ($row['pca_code'] ?? ''));
+                $pcaName = trim((string) ($row['pca_name'] ?? ''));
 
-                if(!$pca){
-                    if (empty($row['pca_code'])) {
-                        $text = "Row ".$row_index." PCA Code : field is required.";
-                        array_push($this->error,$text);
-                    } else if (empty($row['pca_name'])) {
-                        $text = "Row ".$row_index." PCA Name : field is required.";
-                        array_push($this->error,$text);
-                    } else {
+                if (empty($pcaCode)) {
+                    $this->error[] = "Row {$row_index} PCA Code : field is required.";
+                } elseif (empty($pcaName)) {
+                    $this->error[] = "Row {$row_index} PCA Name : field is required.";
+                } else {
+                    $lookupKey = strtoupper($pcaCode) . '|' . strtoupper($pcaName);
+                    $exists = $this->existingPcas->get($lookupKey);
+
+                    if (! $exists) {
                         $data = new Pca();
-                        $data->pca_code = strtoupper($row['pca_code']);
-                        $data->pca_name = $row['pca_name'];
+                        $data->pca_code = strtoupper($pcaCode);
+                        $data->pca_name = $pcaName;
                         $data->save();
 
-                        $text = "Row ".$row_index." : ".$row['pca_code']." has been imported successfully.";
-                        array_push($this->success,$text);
+                        $this->existingPcas->put($lookupKey, (object) [
+                            'id' => $data->id,
+                            'pca_code' => $data->pca_code,
+                            'pca_name' => $data->pca_name,
+                            'deleted_at' => null,
+                        ]);
+
+                        $this->success[] = "Row {$row_index} : {$pcaCode} has been imported successfully.";
+                    } else {
+                        $this->error[] = "Row {$row_index}: PCA already exists!";
                     }
-                }else{
-                    $text = "Row ".$row_index.": PCA already exists!";
-                    array_push($this->error,$text);
                 }
             }
         }
@@ -56,5 +79,10 @@ class PcaImport implements ToCollection, WithHeadingRow
     public function getSuccess(): array
     {
         return $this->success;
+    }
+
+    public function chunkSize(): int
+    {
+        return 1000;
     }
 }
