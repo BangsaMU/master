@@ -72,5 +72,10 @@ return [
         'api_key' => env('SENADA_API_KEY', 'snd_masterdata_pilot_key_secret_2026'),
         'timeout' => env('SENADA_TIMEOUT', 3),
         'channel' => env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'),
+        'app_key' => env('REVERB_APP_KEY', 'senada_hub_key'),
+        'app_secret' => env('REVERB_APP_SECRET', 'senada_hub_secret'),
+        'reverb_host' => env('REVERB_HOST', '192.168.20.187'),
+        'reverb_port' => env('REVERB_PORT', 9029),
+        'reverb_scheme' => env('REVERB_SCHEME', 'http'),
     ],
 ];

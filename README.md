@@ -36,17 +36,21 @@ Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
 
 ## Konfigurasi Lingkungan (`.env`)
 
-```env
-# URL & Kredensial Senada Reverb Hub (Gunakan IP Host 192.168.20.187 untuk Docker)
+# ==============================================================================
+# SENADA REVERB WEBSOCKET & MASTER SYNC (SISI CLIENT)
+# ==============================================================================
+# Endpoint Senada Broadcast Hub
 SENADA_URL=http://192.168.20.187:9029
 SENADA_API_KEY=snd_masterdata_pilot_key_secret_2026
 SENADA_BROADCAST_ACTIVE=true
 
-# Reverb WebSocket Client Settings
+# Kredensial Reverb WebSocket (Wajib untuk otorisasi channel private)
+REVERB_APP_ID=senada_app
+REVERB_APP_KEY=senada_hub_key
+REVERB_APP_SECRET=senada_hub_secret
 REVERB_HOST="192.168.20.187"
 REVERB_PORT=9029
 REVERB_SCHEME=http
-REVERB_APP_KEY=senada_hub_key
 ```
 
 ---

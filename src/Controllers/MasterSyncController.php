@@ -91,8 +91,19 @@ class MasterSyncController extends Controller
         }
 
         // Generate HMAC-SHA256 Pusher auth signature
-        $reverbKey = config('broadcasting.connections.reverb.key', env('REVERB_APP_KEY', 'senada_hub_key'));
-        $reverbSecret = config('broadcasting.connections.reverb.secret', env('REVERB_APP_SECRET', 'senada_hub_secret'));
+        $reverbKey = (string) (config('broadcasting.connections.reverb.key')
+            ?: config('broadcasting.connections.pusher.key')
+            ?: env('REVERB_APP_KEY')
+            ?: env('PUSHER_APP_KEY')
+            ?: config('MasterConfig.senada.app_key')
+            ?: 'senada_hub_key');
+
+        $reverbSecret = (string) (config('broadcasting.connections.reverb.secret')
+            ?: config('broadcasting.connections.pusher.secret')
+            ?: env('REVERB_APP_SECRET')
+            ?: env('PUSHER_APP_SECRET')
+            ?: config('MasterConfig.senada.app_secret')
+            ?: 'senada_hub_secret');
 
         $signature = hash_hmac('sha256', "{$socketId}:{$channelName}", $reverbSecret);
         $auth = "{$reverbKey}:{$signature}";
