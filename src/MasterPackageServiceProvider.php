@@ -45,6 +45,10 @@ class MasterPackageServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (file_exists(__DIR__ . '/helpers.php')) {
+            require_once __DIR__ . '/helpers.php';
+        }
+
         $agent = new Agent();
         View::share('agent', $agent);
         //

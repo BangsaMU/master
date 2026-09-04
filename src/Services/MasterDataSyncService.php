@@ -208,6 +208,15 @@ class MasterDataSyncService
         string $action = 'updated',
         int $chunkSize = 250
     ): array {
+        if (function_exists('is_master_db_same_as_default') && is_master_db_same_as_default()) {
+            return [
+                'success' => true,
+                'table' => $table,
+                'message' => "Master database and local database are identical. Sync skipped.",
+                'synced_count' => 0,
+            ];
+        }
+
         if (! $this->isTableSupported($table)) {
             return [
                 'success' => false,

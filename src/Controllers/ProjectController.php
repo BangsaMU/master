@@ -402,7 +402,7 @@ class ProjectController extends Controller
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
                 //update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
                 $message = $this->sheet_name . ' updated successfully';

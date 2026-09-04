@@ -320,7 +320,7 @@ class CompanyController extends Controller
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
                 // update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
                 $message .= ' '.$this->sheet_name.' updated successfully';
@@ -337,7 +337,7 @@ class CompanyController extends Controller
                 'company_address' => $request->company_address,
             ]);
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new company
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
@@ -382,7 +382,7 @@ class CompanyController extends Controller
                 'file_type' => $file_type,
             ]);
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new gallery
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_gallery');
 
@@ -432,7 +432,7 @@ class CompanyController extends Controller
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
                 // update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                     // dd(2,compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
@@ -450,7 +450,7 @@ class CompanyController extends Controller
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
                 // update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
                 $message .= ' Logo '.$this->sheet_name.' updated successfully';
@@ -497,7 +497,7 @@ class CompanyController extends Controller
         $company->save();
 
         // Sync ke master db jika MASTER_DIRECT_EDIT aktif
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
             $id = $company->id;
             $sync_tabel = 'master_'.$this->sheet_slug;
             $sync_id = $id;

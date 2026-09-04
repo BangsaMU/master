@@ -12,7 +12,10 @@
         "psr-4": {
             "Bangsamu\\Master\\": "src/",
             "Bangsamu\\Master\\Database\\Seeds\\": "src/database/seeds/"
-        }
+        },
+        "files": [
+            "src/helpers.php"
+        ]
     },
     "extra": {
         "laravel": {

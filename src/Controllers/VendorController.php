@@ -298,7 +298,11 @@ class VendorController extends Controller
         if ($oldVendorCode !== null && Str::upper(trim((string) $oldVendorCode)) !== $locationCode) {
             $oldLocationCode = Str::upper(trim((string) $oldVendorCode));
 
-            foreach ([$locationModel, $masterLocationModel] as $modelClass) {
+            $modelsToUpdate = LibraryClayController::isMasterDbSameAsDefault()
+                ? [$locationModel]
+                : [$locationModel, $masterLocationModel];
+
+            foreach ($modelsToUpdate as $modelClass) {
                 $modelClass::where('group_type', 'vendor')
                     ->where('loc_code', $oldLocationCode)
                     ->whereNull('deleted_at')
@@ -313,17 +317,21 @@ class VendorController extends Controller
             }
         }
 
-        $locationModel::updateOrCreate(
+        $location = $locationModel::updateOrCreate(
             ['loc_code' => $locationCode, 'group_type' => 'vendor'],
             ['loc_name' => $locationName,'created_at' => $currentTimestamp]
         );
 
-        $masterLocation = $masterLocationModel::updateOrCreate(
-            ['loc_code' => $locationCode, 'group_type' => 'vendor'],
-            ['loc_name' => $locationName,'created_at' => $currentTimestamp]
-        );
+        if (!LibraryClayController::isMasterDbSameAsDefault()) {
+            $masterLocation = $masterLocationModel::updateOrCreate(
+                ['loc_code' => $locationCode, 'group_type' => 'vendor'],
+                ['loc_name' => $locationName,'created_at' => $currentTimestamp]
+            );
 
-        return $masterLocation->id;
+            return $masterLocation->id;
+        }
+
+        return $location->id;
     }
 
     protected function deleteVendorLocation($vendorCode)
@@ -339,7 +347,7 @@ class VendorController extends Controller
                 $location->delete();
             });
 
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
             $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
 
             $masterLocationModel::where('group_type', 'vendor')
@@ -411,7 +419,7 @@ class VendorController extends Controller
                     $sync_row = $model->toArray();
                     $sync_list_callback = config('AppConfig.CALLBACK_URL');
                     //update ke master DB saja
-                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                         $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                     }
                 }
@@ -423,7 +431,7 @@ class VendorController extends Controller
                     $sync_row = $model1->toArray();
                     $sync_list_callback = config('AppConfig.CALLBACK_URL');
                     //update ke master DB saja
-                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                         $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                     }
                 }
@@ -461,7 +469,7 @@ class VendorController extends Controller
                 ]
             );
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
                 // Sinkronisasi data Vendor ke master DB
                 $masterVendorModel = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
                 try {

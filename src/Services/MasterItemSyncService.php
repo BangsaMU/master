@@ -64,6 +64,14 @@ class MasterItemSyncService extends MasterDataSyncService
      */
     public function syncToMaxId(int $targetMaxId, int $chunkSize = 250): array
     {
+        if (function_exists('is_master_db_same_as_default') && is_master_db_same_as_default()) {
+            return [
+                'success' => true,
+                'message' => 'Master database and local database are identical. Sync skipped.',
+                'synced_count' => 0,
+            ];
+        }
+
         $localMaxId = (int) (DB::table('master_item_code')->max('id') ?? 0);
 
         if ($targetMaxId > $localMaxId) {
