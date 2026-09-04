@@ -90,8 +90,13 @@ class MasterPackageServiceProvider extends ServiceProvider
         //         dd($class, $alias);
         //         Blade::component($class, $alias, 'master');
         //     }
-        // }
         Blade::componentNamespace('Bangsamu\\Master\\Components', 'master');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Bangsamu\Master\Commands\MasterCatchUpCommand::class,
+            ]);
+        }
     }
 
     /**

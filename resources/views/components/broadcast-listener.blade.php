@@ -6,6 +6,7 @@
     $userEmail = auth()->check() ? auth()->user()->email : null;
     $authEndpoint = route('master.sync.channel-auth');
     $syncApiUrl = \Illuminate\Support\Facades\Route::has('master.sync.sync') ? route('master.sync.sync') : route('master.sync.items');
+    $catchUpApiUrl = \Illuminate\Support\Facades\Route::has('master.sync.catch-up') ? route('master.sync.catch-up') : url('master-sync/catch-up');
 @endphp
 
 <!-- Master Data Broadcast & Realtime Sync Listener -->
@@ -61,6 +62,7 @@
             const csrfToken = '{{ csrf_token() }}';
             const authEndpoint = '{{ $authEndpoint }}';
             const syncApiUrl = '{{ $syncApiUrl }}';
+            const catchUpApiUrl = '{{ $catchUpApiUrl }}';
 
             const pusher = new Pusher('{{ $reverbAppKey }}', {
                 wsHost: '{{ $reverbHost }}',
@@ -81,6 +83,40 @@
 
             pusher.connection.bind('state_change', function (states) {
                 console.log('[MasterBroadcast] WebSocket state:', states.current);
+            });
+
+            // On connection: automatically check and sync missed broadcast updates (FCM-Like Catch-Up)
+            pusher.connection.bind('connected', function () {
+                console.log('[MasterBroadcast] WebSocket connected to Senada Hub.');
+
+                if (catchUpApiUrl) {
+                    fetch(catchUpApiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(res => {
+                        if (res.success && res.synced_count > 0) {
+                            console.log(`[MasterBroadcast] Catch-up completed: ${res.synced_count} missed event(s) synced.`);
+                            showBroadcastToast('success', 'Sinkronisasi Otomatis', `${res.synced_count} pembaruan master data yang terlewat berhasil disinkronkan.`);
+
+                            window.dispatchEvent(new CustomEvent('master-data-synced', { detail: res }));
+
+                            if (window.jQuery && $.fn.dataTable) {
+                                try {
+                                    $('.dataTable').DataTable().ajax.reload(null, false);
+                                } catch (e) {}
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.warn('[MasterBroadcast] Catch-up check failed:', err);
+                    });
+                }
             });
 
             // 1. PUBLIC CHANNEL: Master Data Updates (masterdata.items)
@@ -110,7 +146,8 @@
                         item_id: payload.id,
                         max_id: payload.max_id,
                         target_max_id: payload.max_id || payload.id,
-                        action: payload.action
+                        action: payload.action,
+                        _broadcast_id: payload._broadcast_id || payload.broadcast_id
                     })
                 })
                 .then(response => response.json())
@@ -150,9 +187,8 @@
                 });
             };
 
+            // Single event binding for all 15 master tables
             masterChannel.bind('MasterDataUpdated', handleMasterUpdate);
-            masterChannel.bind('MasterItemUpdated', handleMasterUpdate);
-            masterChannel.bind('master-data-created', handleMasterUpdate);
 
             // 2. PRIVATE CHANNEL: User-Specific Notifications
             @if ($userEmail)

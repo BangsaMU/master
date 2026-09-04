@@ -443,13 +443,6 @@ class ItemCodeController extends Controller
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
 
-                /* WebSocket Broadcast to Senada Reverb Hub */
-                try {
-                    MasterBroadcastService::broadcastItem($item_code, 'updated');
-                } catch (\Throwable $e) {
-                    Log::warning('[ItemCodeController] Broadcast failed: ' . $e->getMessage());
-                }
-
                 $message = $this->sheet_name . ' updated successfully';
             } else {
                 $message = $this->sheet_name . ' no data changed';
@@ -504,13 +497,6 @@ class ItemCodeController extends Controller
                 ]);
             }
 
-            /* WebSocket Broadcast to Senada Reverb Hub */
-            try {
-                MasterBroadcastService::broadcastItem($createdItem, 'created');
-            } catch (\Throwable $e) {
-                Log::warning('[ItemCodeController] Broadcast failed: ' . $e->getMessage());
-            }
-
             $message = $this->sheet_name . ' created successfully';
         }
 
@@ -551,13 +537,6 @@ class ItemCodeController extends Controller
         if (class_exists($modelClass)) {
             $deletedItem = $modelClass::findOrFail($id);
             $deletedItem->delete(); // akan melakukan soft delete
-
-            /* WebSocket Broadcast to Senada Reverb Hub */
-            try {
-                MasterBroadcastService::broadcastItem($deletedItem, 'deleted');
-            } catch (\Throwable $e) {
-                Log::warning('[ItemCodeController] Broadcast delete failed: ' . $e->getMessage());
-            }
         }else{
             abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
         }

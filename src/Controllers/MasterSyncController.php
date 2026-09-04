@@ -44,6 +44,23 @@ class MasterSyncController extends Controller
     }
 
     /**
+     * Trigger catch-up synchronization for missed broadcasts.
+     */
+    public function catchUp(Request $request): JsonResponse
+    {
+        $sinceId = $request->has('since_id') ? (int) $request->input('since_id') : null;
+        $limit = (int) $request->input('limit', 100);
+
+        $result = $this->syncService->catchUpMissedBroadcasts($sinceId, $limit);
+
+        $statusCode = ($result['success'] ?? false)
+            ? Response::HTTP_OK
+            : Response::HTTP_INTERNAL_SERVER_ERROR;
+
+        return response()->json($result, $statusCode);
+    }
+
+    /**
      * Authenticate private WebSocket channel subscription for client browser.
      *
      * Supports:

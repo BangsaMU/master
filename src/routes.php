@@ -31,12 +31,14 @@ Route::middleware(['web','auth'])->prefix('support')->name('support.')->group(fu
 Route::middleware(['web', 'auth'])->prefix('master-sync')->name('master.sync.')->group(function () {
     Route::post('sync', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'sync'])->name('sync');
     Route::post('sync-items', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'syncItems'])->name('items');
+    Route::match(['get', 'post'], 'catch-up', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'catchUp'])->name('catch-up');
     Route::post('channel-auth', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'channelAuth'])->name('channel-auth');
 });
 
 Route::prefix('api/master-sync')->name('api.master.sync.')->group(function () {
     Route::post('sync', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'sync']);
     Route::post('sync-items', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'syncItems']);
+    Route::match(['get', 'post'], 'catch-up', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'catchUp']);
 });
 
 Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(function () {

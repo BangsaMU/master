@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bangsamu\Master\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -179,7 +180,15 @@ class MasterDataSyncService
         $maxId = (int) ($payload['max_id'] ?? $payload['target_max_id'] ?? $id);
         $action = (string) ($payload['action'] ?? 'updated');
 
-        return $this->syncTable($table, $id, $maxId, $action, $chunkSize);
+        $result = $this->syncTable($table, $id, $maxId, $action, $chunkSize);
+
+        $broadcastId = (int) ($payload['_broadcast_id'] ?? $payload['broadcast_id'] ?? 0);
+        if ($broadcastId > 0) {
+            self::setLastSyncedBroadcastId($broadcastId);
+            $result['broadcast_id'] = $broadcastId;
+        }
+
+        return $result;
     }
 
     /**
@@ -381,5 +390,191 @@ class MasterDataSyncService
     public function syncToMaxId(int $targetMaxId, int $chunkSize = 250): array
     {
         return $this->syncTable('master_item_code', $targetMaxId, $targetMaxId, 'updated', $chunkSize);
+    }
+
+    /**
+     * Ensure the dashboard_settings table exists.
+     */
+    public static function ensureDashboardSettingsTable(): void
+    {
+        if (! Schema::hasTable('dashboard_settings')) {
+            Schema::create('dashboard_settings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('key')->unique();
+                $table->text('value')->nullable();
+                $table->string('group')->default('general');
+                $table->string('type')->default('text');
+                $table->string('label')->nullable();
+                $table->text('options')->nullable();
+                $table->integer('order')->default(0);
+                $table->timestamps();
+            });
+        }
+    }
+
+    /**
+     * Get the last successfully synced broadcast ID from dashboard_settings.
+     */
+    public static function getLastSyncedBroadcastId(): int
+    {
+        try {
+            self::ensureDashboardSettingsTable();
+
+            $setting = DB::table('dashboard_settings')
+                ->where('key', 'last_synced_broadcast_id')
+                ->first();
+
+            return $setting ? (int) $setting->value : 0;
+        } catch (Throwable $e) {
+            Log::warning('[MasterDataSyncService] Failed to read last_synced_broadcast_id: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Record the last successfully synced broadcast ID in dashboard_settings.
+     */
+    public static function setLastSyncedBroadcastId(int $id): void
+    {
+        if ($id <= 0) {
+            return;
+        }
+
+        try {
+            self::ensureDashboardSettingsTable();
+
+            $exists = DB::table('dashboard_settings')->where('key', 'last_synced_broadcast_id')->exists();
+            if ($exists) {
+                DB::table('dashboard_settings')
+                    ->where('key', 'last_synced_broadcast_id')
+                    ->update([
+                        'value' => (string) $id,
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                DB::table('dashboard_settings')->insert([
+                    'key' => 'last_synced_broadcast_id',
+                    'value' => (string) $id,
+                    'group' => 'senada_sync',
+                    'type' => 'number',
+                    'label' => 'Senada Last Synced Broadcast ID',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        } catch (Throwable $e) {
+            Log::warning('[MasterDataSyncService] Failed to save last_synced_broadcast_id: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Fetch and synchronize missed broadcast events from Senada (FCM-like catch-up).
+     *
+     * @param int|null $sinceId If null, reads from dashboard_settings
+     * @param int $limit Max events to process in one catch-up cycle
+     * @return array<string, mixed>
+     */
+    public function catchUpMissedBroadcasts(?int $sinceId = null, int $limit = 100): array
+    {
+        $checkpoint = $sinceId ?? self::getLastSyncedBroadcastId();
+
+        $senadaUrl = rtrim((string) (config('MasterConfig.senada.url') ?: env('SENADA_URL', 'http://192.168.20.187:9029')), '/');
+        $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_pilot_key_secret_2026'));
+        $timeout = (int) (config('MasterConfig.senada.timeout') ?: env('SENADA_TIMEOUT', 5));
+        $channel = (string) (config('MasterConfig.senada.channel') ?: env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'));
+
+        try {
+            $response = Http::timeout($timeout)
+                ->withHeaders([
+                    'X-API-Key' => $apiKey,
+                    'Accept' => 'application/json',
+                ])
+                ->get("{$senadaUrl}/api/broadcast/catch-up", [
+                    'since_id' => $checkpoint,
+                    'channel' => $channel,
+                    'limit' => $limit,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning("[MasterDataSyncService] Catch-up failed with status {$response->status()}: " . $response->body());
+                return [
+                    'success' => false,
+                    'message' => "Senada catch-up returned HTTP {$response->status()}",
+                    'checkpoint' => $checkpoint,
+                    'synced_count' => 0,
+                ];
+            }
+
+            $data = $response->json();
+            $events = $data['events'] ?? [];
+            $latestId = (int) ($data['latest_id'] ?? $checkpoint);
+            $hasMore = (bool) ($data['has_more'] ?? false);
+
+            if (empty($events)) {
+                // If checkpoint was 0 and Senada gave us latest_id, initialize checkpoint to avoid fetching all history next time
+                if ($checkpoint === 0 && $latestId > 0) {
+                    self::setLastSyncedBroadcastId($latestId);
+                }
+
+                return [
+                    'success' => true,
+                    'message' => 'Up to date. No missed events.',
+                    'checkpoint' => $checkpoint,
+                    'latest_id' => $latestId,
+                    'synced_count' => 0,
+                    'has_more' => false,
+                    'events_processed' => [],
+                ];
+            }
+
+            $processed = [];
+            $lastProcessedId = $checkpoint;
+
+            foreach ($events as $eventItem) {
+                $eventId = (int) ($eventItem['id'] ?? 0);
+                $payload = $eventItem['payload'] ?? [];
+
+                if (! empty($payload) && is_array($payload)) {
+                    $table = $payload['table'] ?? null;
+                    if ($table && $this->isTableSupported($table)) {
+                        $syncResult = $this->syncFromBroadcast($payload);
+                        $processed[] = [
+                            'event_id' => $eventId,
+                            'table' => $table,
+                            'action' => $payload['action'] ?? 'updated',
+                            'result' => $syncResult,
+                        ];
+                    }
+                }
+
+                if ($eventId > $lastProcessedId) {
+                    $lastProcessedId = $eventId;
+                }
+            }
+
+            // Save new checkpoint
+            if ($lastProcessedId > $checkpoint) {
+                self::setLastSyncedBroadcastId($lastProcessedId);
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Successfully caught up ' . count($processed) . ' missed events.',
+                'previous_checkpoint' => $checkpoint,
+                'new_checkpoint' => $lastProcessedId,
+                'latest_id' => $latestId,
+                'has_more' => $hasMore,
+                'synced_count' => count($processed),
+                'events_processed' => $processed,
+            ];
+        } catch (Throwable $e) {
+            Log::error('[MasterDataSyncService] Catch-up exception: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'checkpoint' => $checkpoint,
+                'synced_count' => 0,
+            ];
+        }
     }
 }

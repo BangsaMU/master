@@ -25,45 +25,7 @@ class MasterBroadcastService
      */
     public function broadcastItemChange($item, string $action = 'updated'): array
     {
-        $itemId = is_object($item) ? (int) ($item->id ?? 0) : (int) ($item['id'] ?? 0);
-        $itemCode = is_object($item) ? (string) ($item->item_code ?? '') : (string) ($item['item_code'] ?? '');
-        $itemName = is_object($item) ? (string) ($item->item_name ?? '') : (string) ($item['item_name'] ?? '');
-        $categoryId = is_object($item) ? ($item->category_id ?? null) : ($item['category_id'] ?? null);
-        $uomId = is_object($item) ? ($item->uom_id ?? null) : ($item['uom_id'] ?? null);
-        $groupId = is_object($item) ? ($item->group_id ?? null) : ($item['group_id'] ?? null);
-
-        // Determine current max ID from master table
-        $maxId = $itemId;
-        try {
-            $tableMax = DB::table('master_item_code')->max('id');
-            if ($tableMax) {
-                $maxId = (int) $tableMax;
-            }
-        } catch (Throwable $e) {
-            // If table check fails, fallback to itemId
-            $maxId = $itemId;
-        }
-
-        $payload = [
-            'table' => 'master_item_code',
-            'entity' => 'item',
-            'action' => $action,
-            'id' => $itemId,
-            'max_id' => $maxId,
-            'item_code' => $itemCode,
-            'item_name' => $itemName,
-            'category_id' => $categoryId,
-            'uom_id' => $uomId,
-            'group_id' => $groupId,
-            'timestamp' => now()->toIso8601String(),
-        ];
-
-        return $this->dispatchToSenada(
-            channel: config('MasterConfig.senada.channel', env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items')),
-            event: 'MasterItemUpdated',
-            payload: $payload,
-            isPrivate: false
-        );
+        return $this->broadcastTableChange('master_item_code', $item, $action);
     }
 
     /**
@@ -174,15 +136,8 @@ class MasterBroadcastService
 
         $channel = config('MasterConfig.senada.channel', env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'));
 
-        // Always dispatch MasterDataUpdated
-        $res = $this->dispatchToSenada($channel, 'MasterDataUpdated', $payload, false);
-
-        // Also dispatch MasterItemUpdated for backward compatibility if table is master_item_code
-        if ($table === 'master_item_code') {
-            $this->dispatchToSenada($channel, 'MasterItemUpdated', $payload, false);
-        }
-
-        return $res;
+        // Dispatch single MasterDataUpdated event
+        return $this->dispatchToSenada($channel, 'MasterDataUpdated', $payload, false);
     }
 
     /**
