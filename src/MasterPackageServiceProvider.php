@@ -26,6 +26,14 @@ class MasterPackageServiceProvider extends ServiceProvider
         $this->app->singleton(\Bangsamu\Master\Services\DynamicAssetService::class, function ($app) {
             return new \Bangsamu\Master\Services\DynamicAssetService();
         });
+
+        $this->app->singleton(\Bangsamu\Master\Services\MasterBroadcastService::class, function ($app) {
+            return new \Bangsamu\Master\Services\MasterBroadcastService();
+        });
+
+        $this->app->singleton(\Bangsamu\Master\Services\MasterItemSyncService::class, function ($app) {
+            return new \Bangsamu\Master\Services\MasterItemSyncService();
+        });
     }
 
     /**

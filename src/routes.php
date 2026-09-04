@@ -27,6 +27,15 @@ Route::middleware(['web','auth'])->prefix('support')->name('support.')->group(fu
         ->name('ticket-store');
 });
 
+// Master Sync & WebSocket Channel Auth Endpoints
+Route::middleware(['web', 'auth'])->prefix('master-sync')->name('master.sync.')->group(function () {
+    Route::post('sync-items', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'syncItems'])->name('items');
+    Route::post('channel-auth', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'channelAuth'])->name('channel-auth');
+});
+
+Route::prefix('api/master-sync')->name('api.master.sync.')->group(function () {
+    Route::post('sync-items', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'syncItems']);
+});
 
 Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(function () {
     // Route::get('user', [\Bangsamu\Master\Controllers\UserController::class, 'index'])->name('user.index');

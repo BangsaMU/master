@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 use Bangsamu\Master\Models\Setting; 
 use Illuminate\Support\Facades\Schema;
 use Bangsamu\Master\Models\DashboardSettings;
+use Bangsamu\Master\Services\MasterBroadcastService;
+use Illuminate\Support\Facades\Log;
 
 class ItemCodeController extends Controller
 {
@@ -440,6 +442,14 @@ class ItemCodeController extends Controller
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT')) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
+
+                /* WebSocket Broadcast to Senada Reverb Hub */
+                try {
+                    MasterBroadcastService::broadcastItem($item_code, 'updated');
+                } catch (\Throwable $e) {
+                    Log::warning('[ItemCodeController] Broadcast failed: ' . $e->getMessage());
+                }
+
                 $message = $this->sheet_name . ' updated successfully';
             } else {
                 $message = $this->sheet_name . ' no data changed';
@@ -461,7 +471,7 @@ class ItemCodeController extends Controller
 
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
 
-            $modelClass::create([
+            $createdItem = $modelClass::create([
                 'item_code' => $request->item_code,
                 'item_name' => $request->item_name,
                 'uom_id' => $request->uom_id,
@@ -492,6 +502,13 @@ class ItemCodeController extends Controller
                 'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
                 'created_at' => now(),
                 ]);
+            }
+
+            /* WebSocket Broadcast to Senada Reverb Hub */
+            try {
+                MasterBroadcastService::broadcastItem($createdItem, 'created');
+            } catch (\Throwable $e) {
+                Log::warning('[ItemCodeController] Broadcast failed: ' . $e->getMessage());
             }
 
             $message = $this->sheet_name . ' created successfully';
@@ -532,7 +549,15 @@ class ItemCodeController extends Controller
         $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
 
         if (class_exists($modelClass)) {
-            $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
+            $deletedItem = $modelClass::findOrFail($id);
+            $deletedItem->delete(); // akan melakukan soft delete
+
+            /* WebSocket Broadcast to Senada Reverb Hub */
+            try {
+                MasterBroadcastService::broadcastItem($deletedItem, 'deleted');
+            } catch (\Throwable $e) {
+                Log::warning('[ItemCodeController] Broadcast delete failed: ' . $e->getMessage());
+            }
         }else{
             abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
         }

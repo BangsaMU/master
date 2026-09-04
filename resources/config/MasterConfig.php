@@ -65,5 +65,12 @@ return [
             'MODEL' => env('TABEL_LOKAL_UOM', 'Uom'),
             // 'FIELD' => json_decode(env('SYNC_LOKAL_UOM', '["id","uom_code","uom_name"]')),
         ],
-    )
+    ),
+    'senada' => [
+        'active' => env('SENADA_BROADCAST_ACTIVE', true),
+        'url' => env('SENADA_URL', 'http://192.168.20.187:9029'),
+        'api_key' => env('SENADA_API_KEY', 'snd_masterdata_pilot_key_secret_2026'),
+        'timeout' => env('SENADA_TIMEOUT', 3),
+        'channel' => env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'),
+    ],
 ];

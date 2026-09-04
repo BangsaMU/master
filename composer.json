@@ -10,7 +10,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Bangsamu\\Master\\": "src/"
+            "Bangsamu\\Master\\": "src/",
+            "Bangsamu\\Master\\Database\\Seeds\\": "src/database/seeds/"
         }
     },
     "extra": {
