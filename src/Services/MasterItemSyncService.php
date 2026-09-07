@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class MasterItemSyncService extends MasterDataSyncService
+class MasterItemSyncService
 {
     /**
      * Columns that are cloned from master_item_code in db_master to local database.
