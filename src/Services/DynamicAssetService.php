@@ -138,9 +138,9 @@ class DynamicAssetService
             if ($codeLower === 'meb') {
                 $candidates[] = 'assets/images/meitech-logo.png';
                 $candidates[] = 'themes/cms_meb/assets/img/s1-meitech-logo-only.png';
-            } elseif ($codeLower === 'me' || $codeLower === 'meindo') {
-                $candidates[] = 'img/meindo-icon.png';
-                $candidates[] = 'assets/images/4-12-meindo-logo.png';
+            } elseif ($codeLower === 'me' || $codeLower === 'demo') {
+                $candidates[] = 'img/demo-icon.png';
+                $candidates[] = 'assets/images/4-12-demo-logo.png';
             }
 
             foreach ($candidates as $file) {
@@ -224,8 +224,8 @@ class DynamicAssetService
 
             if ($codeLower === 'meb') {
                 array_unshift($logoCandidates, 'assets/images/meitech-logo.png', 'themes/cms_meb/assets/img/s1-meitech-logo-only.png');
-            } elseif ($codeLower === 'me' || $codeLower === 'meindo') {
-                array_unshift($logoCandidates, 'img/meindo-icon.png', 'assets/images/4-12-meindo-logo.png');
+            } elseif ($codeLower === 'me' || $codeLower === 'demo') {
+                array_unshift($logoCandidates, 'img/demo-icon.png', 'assets/images/4-12-demo-logo.png');
             }
 
             foreach ($logoCandidates as $file) {

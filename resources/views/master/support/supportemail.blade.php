@@ -14,7 +14,7 @@
     $apiUrl = config('app.ticket');
     $appCode = config('SsoConfig.main.APP_CODE');
     $appName = config('app.name');
-
+    $app_support_email = $params['app_support_email'] ?? config('app.support_email');
 @endphp
 
 @section('title',$appName . ' Notification Tickets')
@@ -41,7 +41,7 @@
 
 @section('content')
 <div class="alert alert-warning alert-dismissible fade show" role="alert">
-    Fitur ini digunakan untuk mencatat informasi keluhan dari user yang akan dikirimkan langsung ke email <strong>apps-support@meindo.com</strong> sebagai report ticket. Mohon di pilih sesuai dengan kriteria tiket yang tersedia pada box dibawah!
+    Fitur ini digunakan untuk mencatat informasi keluhan dari user yang akan dikirimkan langsung ke email <strong>{{ $app_support_email }}</strong> sebagai report ticket. Mohon di pilih sesuai dengan kriteria tiket yang tersedia pada box dibawah!
     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
       <span aria-hidden="true">&times;</span>
     </button>
@@ -254,12 +254,12 @@
             <form id="ticketForm" action="{{ route('support.ticket-store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
-                    @if (auth()->user()->email == 'bagas.setyonugroho@meindo.com')
+                    @if (auth()->user()->email == 'bagas.setyonugroho@demo.com')
                         <div class="form-group">
                             <label>CC/Notified User</label>
                             <select id="email-to" name="email_to[]" autocomplete="off" class="form-control" multiple="multiple"
                                 style="width: 100%;" placeholder="To:">
-                                <option selected value="bagas.setyonugroho@meindo.com">bagas.setyonugroho@meindo.com</option>
+                                <option selected value="bagas.setyonugroho@demo.com">bagas.setyonugroho@demo.com</option>
                                 <option selected value="{{ auth()->user()->email }}">{{ auth()->user()->email }}</option>
                             </select>
                         </div>
@@ -332,9 +332,11 @@
 @push('js')
 <!-- In your Blade template -->
 @php
-    // Helper untuk cek apakah file lokal tersedia
-    function local_asset_exists($path) {
-        return file_exists(public_path($path));
+    if (!function_exists('local_asset_exists')) {
+        // Helper untuk cek apakah file lokal tersedia
+        function local_asset_exists($path) {
+            return file_exists(public_path($path));
+        }
     }
 @endphp
 

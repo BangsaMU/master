@@ -69,7 +69,7 @@ return [
     'senada' => [
         'active' => env('SENADA_BROADCAST_ACTIVE', true),
         'url' => env('SENADA_URL', 'http://192.168.20.187:9029'),
-        'api_key' => env('SENADA_API_KEY', 'snd_masterdata_pilot_key_secret_2026'),
+        'api_key' => env('SENADA_API_KEY', 'snd_masterdata_key_secret'),
         'timeout' => env('SENADA_TIMEOUT', 3),
         'channel' => env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'),
         'app_key' => env('REVERB_APP_KEY', 'senada_hub_key'),

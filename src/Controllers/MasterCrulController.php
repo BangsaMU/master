@@ -41,7 +41,7 @@ class MasterCrulController
 
     function masterCrul($action, $param = null, $token = null)
     {
-        $base_uri = 'https://cms.meindo.com';
+        $base_uri = config('app.url');
 
         // $client = new Client([
         //     'verify' => false,
@@ -51,17 +51,17 @@ class MasterCrulController
         //     'timeout'  => 2.0,
         // ]);
         // $headers = [
-        //     // 'Cookie' => 'INACTSESSID17db9fa0c5ba1cb5979b54663da2df35=gita.samudra%40meindo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671; PHPSESSID=62ntlebaocv2sqf20gle05b7v1'
+        //     // 'Cookie' => 'INACTSESSID17db9fa0c5ba1cb5979b54663da2df35=gita.samudra%40demo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671; PHPSESSID=62ntlebaocv2sqf20gle05b7v1'
         // ];
         // $options = [
         //     'multipart' => [
         //         [
         //             'name' => 'username',
-        //             'contents' => 'gita.samudra@meindo.com'
+        //             'contents' => 'gita.samudra@demo.com'
         //         ],
         //         [
         //             'name' => 'password',
-        //             'contents' => 'Meindo12345'
+        //             'contents' => 'Demo12345'
         //         ],
         //         [
         //             'name' => 'page',
@@ -77,7 +77,7 @@ class MasterCrulController
         //         ]
         //     ]
         // ];
-        // $request = new Request('POST', 'https://cms.meindo.com/main.php' );
+        // $request = new Request('POST', 'https://cms.demo.com/main.php' );
         // $res = $client->sendAsync($request, $options)->wait();
         // echo $res->getBody();
 
@@ -96,24 +96,24 @@ class MasterCrulController
         ]);
 
         $cookieJar = CookieJar::fromArray([
-            'INACTSESSID17db9fa0c5ba1cb5979b54663da2df35' => 'gita.samudra%40meindo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671'
-        ], 'cms.meindo.com');
+            'INACTSESSID17db9fa0c5ba1cb5979b54663da2df35' => 'gita.samudra%40demo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671'
+        ], 'cms.demo.com');
         $cookie_name='INACTSESSID17db9fa0c5ba1cb5979b54663da2df35';
-        $cookie_value='gita.samudra%40meindo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671';
-        $cookie_domain='cms.meindo.com';
+        $cookie_value='gita.samudra%40demo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671';
+        $cookie_domain='cms.demo.com';
         // $cookie_expiers= time() + (86400 * 30);
         $cookie_expiers= [];
         // setrawcookie($cookie_name, rawurlencode($cookie_value), 0,'/');
-        // setcookie($cookie_name, $cookie_value, 0, '/','cms.meindo.com',1,1); // 86400 = 1 day
+        // setcookie($cookie_name, $cookie_value, 0, '/','cms.demo.com',1,1); // 86400 = 1 day
         // $client->request('GET', '/get', ['cookies' => $cookieJar]);
 
         // $cookieJar = new \GuzzleHttp\Cookie\CookieJar;
-        $response = $client->request('POST', 'https://cms.meindo.com/main.php', [
+        $response = $client->request('POST', 'https://cms.demo.com/main.php', [
             'cookies' => $cookieJar,
             'allow_redirects' => true,
             'form_params' => [
-                'username' => 'gita.samudra@meindo.com',
-                'password' => 'Meindo12345',
+                'username' => 'gita.samudra@demo.com',
+                'password' => 'Demo12345',
                 'page' => 'member',
                 'cmd' => 'login',
                 'act' => 'login'
@@ -134,8 +134,8 @@ class MasterCrulController
     {
 
         $attr = [
-            'username' => 'gita.samudra@meindo.com',
-            'password' => 'Meindo12345',
+            'username' => 'gita.samudra@demo.com',
+            'password' => 'Demo12345',
             'page' => 'member',
             'cmd' => 'login',
             'act' => 'login'
@@ -146,7 +146,7 @@ class MasterCrulController
         // $password = trim($values["password"]);
         extract($attr);
         //login form action url
-        $url = "https://cms.meindo.com/main.php";
+        $url = "https://cms.demo.com/main.php";
         $postinfo = "username=" . $username . "&password=" . $password . "&page=" . $page . "&cmd=" . $cmd . "&act=" . $act;
 
 
@@ -167,7 +167,7 @@ class MasterCrulController
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_COOKIEFILE, "/tmp/cookieFileNameSamu");
-        curl_setopt($ch, CURLOPT_URL, "https://cms.meindo.com/main.php?page=member");
+        curl_setopt($ch, CURLOPT_URL, "https://cms.demo.com/main.php?page=member");
 
         $buf2 = curl_exec($ch);
 
@@ -209,15 +209,15 @@ class MasterCrulController
         curl_exec($ch);
 
         //page with the content I want to grab
-        curl_setopt($ch, CURLOPT_URL, "https://cms.meindo.com/main.php?page=member");
+        curl_setopt($ch, CURLOPT_URL, "https://cms.demo.com/main.php?page=member");
         //do stuff with the info with DomDocument() etc
         $html = curl_exec($ch);
         curl_close($ch);
         echo $html;
         dd(2, $ch);
 
-        // 'username' => 'gita.samudra@meindo.com',
-        // 'password' => 'Meindo12345',
+        // 'username' => 'gita.samudra@demo.com',
+        // 'password' => 'Demo12345',
         // 'page' => 'member',
         // 'cmd' => 'login',
         // 'act' => 'login'
@@ -225,7 +225,7 @@ class MasterCrulController
         // Set some options - we are passing in a useragent too here
         curl_setopt_array($curl, [
             CURLOPT_RETURNTRANSFER => 1,
-            CURLOPT_URL => 'https://cms.meindo.com/main.php',
+            CURLOPT_URL => 'https://cms.demo.com/main.php',
             //  CURLOPT_USERAGENT => 'login',
             CURLOPT_POST => 1,
             CURLOPT_POSTFIELDS => $attr
@@ -239,9 +239,9 @@ class MasterCrulController
             'verify' => config('MasterConfig.curl.VERIFY', true),
             // 'debug' => true,
         ])
-            ->post('http://ams-meindo.test/login', [
-                'email' => 'gita.samudra@meindo.com',
-                'password' => 'Meindo12345',
+            ->post('http://ams-Demo.test/login', [
+                'email' => 'gita.samudra@demo.com',
+                'password' => 'Demo12345',
             ]);
         // $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
         //     'verify' => config('MasterConfig.curl.VERIFY', false),
@@ -250,13 +250,13 @@ class MasterCrulController
         dd($response->object());
 
         // Send user/password to the login page so that we get new cookies.
-        // https://cms.meindo.com/main.php?page=member&cmd=logout&act=logout
-        $curl = curl_init('https://cms.meindo.com/main.php');
+        // https://cms.demo.com/main.php?page=member&cmd=logout&act=logout
+        $curl = curl_init('https://cms.demo.com/main.php');
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($curl, CURLOPT_COOKIEJAR, '/tmp/cookies'); // cookies get stored in this file
         curl_setopt($curl, CURLOPT_POSTFIELDS, [
-            'username' => 'gita.samudra@meindo.com',
-            'password' => 'Meindo12345',
+            'username' => 'gita.samudra@demo.com',
+            'password' => 'Demo12345',
             'page' => 'member',
             'cmd' => 'login',
             'act' => 'login'
@@ -266,7 +266,7 @@ class MasterCrulController
         curl_close($curl);
 
         // Send the cookies we just saved to the data page you want
-        $curl = curl_init('https://cms.meindo.com/main.php?page=member');
+        $curl = curl_init('https://cms.demo.com/main.php?page=member');
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($curl, CURLOPT_COOKIEFILE, '/tmp/cookies'); // cookies in this file get sent
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -635,8 +635,8 @@ class MasterCrulController
 
     public function cobaCurl()
     {
-        $data['email'] = 'bagas.setyonugroho@meindo.com';
-        $data['password'] = 'bagas.setyonugroho@meindo.com';
+        $data['email'] = 'bagas.setyonugroho@demo.com';
+        $data['password'] = 'bagas.setyonugroho@demo.com';
         $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
             'verify' => config('MasterConfig.curl.VERIFY', false),
         ])->post(config('MasterConfig.main.URL', url('/')) . '/auth_login', $data);

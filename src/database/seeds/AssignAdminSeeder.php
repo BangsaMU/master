@@ -19,9 +19,9 @@ class AssignAdminSeeder extends Seeder
 
         // 2. Masukkan semua email yang ingin dijadikan admin ke dalam array ini
         $adminEmails = [
-            'gita.samudra@meindo.com',
-            'it_dept@meindo.com',
-            // 'user_lain@meindo.com', <-- Anda bisa tambah email lain di sini nanti
+            'gita.samudra@demo.com',
+            'it_dept@demo.com',
+            // 'user_lain@demo.com', <-- Anda bisa tambah email lain di sini nanti
         ];
 
         // 3. Lakukan perulangan untuk mengecek dan memasang role ke setiap user

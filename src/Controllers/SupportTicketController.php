@@ -44,6 +44,7 @@ class SupportTicketController extends Controller
         $apiUrl = $this->getAppSetting('app.ticket');;
         $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
         $search = $this->getAppSetting('app.search');
+        $supportEmail = $this->getAppSetting('app.support_email');
 
         $perPage = 10; // Sesuai dengan logika pagination pada response
         $page = max(1, intval($request->query('page', 1))); // Ambil page dari query, default ke 1
@@ -55,6 +56,7 @@ class SupportTicketController extends Controller
             'limit' => $perPage,
             'offset' => $offset,
             'app_code' => $appCode,
+            'app_support_email' => $supportEmail,
             'search' => $search,
             'order_by' => 'status,created_at',
             'order' => 'desc,desc',
@@ -70,7 +72,7 @@ class SupportTicketController extends Controller
         if ($response->failed()) {
             return view('master::support.supportemail', [
                 'tickets' => [],
-                'error' => 'Failed to fetch tickets.'
+                'error' => 'Failed to fetch tickets.',
             ]);
         }
 
@@ -84,6 +86,7 @@ class SupportTicketController extends Controller
             'tickets' => $tickets,
             'currentPage' => $page,
             'totalPages' => $totalPages,
+            'params' => $params,
             'error' => null
         ]);
     }
@@ -146,14 +149,16 @@ class SupportTicketController extends Controller
         $apiUrl = $this->getAppSetting('app.ticket');//?: config('app.ticket', 'http://192.168.16.205:9016');
         $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
         $search = $this->getAppSetting('app.search');
+        $supportEmail = $this->getAppSetting('app.support_email');
+
 
         // Gather form data
         $subject = $request->subject;
 
         if (str_contains($subject, '[EMPLOYEE-INTERNAL]')) {
-            $cc = ['apps-support@meindo.com','dita.kurniati@meindo.com'];
+            $cc = ['apps-support@demo.com','dita.kurniati@demo.com'];
         }else{
-            $cc = $request->input('email_to') ?? ['apps-support@meindo.com'];
+            $cc = $request->input('email_to') ?? ['apps-support@demo.com'];
         }
 
         $description = $request->input('description');
@@ -164,6 +169,7 @@ class SupportTicketController extends Controller
         // Prepare data for the API
         $data = [
             'app_code' => $appCode,
+            'app_support_email' => $supportEmail,
             'cc' => implode(',', $cc),
             'subject' => $subject,
             'description' => $description,

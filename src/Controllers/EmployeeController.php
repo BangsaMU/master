@@ -391,7 +391,7 @@ class EmployeeController extends Controller
                 if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
                     //bisa liat semua employee
                 } else {
-                    //hanya app hrd meindo
+                    //hanya app hrd demo
                     $query
                     ->where('m_k.app_code', 'APP11')
                     ->whereIn('hire_id', explode(',', $user_location_id))
@@ -418,7 +418,7 @@ class EmployeeController extends Controller
                     if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
                         //bisa liat semua employee
                     } else {
-                        //hanya app hrd meindo
+                        //hanya app hrd demo
                         $query
                         ->where('m_k.app_code', 'APP11')
                         ->whereIn('hire_id', explode(',', $user_location_id))
@@ -452,7 +452,7 @@ class EmployeeController extends Controller
                     if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
                         //bisa liat semua employee
                     } else {
-                        //hanya app hrd meindo
+                        //hanya app hrd demo
                         $query
                         ->where('m_k.app_code', 'APP11')
                         ->whereIn('hire_id', explode(',', $user_location_id))

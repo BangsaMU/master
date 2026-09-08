@@ -52,7 +52,7 @@ class Employee extends Model
                     $table->date('tanggal_akhir_kontrak')->nullable()->comment('isi tanggal akhir kontrak');
                     $table->string('keterangan', 255)->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
                     $table->tinyInteger('work_location_id')->nullable();
-                    $table->string('app_code', 10)->default('APP11')->comment('buat limit hak akses app yg boleh edit default emplye HRD meindo app');
+                    $table->string('app_code', 10)->default('APP11')->comment('buat limit hak akses app yg boleh edit default emplye HRD demo app');
                     $table->enum('citizenship', ['WNI', 'WNA'])
                         ->default('WNI')
                         ->comment('WNI = Warga Negara Indonesia, WNA = Warga Negara Asing citizen jika WNI ada limit 16 digit ktp');
@@ -73,7 +73,7 @@ class Employee extends Model
                     $table->integer('project_id')->nullable();
                     $table->integer('job_position_id')->nullable();
                     $table->string('JOB_LIST', 255)->nullable();
-                    $table->bigInteger('company_id')->default(1)->comment('Company ID default meindo 1 0=vendor');
+                    $table->bigInteger('company_id')->default(1)->comment('Company ID default demo 1 0=vendor');
                     $table->date('employee_dob')->nullable()->comment('isi tanggal lahir wni dari ktp auto extrak');
 
                     // Indexes

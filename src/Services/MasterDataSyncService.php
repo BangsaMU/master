@@ -488,7 +488,7 @@ class MasterDataSyncService
         $checkpoint = $sinceId ?? self::getLastSyncedBroadcastId();
 
         $senadaUrl = rtrim((string) (config('MasterConfig.senada.url') ?: env('SENADA_URL', 'http://192.168.20.187:9029')), '/');
-        $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_pilot_key_secret_2026'));
+        $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_key_secret'));
         $timeout = (int) (config('MasterConfig.senada.timeout') ?: env('SENADA_TIMEOUT', 5));
         $channel = (string) (config('MasterConfig.senada.channel') ?: env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'));
 

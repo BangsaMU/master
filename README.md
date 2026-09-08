@@ -1,6 +1,6 @@
 # Bangsamu Master Package
 
-Paket terpusat Master Data untuk ekosistem aplikasi Meindo berbasis Laravel.
+Paket terpusat Master Data untuk ekosistem aplikasi berbasis Laravel.
 
 ## Fitur Utama
 
@@ -47,9 +47,9 @@ Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
     'url' => env('DATABASE_URL_MASTER'),
     'host' => env('DB_HOST_MASTER', '192.168.20.187'),
     'port' => env('DB_PORT_MASTER', '3306'),
-    'database' => env('DB_DATABASE_MASTER', 'meindo_master_live'),
-    'username' => env('DB_USERNAME_MASTER', 'admin'),
-    'password' => env('DB_PASSWORD_MASTER', 'Meindo12345'),
+    'database' => env('DB_DATABASE_MASTER', 'master'),
+    'username' => env('DB_USERNAME_MASTER', 'user'),
+    'password' => env('DB_PASSWORD_MASTER', 'pass'),
     'charset' => 'utf8mb4',
     'collation' => 'utf8mb4_unicode_ci',
     'prefix' => '',
@@ -67,7 +67,7 @@ Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
 # ==============================================================================
 # Endpoint Senada Broadcast Hub
 SENADA_URL=http://192.168.20.187:9029
-SENADA_API_KEY=snd_masterdata_pilot_key_secret_2026
+SENADA_API_KEY=snd_masterdata_key_secret
 SENADA_BROADCAST_ACTIVE=true
 
 # Kredensial Reverb WebSocket (Wajib untuk otorisasi channel private)

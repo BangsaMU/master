@@ -1361,7 +1361,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     ]
                 // 'user' => [
                 //     'id' => 2,
-                //     'user' => "demo2@meindo.com",
+                //     'user' => "demo2@demo.com",
                 //     'name' => "Demo2",
                 //     'permission' => '',
                 //     'signature_url' => 'https://w7.pngwing.com/pngs/514/114/png-transparent-file-signature-signature-miscellaneous-angle-text-thumbnail.png'
@@ -1419,7 +1419,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 // 'file' => "https://pdfobject.com/pdf/sample.pdf",
                 'file_name' => "7757-21323-SPB-TCC-IT-000001.pdf",
                 'indicate' => "9",
-                'person' => "azizi.haq@meindo.com",
+                'person' => "azizi.haq@demo.com",
             ],
 
         ];
@@ -1519,7 +1519,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $data = [
             "success" => true,
             "user" => [
-                "user" => "demo@meindo.com",
+                "user" => "demo@demo.com",
                 "name" => "Demo",
             ],
         ];
@@ -1529,7 +1529,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
     // public function getPersonID(Request $request)
     // {
-    //     $data = 'azizi.haq@meindo.com';
+    //     $data = 'azizi.haq@demo.com';
 
     //     return response()->json($data);
     // }
@@ -1547,7 +1547,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function getCommentModificator(Request $request)
     {
         $data = [
-            "commentModificator" => "azizi.haq@meindo.com",
+            "commentModificator" => "azizi.haq@demo.com",
             "modificatorName" => "Azizi KH",
         ];
 
@@ -2001,7 +2001,6 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $pdfversion = implode('.', $matches[0]);
         // dd($pdfversion);
         if ($pdfversion > "1.4") {
-            // /var/www/html/meindo-annotation/storage/app/public/unec-edu-az/pdf-sample-20.pdf
             echo "tidak bisa edit pdf diatas 1.4 pdf yang akan di edit versi:" . $pdfversion;
             // exit();
             // USE GHOSTSCRIPT IF PDF VERSION ABOVE 1.4 AND SAVE ANY PDF TO VERSION 1.4 , SAVE NEW PDF OF 1.4 VERSION TO NEW PATH
