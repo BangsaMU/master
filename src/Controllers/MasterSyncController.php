@@ -61,6 +61,18 @@ class MasterSyncController extends Controller
     }
 
     /**
+     * Get list of allowed master tables for synchronization.
+     */
+    public function allowedTables(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'allowed_tables' => MasterDataSyncService::getAllowedSyncTables(),
+            'available_tables' => MasterDataSyncService::getAvailableLocalMasterTables(),
+        ], Response::HTTP_OK);
+    }
+
+    /**
      * Authenticate private WebSocket channel subscription for client browser.
      *
      * Supports:

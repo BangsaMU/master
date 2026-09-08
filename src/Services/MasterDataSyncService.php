@@ -8,10 +8,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 
 class MasterDataSyncService
 {
+    public const SETTING_KEY_ALLOWED_TABLES = 'sync_allowed_master_tables';
+
+    public const SETTING_GROUP_SENADA_SYNC = 'senada_sync';
+
     /**
      * Supported Master Tables configuration registry.
      */
@@ -169,8 +174,7 @@ class MasterDataSyncService
     /**
      * Synchronize a master table based on broadcast event payload.
      *
-     * @param array<string, mixed> $payload
-     * @param int $chunkSize
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     public function syncFromBroadcast(array $payload, int $chunkSize = 250): array
@@ -192,13 +196,170 @@ class MasterDataSyncService
     }
 
     /**
+     * Get list of detected local database tables with prefix master_ that are valid master entities.
+     *
+     * @return array<int, string>
+     */
+    public static function getAvailableLocalMasterTables(): array
+    {
+        try {
+            $tables = [];
+
+            // Fetch table list safely via SHOW TABLES
+            $dbTables = DB::select('SHOW TABLES');
+            foreach ($dbTables as $tableObj) {
+                $tableArr = (array) $tableObj;
+                $tableName = reset($tableArr);
+                if (is_string($tableName) && Str::startsWith($tableName, 'master_')) {
+                    // Filter out backup/dump/temporary tables
+                    $lower = strtolower($tableName);
+                    if (
+                        Str::endsWith($lower, 'old') ||
+                        Str::contains($lower, ['_old', 'dump', 'temp', 'backup', 'picture'])
+                    ) {
+                        continue;
+                    }
+                    $tables[] = $tableName;
+                }
+            }
+
+            // Fallback to checking self::TABLES against Schema if SHOW TABLES returned empty
+            if (empty($tables)) {
+                foreach (array_keys(self::TABLES) as $supportedTable) {
+                    if (Schema::hasTable($supportedTable)) {
+                        $tables[] = $supportedTable;
+                    }
+                }
+            }
+
+            sort($tables);
+
+            return array_values(array_unique($tables));
+        } catch (Throwable $e) {
+            Log::warning('[MasterDataSyncService] Failed to get local master tables: '.$e->getMessage());
+            $tables = [];
+            foreach (array_keys(self::TABLES) as $supportedTable) {
+                try {
+                    if (Schema::hasTable($supportedTable)) {
+                        $tables[] = $supportedTable;
+                    }
+                } catch (Throwable $e2) {
+                }
+            }
+
+            return $tables;
+        }
+    }
+
+    /**
+     * Get the allowed master tables to sync from dashboard_settings.
+     * If setting does not exist, automatically initialize it from local database tables.
+     *
+     * @return array<int, string>
+     */
+    public static function getAllowedSyncTables(): array
+    {
+        try {
+            self::ensureDashboardSettingsTable();
+
+            $setting = DB::table('dashboard_settings')
+                ->where('key', self::SETTING_KEY_ALLOWED_TABLES)
+                ->first();
+
+            if ($setting && ! empty($setting->value)) {
+                $decoded = json_decode($setting->value, true);
+                if (is_array($decoded)) {
+                    // Filter only existing tables with master_ prefix
+                    return array_values(array_filter($decoded, function ($table) {
+                        return is_string($table)
+                            && Str::startsWith($table, 'master_')
+                            && Schema::hasTable($table);
+                    }));
+                }
+            }
+
+            // Auto-initialize: intersection between available local tables and supported tables
+            $available = self::getAvailableLocalMasterTables();
+            $defaultAllowed = array_values(array_intersect($available, array_keys(self::TABLES)));
+            if (empty($defaultAllowed)) {
+                $defaultAllowed = $available;
+            }
+
+            self::setAllowedSyncTables($defaultAllowed);
+
+            return $defaultAllowed;
+        } catch (Throwable $e) {
+            Log::warning('[MasterDataSyncService] Failed to read allowed sync tables: '.$e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
+     * Save allowed master tables to dashboard_settings.
+     *
+     * @param  array<int, string>  $tables
+     */
+    public static function setAllowedSyncTables(array $tables): void
+    {
+        try {
+            self::ensureDashboardSettingsTable();
+
+            $cleanTables = array_values(array_unique(array_filter($tables, function ($tbl) {
+                return is_string($tbl) && Str::startsWith($tbl, 'master_');
+            })));
+
+            $available = self::getAvailableLocalMasterTables();
+
+            $exists = DB::table('dashboard_settings')->where('key', self::SETTING_KEY_ALLOWED_TABLES)->exists();
+            if ($exists) {
+                DB::table('dashboard_settings')
+                    ->where('key', self::SETTING_KEY_ALLOWED_TABLES)
+                    ->update([
+                        'value' => json_encode($cleanTables),
+                        'options' => json_encode($available),
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                DB::table('dashboard_settings')->insert([
+                    'key' => self::SETTING_KEY_ALLOWED_TABLES,
+                    'value' => json_encode($cleanTables),
+                    'group' => self::SETTING_GROUP_SENADA_SYNC,
+                    'type' => 'json',
+                    'label' => 'Allowed Master Data Sync Tables',
+                    'options' => json_encode($available),
+                    'order' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        } catch (Throwable $e) {
+            Log::warning('[MasterDataSyncService] Failed to save allowed sync tables: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Check if a given table is allowed to be synchronized.
+     * Must have prefix 'master_', exist in local DB schema, and be in dashboard_settings whitelist.
+     */
+    public function isTableSyncAllowed(string $table): bool
+    {
+        if (! Str::startsWith($table, 'master_')) {
+            return false;
+        }
+
+        if (! Schema::hasTable($table)) {
+            return false;
+        }
+
+        $allowed = self::getAllowedSyncTables();
+
+        return in_array($table, $allowed, true);
+    }
+
+    /**
      * Core universal synchronization method for any supported master table.
      *
-     * @param string $table
-     * @param int|null $targetId
-     * @param int|null $targetMaxId
-     * @param string $action
-     * @param int $chunkSize
      * @return array<string, mixed>
      */
     public function syncTable(
@@ -208,28 +369,43 @@ class MasterDataSyncService
         string $action = 'updated',
         int $chunkSize = 250
     ): array {
+        if (! $this->isTableSyncAllowed($table)) {
+            return [
+                'success' => true,
+                'skipped' => true,
+                'table' => $table,
+                'message' => "Table '{$table}' is not allowed or does not exist in local database. Sync skipped.",
+                'synced_count' => 0,
+            ];
+        }
+
         if (function_exists('is_master_db_same_as_default') && is_master_db_same_as_default()) {
             return [
                 'success' => true,
+                'skipped' => true,
                 'table' => $table,
-                'message' => "Master database and local database are identical. Sync skipped.",
+                'message' => 'Master database and local database are identical. Sync skipped.',
                 'synced_count' => 0,
             ];
         }
 
         if (! $this->isTableSupported($table)) {
             return [
-                'success' => false,
+                'success' => true,
+                'skipped' => true,
                 'table' => $table,
                 'message' => "Table '{$table}' is not registered in MasterDataSyncService.",
+                'synced_count' => 0,
             ];
         }
 
         if (! Schema::hasTable($table)) {
             return [
-                'success' => false,
+                'success' => true,
+                'skipped' => true,
                 'table' => $table,
                 'message' => "Local database table '{$table}' does not exist.",
+                'synced_count' => 0,
             ];
         }
 
@@ -312,18 +488,21 @@ class MasterDataSyncService
                 }
 
                 DB::table($table)->upsert([$record], ['id'], $updateColumns);
+
                 return true;
             }
 
             // If not found in db_master and action is deleted, apply soft delete locally
             if ($action === 'deleted' && in_array('deleted_at', $allowedColumns, true)) {
                 DB::table($table)->where('id', $id)->update(['deleted_at' => now()]);
+
                 return true;
             }
 
             return false;
         } catch (Throwable $e) {
-            Log::warning("[MasterDataSyncService] Failed to sync single record {$table} ID {$id}: " . $e->getMessage());
+            Log::warning("[MasterDataSyncService] Failed to sync single record {$table} ID {$id}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -382,7 +561,8 @@ class MasterDataSyncService
                 'elapsed_ms' => round((microtime(true) - $startTime) * 1000, 2),
             ];
         } catch (Throwable $e) {
-            Log::error("[MasterDataSyncService] Range sync error on {$table}: " . $e->getMessage());
+            Log::error("[MasterDataSyncService] Range sync error on {$table}: ".$e->getMessage());
+
             return [
                 'success' => false,
                 'from_id' => $fromId,
@@ -435,7 +615,8 @@ class MasterDataSyncService
 
             return $setting ? (int) $setting->value : 0;
         } catch (Throwable $e) {
-            Log::warning('[MasterDataSyncService] Failed to read last_synced_broadcast_id: ' . $e->getMessage());
+            Log::warning('[MasterDataSyncService] Failed to read last_synced_broadcast_id: '.$e->getMessage());
+
             return 0;
         }
     }
@@ -472,15 +653,15 @@ class MasterDataSyncService
                 ]);
             }
         } catch (Throwable $e) {
-            Log::warning('[MasterDataSyncService] Failed to save last_synced_broadcast_id: ' . $e->getMessage());
+            Log::warning('[MasterDataSyncService] Failed to save last_synced_broadcast_id: '.$e->getMessage());
         }
     }
 
     /**
      * Fetch and synchronize missed broadcast events from Senada (FCM-like catch-up).
      *
-     * @param int|null $sinceId If null, reads from dashboard_settings
-     * @param int $limit Max events to process in one catch-up cycle
+     * @param  int|null  $sinceId  If null, reads from dashboard_settings
+     * @param  int  $limit  Max events to process in one catch-up cycle
      * @return array<string, mixed>
      */
     public function catchUpMissedBroadcasts(?int $sinceId = null, int $limit = 100): array
@@ -505,7 +686,8 @@ class MasterDataSyncService
                 ]);
 
             if (! $response->successful()) {
-                Log::warning("[MasterDataSyncService] Catch-up failed with status {$response->status()}: " . $response->body());
+                Log::warning("[MasterDataSyncService] Catch-up failed with status {$response->status()}: ".$response->body());
+
                 return [
                     'success' => false,
                     'message' => "Senada catch-up returned HTTP {$response->status()}",
@@ -545,14 +727,16 @@ class MasterDataSyncService
 
                 if (! empty($payload) && is_array($payload)) {
                     $table = $payload['table'] ?? null;
-                    if ($table && $this->isTableSupported($table)) {
+                    if ($table && $this->isTableSupported($table) && $this->isTableSyncAllowed($table)) {
                         $syncResult = $this->syncFromBroadcast($payload);
-                        $processed[] = [
-                            'event_id' => $eventId,
-                            'table' => $table,
-                            'action' => $payload['action'] ?? 'updated',
-                            'result' => $syncResult,
-                        ];
+                        if (! ($syncResult['skipped'] ?? false)) {
+                            $processed[] = [
+                                'event_id' => $eventId,
+                                'table' => $table,
+                                'action' => $payload['action'] ?? 'updated',
+                                'result' => $syncResult,
+                            ];
+                        }
                     }
                 }
 
@@ -568,7 +752,7 @@ class MasterDataSyncService
 
             return [
                 'success' => true,
-                'message' => 'Successfully caught up ' . count($processed) . ' missed events.',
+                'message' => 'Successfully caught up '.count($processed).' missed events.',
                 'previous_checkpoint' => $checkpoint,
                 'new_checkpoint' => $lastProcessedId,
                 'latest_id' => $latestId,
@@ -577,7 +761,8 @@ class MasterDataSyncService
                 'events_processed' => $processed,
             ];
         } catch (Throwable $e) {
-            Log::error('[MasterDataSyncService] Catch-up exception: ' . $e->getMessage());
+            Log::error('[MasterDataSyncService] Catch-up exception: '.$e->getMessage());
+
             return [
                 'success' => false,
                 'message' => $e->getMessage(),

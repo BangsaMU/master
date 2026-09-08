@@ -1,24 +1,24 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Route;
 
 Route::get('mud-master', function () {
     // dd(config());
     $value = config('MasterConfig.main.APP_CODE');
-    echo 'Hello from the master package!' . json_encode($value);
+    echo 'Hello from the master package!'.json_encode($value);
 });
 
 Route::prefix('master')->get('mud-view', function () {
     return view('master::mud');
 });
 
-Route::middleware(['web','auth'])->prefix('redis')->name('redis.')->group(function () {
+Route::middleware(['web', 'auth'])->prefix('redis')->name('redis.')->group(function () {
     Route::get('/inspector', [\Bangsamu\Master\Controllers\RedisInspectorController::class, 'index'])->name('inspector');
 });
 
-Route::middleware(['web','auth'])->prefix('support')->name('support.')->group(function () {
+Route::middleware(['web', 'auth'])->prefix('support')->name('support.')->group(function () {
     Route::get('ticket-email', [\Bangsamu\Master\Controllers\SupportTicketController::class, 'ticketEmail'])
         ->name('ticket-email');
     Route::get('ticket-email/{id?}', [\Bangsamu\Master\Controllers\SupportTicketController::class, 'ticketEmailView'])
@@ -32,6 +32,7 @@ Route::middleware(['web', 'auth'])->prefix('master-sync')->name('master.sync.')-
     Route::post('sync', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'sync'])->name('sync');
     Route::post('sync-items', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'syncItems'])->name('items');
     Route::match(['get', 'post'], 'catch-up', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'catchUp'])->name('catch-up');
+    Route::get('allowed-tables', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'allowedTables'])->name('allowed-tables');
     Route::post('channel-auth', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'channelAuth'])->name('channel-auth');
 });
 
@@ -39,9 +40,10 @@ Route::prefix('api/master-sync')->name('api.master.sync.')->group(function () {
     Route::post('sync', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'sync']);
     Route::post('sync-items', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'syncItems']);
     Route::match(['get', 'post'], 'catch-up', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'catchUp']);
+    Route::get('allowed-tables', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'allowedTables']);
 });
 
-Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(function () {
+Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(function () {
     // Route::get('user', [\Bangsamu\Master\Controllers\UserController::class, 'index'])->name('user.index');
 
     Route::resource('category', \Bangsamu\Master\Controllers\CategoryController::class);
@@ -83,12 +85,10 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
     Route::resource('project-detail', \Bangsamu\Master\Controllers\ProjectDetailController::class);
     Route::post('project-detail/import', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'import'])->name('project-detail.import');
 
-
     Route::resource('uom', \Bangsamu\Master\Controllers\UomController::class);
     Route::post('uom/import', [\Bangsamu\Master\Controllers\UomController::class, 'import'])->name('uom.import');
 
     Route::resource('priority', \Bangsamu\Master\Controllers\PriorityController::class);
-
 
     // Route::resource('mcu', \Bangsamu\Master\Controllers\McuController::class);
     // Route::post('mcu/store-json', [\Bangsamu\Master\Controllers\McuController::class, 'storeJson'])->name('mcu.store.json');
@@ -99,58 +99,54 @@ Route::middleware(['web','auth'])->prefix('master')->name('master.')->group(func
 
     Route::get('get{table}/export', [\Bangsamu\Master\Controllers\ExportController::class, 'export'])->name('table.export');
 
-
-    //belum test Route::resource('report', \Bangsamu\Master\Controllers\ReportController::class);
+    // belum test Route::resource('report', \Bangsamu\Master\Controllers\ReportController::class);
 
 });
 
-
-
-Route::middleware(['web','auth'])->prefix('crud')->name('crud.')->group(function () {
+Route::middleware(['web', 'auth'])->prefix('crud')->name('crud.')->group(function () {
     // AURO CRUD Tabel
-Route::get('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'index'])
-    ->name('index'); // List all
+    Route::get('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'index'])
+        ->name('index'); // List all
 
-Route::get('{table}/create', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'create'])
-    ->name('create'); // Form create
+    Route::get('{table}/create', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'create'])
+        ->name('create'); // Form create
 
-Route::post('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'store'])
-    ->name('store'); // Handle form submission
+    Route::post('{table}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'store'])
+        ->name('store'); // Handle form submission
 
-Route::get('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'show'])
-    ->name('show'); // View a single row
+    Route::get('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'show'])
+        ->name('show'); // View a single row
 
-Route::get('{table}/{id}/edit', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'edit'])
-    ->name('edit'); // Form edit
+    Route::get('{table}/{id}/edit', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'edit'])
+        ->name('edit'); // Form edit
 
-Route::put('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'update'])
-    ->name('update'); // Handle update submission
+    Route::put('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'update'])
+        ->name('update'); // Handle update submission
 
-Route::delete('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'destroy'])
-    ->name('destroy'); // Handle delete
+    Route::delete('{table}/{id}', [\Bangsamu\Master\Controllers\CrudTabelController::class, 'destroy'])
+        ->name('destroy'); // Handle delete
 
 });
-
 
 Route::prefix('api')
     ->middleware(['api'])->group(function () {
         // Route::get('get-ip',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'getIp'])
         //     ->name('get-ip');
 
-        /*untuk webhook update dari master*/
+        /* untuk webhook update dari master */
         Route::post('/sync-master/{tabel?}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'syncTabel'])
             ->name('sync-master');
-        /*untuk manual get sync ke DB master*/
+        /* untuk manual get sync ke DB master */
         Route::get('/master-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'tabel'])
             ->name('master-tabel');
-        /*untuk get lokal DB*/
+        /* untuk get lokal DB */
         Route::get('/get-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'getTabel'])
             ->name('get-tabel');
-        /*untuk get Master DB*/
+        /* untuk get Master DB */
         Route::get('/getMaster-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'getMaster'])
             ->name('get-Mastertabel');
 
-        /*list data master*/
+        /* list data master */
         Route::get('getitemcodebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getItemCodeByParams'])
             ->name('getitemcodebyparams');
         Route::get('getuombyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getUomByParams'])
@@ -178,35 +174,29 @@ Route::prefix('api')
         Route::get('getcompanybyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getCompanyByParams'])
             ->name('getcompanybyparams');
 
-        /*global select2 dari tabel*/
+        /* global select2 dari tabel */
         Route::get('get{tabel}byparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getTabelByParams'])
-        ->name('get{tabel}byparams');
+            ->name('get{tabel}byparams');
 
     });
-
-
 
 Route::prefix('api')->group(function () {
-        /*annotation untuk paraf dan signature*/
-        Route::post('setAnnotationId', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'setAnnotationId'])->name('setAnnotationId');
-        Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->name('getcurrentuser');
-        Route::get('getSignature', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getSignature'])->name('getSignature');
-        Route::get('getParaf', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getParaf'])->name('getParaf');
-    });
+    /* annotation untuk paraf dan signature */
+    Route::post('setAnnotationId', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'setAnnotationId'])->name('setAnnotationId');
+    Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->name('getcurrentuser');
+    Route::get('getSignature', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getSignature'])->name('getSignature');
+    Route::get('getParaf', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getParaf'])->name('getParaf');
+});
 
-
-Route::middleware(['web','auth'])->group(function () {
-    //untuk kebutuhan app annotation get sesion
+Route::middleware(['web', 'auth'])->group(function () {
+    // untuk kebutuhan app annotation get sesion
     Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->middleware('auth')->name('getcurrentuser.async');
-    Route::get('get-ip2',  [Bangsamu\Master\Controllers\MasterController::class, 'getIp'])
+    Route::get('get-ip2', [Bangsamu\Master\Controllers\MasterController::class, 'getIp'])
         ->name('get-ip2');
 });
 
-
-Route::get('session-crul',  [Bangsamu\Master\Controllers\MasterCrulController::class, 'masterCrul'])
+Route::get('session-crul', [Bangsamu\Master\Controllers\MasterCrulController::class, 'masterCrul'])
     ->name('session-crul');
-
-
 
 Route::middleware(['web'])->group(function () {
     Route::get('/optimize', function (Request $request) {
@@ -221,7 +211,7 @@ Route::middleware(['web'])->group(function () {
 
         if (function_exists('opcache_reset')) {
             $opcacheReset = @opcache_reset();
-            $output .= "\nOpcache reset: " . ($opcacheReset ? 'success' : 'failed');
+            $output .= "\nOpcache reset: ".($opcacheReset ? 'success' : 'failed');
         }
 
         if ($exitCode == 0) {
@@ -229,6 +219,7 @@ Route::middleware(['web'])->group(function () {
         } else {
             return "<pre>Optimize failed $output</pre>";
         }
+
         return "<pre>$output</pre>";
 
     });
@@ -279,19 +270,19 @@ Route::middleware(['web'])->group(function () {
                 abort(404);
             }
 
-            return "<pre>Composer Management Route\n\n" .
-                "Available parameters:\n" .
-                "  - ?update=1               : Run composer update\n" .
-                "  - ?update=vendor/package  : Run composer update for specific package\n" .
-                "  - ?install=1 / ?instal=1  : Run composer install\n" .
-                "  - ?require=vendor/package : Run composer require vendor/package\n" .
-                "  - ?remove=vendor/package  : Run composer remove vendor/package\n" .
-                "  - ?autoload=1             : Run composer dump-autoload\n" .
-                "</pre>";
+            return "<pre>Composer Management Route\n\n".
+                "Available parameters:\n".
+                "  - ?update=1               : Run composer update\n".
+                "  - ?update=vendor/package  : Run composer update for specific package\n".
+                "  - ?install=1 / ?instal=1  : Run composer install\n".
+                "  - ?require=vendor/package : Run composer require vendor/package\n".
+                "  - ?remove=vendor/package  : Run composer remove vendor/package\n".
+                "  - ?autoload=1             : Run composer dump-autoload\n".
+                '</pre>';
         }
 
         $env = [
-            'COMPOSER_HOME' => sys_get_temp_dir() . '/.composer',
+            'COMPOSER_HOME' => sys_get_temp_dir().'/.composer',
             'COMPOSER_MEMORY_LIMIT' => '-1',
             'PATH' => getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin',
             'HOME' => getenv('HOME') ?: sys_get_temp_dir(),
@@ -307,7 +298,7 @@ Route::middleware(['web'])->group(function () {
             );
 
             $process->run();
-            $output = $process->getOutput() . $process->getErrorOutput();
+            $output = $process->getOutput().$process->getErrorOutput();
             $exitCode = $process->getExitCode();
         } catch (\Throwable $e) {
             $output = $e->getMessage();
@@ -317,20 +308,19 @@ Route::middleware(['web'])->group(function () {
         $opcacheStatus = '';
         if (function_exists('opcache_reset')) {
             $opcacheReset = @opcache_reset();
-            $opcacheStatus = "\nOpcache reset: " . ($opcacheReset ? 'success' : 'failed');
+            $opcacheStatus = "\nOpcache reset: ".($opcacheReset ? 'success' : 'failed');
         }
 
         $statusText = ($exitCode === 0) ? 'successfully' : 'failed';
         $cmdString = implode(' ', $command);
 
-        return "<pre>Composer Command: {$cmdString}\nStatus: {$statusText} (Exit Code: {$exitCode}){$opcacheStatus}\n\n" .
-            htmlspecialchars($output, ENT_QUOTES, 'UTF-8') .
-            "</pre>";
+        return "<pre>Composer Command: {$cmdString}\nStatus: {$statusText} (Exit Code: {$exitCode}){$opcacheStatus}\n\n".
+            htmlspecialchars($output, ENT_QUOTES, 'UTF-8').
+            '</pre>';
     });
 });
 
-
-Route::middleware(['web','auth'])->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/profile', [Bangsamu\Master\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [Bangsamu\Master\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [Bangsamu\Master\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');

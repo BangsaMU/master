@@ -28,11 +28,23 @@ Paket terpusat Master Data untuk ekosistem aplikasi berbasis Laravel.
   - Begitu koneksi WebSocket tersambung kembali, frontend secara otomatis memanggil `/master-sync/catch-up` untuk mengambil seluruh update yang terlewat.
   - Tersedia juga CLI command: `php artisan master:catch-up`.
 - **Memory-Safe Data Cloning (`MasterDataSyncService`)**: Sinkronisasi data bertahap (chunking 250 rows) dengan MySQL `upsert` untuk menjaga tabel lokal tetap menjadi clone identik dari database master (`db_master`).
-- **Universal Blade Component (`<x-master::broadcast-listener />`)**: Komponen frontend siap pakai untuk menangkap event WebSocket dan melakukan sinkronisasi otomatis di latar belakang tanpa reload penuh.
+- **Whitelist Sinkronisasi & Penekanan Notifikasi (Notification Suppression)**:
+  - **Filter Tabel Lokal & Prefix `master_*`**: Hanya tabel berawalan `master_*` yang benar-benar ada di database lokal aplikasi yang memenuhi syarat untuk disinkronkan. Tabel di luar database lokal atau tabel cadangan (`*OLD`, `*dump*`) otomatis diabaikan.
+  - **Penyimpanan di `dashboard_settings`**:
+    - **key**: `sync_allowed_master_tables`
+    - **group**: `senada_sync`
+    - **type**: `json`
+    - **label**: `Allowed Master Data Sync Tables`
+    - **value**: JSON array daftar tabel `master_*` yang diizinkan untuk disinkronkan (misal: `["master_category","master_company","master_department","master_employee","master_item_code", ...]`).
+    - **options**: JSON array seluruh tabel `master_*` yang terdeteksi di database lokal.
+    - *Auto-Discovery*: Jika konfigurasi belum ada, sistem secara otomatis memindai database lokal dan menginisialisasi tabel-tabel `master_*` yang valid ke `dashboard_settings`.
+  - **Silent Ignore (Tanpa Popup Toast)**: Jika event broadcast diterima dari Senada untuk tabel yang tidak ada di database lokal klien atau tidak diaktifkan di `dashboard_settings`, klien mengabaikan event tersebut secara hening tanpa memunculkan popup toast notifikasi dan tanpa request fetch yang sia-sia karena tidak berdampak pada aplikasi klien.
+  - **Respon Backend Aman**: Endpoint sinkronisasi mengembalikan `200 OK` dengan flag `skipped: true` (bukan error 422).
 - **Built-in Endpoints**:
   - `POST /master-sync/sync` (Sinkronisasi universal semua master table)
   - `POST /master-sync/sync-items` (Alias kompatibel untuk item code)
   - `GET|POST /master-sync/catch-up` (Catch-up sync event yang terlewat)
+  - `GET /master-sync/allowed-tables` (Daftar whitelist tabel yang diizinkan untuk disinkronkan)
   - `POST /master-sync/channel-auth` (Otorisasi channel privat browser)
 
 ---

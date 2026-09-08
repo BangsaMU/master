@@ -7,6 +7,7 @@
     $authEndpoint = route('master.sync.channel-auth');
     $syncApiUrl = \Illuminate\Support\Facades\Route::has('master.sync.sync') ? route('master.sync.sync') : route('master.sync.items');
     $catchUpApiUrl = \Illuminate\Support\Facades\Route::has('master.sync.catch-up') ? route('master.sync.catch-up') : url('master-sync/catch-up');
+    $allowedSyncTables = \Bangsamu\Master\Services\MasterDataSyncService::getAllowedSyncTables();
 @endphp
 
 <!-- Master Data Broadcast & Realtime Sync Listener -->
@@ -63,6 +64,7 @@
             const authEndpoint = '{{ $authEndpoint }}';
             const syncApiUrl = '{{ $syncApiUrl }}';
             const catchUpApiUrl = '{{ $catchUpApiUrl }}';
+            const allowedTables = @json($allowedSyncTables);
 
             const pusher = new Pusher('{{ $reverbAppKey }}', {
                 wsHost: '{{ $reverbHost }}',
@@ -126,6 +128,13 @@
                 console.log('[MasterBroadcast] Master update received:', payload);
 
                 const table = payload.table || 'master_item_code';
+
+                // Skip silently if table is not allowed or not present in local database
+                if (!allowedTables.includes(table)) {
+                    console.log(`[MasterBroadcast] Skipped event for table '${table}' (not allowed or does not exist in local database).`);
+                    return;
+                }
+
                 const label = payload.label || 'Data Master';
                 const identifier = payload.identifier || payload.item_code || ('ID #' + (payload.id || payload.max_id));
                 const actionText = payload.action === 'created' ? 'ditambahkan' : (payload.action === 'deleted' ? 'dihapus' : 'diperbarui');
@@ -152,7 +161,7 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
+                    if (data.success && !data.skipped) {
                         const count = data.synced_count || 1;
                         showBroadcastToast('success', 'Sinkronisasi Selesai', `${count} data ${label.toLowerCase()} berhasil disinkronkan.`);
 

@@ -239,6 +239,7 @@
     </script>
     @stack('scripts')
     @stack('js')
+    <x-master::broadcast-listener />
 </body>
 
 </html>
