@@ -4,19 +4,17 @@ namespace Bangsamu\Master\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 
 class Gallery extends Model
 {
     use HasFactory, Notifiable, SoftDeletes;
 
-    protected $table = "master_gallery";
+    protected $table = 'master_gallery';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -25,10 +23,10 @@ class Gallery extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('user_id');

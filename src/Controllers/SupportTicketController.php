@@ -3,14 +3,11 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
+use Bangsamu\Master\Models\Setting;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Bangsamu\Master\Models\Setting;
-
 
 class SupportTicketController extends Controller
 {
@@ -24,25 +21,26 @@ class SupportTicketController extends Controller
         $this->middleware('auth');
     }
 
-    public function getAppSetting($valueConfig,$valueTicket=null)
+    public function getAppSetting($valueConfig, $valueTicket = null)
     {
-        return Cache::rememberForever('setting.app.ticket.'.$valueConfig, function () use($valueConfig,$valueTicket) {
+        return Cache::rememberForever('setting.app.ticket.'.$valueConfig, function () use ($valueConfig, $valueTicket) {
             // Ambil dari database
             $setting = Setting::where('name', $valueConfig)
                 ->where('category', 'support_ticket')
                 ->whereNull('deleted_at')
                 ->value('value');
-                // Jika tidak ada, fallback ke config
-                $setting =  $setting  ?? config($valueConfig)??$valueTicket;
-                // dd($setting,$valueTicket);
+            // Jika tidak ada, fallback ke config
+            $setting = $setting ?? config($valueConfig) ?? $valueTicket;
+
+            // dd($setting,$valueTicket);
             return $setting;
         });
     }
 
     public function ticketEmail(Request $request)
     {
-        $apiUrl = $this->getAppSetting('app.ticket');;
-        $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
+        $apiUrl = $this->getAppSetting('app.ticket');
+        $appCode = $this->getAppSetting('app.APP_CODE'); // ?: config('SsoConfig.main.APP_CODE')
         $search = $this->getAppSetting('app.search');
         $supportEmail = $this->getAppSetting('app.support_email');
 
@@ -51,7 +49,7 @@ class SupportTicketController extends Controller
         $offset = ($page - 1) * $perPage;
         // dd($apiUrl);
 
-        $url = $apiUrl . '/api/tickets';
+        $url = $apiUrl.'/api/tickets';
         $params = [
             'limit' => $perPage,
             'offset' => $offset,
@@ -63,11 +61,10 @@ class SupportTicketController extends Controller
         ];
 
         // Log full URL for debugging
-        $fullUrl = $url . '?' . http_build_query($params);
+        $fullUrl = $url.'?'.http_build_query($params);
         Log::debug('Requesting ticket API:', ['url' => $fullUrl]);
 
         $response = Http::get($url, $params);
-
 
         if ($response->failed()) {
             return view('master::support.supportemail', [
@@ -82,26 +79,26 @@ class SupportTicketController extends Controller
         $totalPages = ceil($totalTickets / $perPage);
 
         return view('master::master.support.supportemail',
-        [
-            'tickets' => $tickets,
-            'currentPage' => $page,
-            'totalPages' => $totalPages,
-            'params' => $params,
-            'error' => null
-        ]);
+            [
+                'tickets' => $tickets,
+                'currentPage' => $page,
+                'totalPages' => $totalPages,
+                'params' => $params,
+                'error' => null,
+            ]);
     }
 
     public function ticketEmailView(Request $request, $id)
     {
-        if (!$id) {
+        if (! $id) {
             return response()->json(['success' => false, 'message' => 'Ticket ID is required']);
         }
 
-        $apiUrl = $this->getAppSetting('app.ticket');//?: config('app.ticket', 'http://192.168.16.205:9016');
-        $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
+        $apiUrl = $this->getAppSetting('app.ticket'); // ?: config('app.ticket', 'http://192.168.16.205:9016');
+        $appCode = $this->getAppSetting('app.APP_CODE'); // ?: config('SsoConfig.main.APP_CODE')
         $search = $this->getAppSetting('app.search');
 
-        $apiUrlViewTicket = $apiUrl . "/api/tickets/" . $id;
+        $apiUrlViewTicket = $apiUrl.'/api/tickets/'.$id;
 
         // Initialize cURL session
         $curl = curl_init();
@@ -112,10 +109,10 @@ class SupportTicketController extends Controller
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 30,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_CUSTOMREQUEST => 'GET',
             CURLOPT_HTTPHEADER => [
-                "Accept: application/json",
-                "Content-Type: application/json"
+                'Accept: application/json',
+                'Content-Type: application/json',
             ],
         ]);
 
@@ -127,7 +124,7 @@ class SupportTicketController extends Controller
         curl_close($curl);
 
         if ($err) {
-            return response()->json(['success' => false, 'message' => 'Error fetching ticket data: ' . $err]);
+            return response()->json(['success' => false, 'message' => 'Error fetching ticket data: '.$err]);
         }
 
         // Decode the JSON response
@@ -137,7 +134,8 @@ class SupportTicketController extends Controller
         return response()->json($responseData);
     }
 
-    public function ticketStore(Request $request){
+    public function ticketStore(Request $request)
+    {
 
         $request->validate([
             'email_subject' => 'required',
@@ -146,25 +144,24 @@ class SupportTicketController extends Controller
 
         $appName = config('app.name');
 
-        $apiUrl = $this->getAppSetting('app.ticket');//?: config('app.ticket', 'http://192.168.16.205:9016');
-        $appCode = $this->getAppSetting('app.APP_CODE');//?: config('SsoConfig.main.APP_CODE')
+        $apiUrl = $this->getAppSetting('app.ticket'); // ?: config('app.ticket', 'http://192.168.16.205:9016');
+        $appCode = $this->getAppSetting('app.APP_CODE'); // ?: config('SsoConfig.main.APP_CODE')
         $search = $this->getAppSetting('app.search');
         $supportEmail = $this->getAppSetting('app.support_email');
-
 
         // Gather form data
         $subject = $request->subject;
 
         if (str_contains($subject, '[EMPLOYEE-INTERNAL]')) {
-            $cc = ['apps-support@demo.com','dita.kurniati@demo.com'];
-        }else{
+            $cc = ['apps-support@demo.com', 'dita.kurniati@demo.com'];
+        } else {
             $cc = $request->input('email_to') ?? ['apps-support@demo.com'];
         }
 
         $description = $request->input('description');
         $appCode = $appCode; // From config
-        $status = "open";
-        $priority = "medium";
+        $status = 'open';
+        $priority = 'medium';
 
         // Prepare data for the API
         $data = [
@@ -202,7 +199,7 @@ class SupportTicketController extends Controller
 
         try {
             // Send POST request to the external API
-            $response = Http::asMultipart()->post($apiUrl . '/api/tickets', $multipart);
+            $response = Http::asMultipart()->post($apiUrl.'/api/tickets', $multipart);
 
             // Check if the request was successful
             if ($response->successful()) {

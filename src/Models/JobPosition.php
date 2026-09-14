@@ -2,21 +2,21 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Bangsamu\LibraryClay\Traits\Loggable;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 class JobPosition extends Model
 {
     use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
-
     use HasFactory, SoftDeletes;
     use Loggable;
 
     protected $table = 'master_job_position';
+
     protected $dates = ['deleted_at'];
 
     protected $guarded = [];
@@ -27,10 +27,10 @@ class JobPosition extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();

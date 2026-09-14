@@ -2,30 +2,28 @@
 
 namespace Bangsamu\Master\Exports;
 
+use DB;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
-
-use Illuminate\Support\Collection;
-use DB;
-use Carbon\Carbon;
 
 class ProcurementItemExport implements WithMultipleSheets
 {
     public function sheets(): array
     {
         return [
-            new ProcurementItemTemplate(),
+            new ProcurementItemTemplate,
             // new ProcurementItemList(),
         ];
     }
 }
 
-class ProcurementItemTemplate implements ShouldAutoSize, FromCollection, WithHeadings, withStyles, WithTitle
+class ProcurementItemTemplate implements FromCollection, ShouldAutoSize, WithHeadings, withStyles, WithTitle
 {
     public function title(): string
     {
@@ -35,7 +33,7 @@ class ProcurementItemTemplate implements ShouldAutoSize, FromCollection, WithHea
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -43,7 +41,7 @@ class ProcurementItemTemplate implements ShouldAutoSize, FromCollection, WithHea
     {
         // Fetch data for your first sheet here (e.g., from a database query)
         return collect([
-            ['OFFC-EQP-00001', '2024-08-15','P1','2,5','Your remarks here...','Your Scope of works here..'],
+            ['OFFC-EQP-00001', '2024-08-15', 'P1', '2,5', 'Your remarks here...', 'Your Scope of works here..'],
         ]);
     }
 
@@ -60,7 +58,7 @@ class ProcurementItemTemplate implements ShouldAutoSize, FromCollection, WithHea
     }
 }
 
-class ProcurementItemList implements ShouldAutoSize, FromCollection, WithHeadings, withStyles, WithTitle
+class ProcurementItemList implements FromCollection, ShouldAutoSize, WithHeadings, withStyles, WithTitle
 {
     public function title(): string
     {
@@ -70,7 +68,7 @@ class ProcurementItemList implements ShouldAutoSize, FromCollection, WithHeading
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -86,6 +84,7 @@ class ProcurementItemList implements ShouldAutoSize, FromCollection, WithHeading
             'Item Group',
         ];
     }
+
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -112,7 +111,7 @@ class ProcurementItemList implements ShouldAutoSize, FromCollection, WithHeading
 
         $collections = [];
 
-        foreach($datas as $key => $item){
+        foreach ($datas as $key => $item) {
             // Create the collection
             $collections[$key] = [
                 // 'no' => $item->no,

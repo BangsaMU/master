@@ -13,12 +13,14 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ItemGroupImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class ItemGroupImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
+
     protected ?Collection $existingItemGroups = null;
 
     public function getImportTable(): string
@@ -32,7 +34,7 @@ class ItemGroupImport implements ToCollection, WithHeadingRow, WithEvents, WithC
             $this->existingItemGroups = DB::table('master_item_group')
                 ->select('id', 'item_group_code', 'item_group_name', 'deleted_at')
                 ->get()
-                ->keyBy(fn ($item) => strtoupper(trim((string) $item->item_group_code)) . '|' . strtoupper(trim((string) $item->item_group_name)));
+                ->keyBy(fn ($item) => strtoupper(trim((string) $item->item_group_code)).'|'.strtoupper(trim((string) $item->item_group_name)));
         }
 
         foreach ($rows as $key => $row) {
@@ -46,11 +48,11 @@ class ItemGroupImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                 } elseif (empty($name)) {
                     $this->error[] = "Row {$row_index} Item Group Name : field is required.";
                 } else {
-                    $lookupKey = strtoupper($code) . '|' . strtoupper($name);
+                    $lookupKey = strtoupper($code).'|'.strtoupper($name);
                     $exists = $this->existingItemGroups->get($lookupKey);
 
                     if (! $exists) {
-                        $data = new ItemGroup();
+                        $data = new ItemGroup;
                         $data->item_group_code = strtoupper($code);
                         $data->item_group_name = $name;
                         $data->save();

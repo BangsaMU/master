@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Bangsamu\Master\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -658,13 +659,194 @@ class MasterDataSyncService
     }
 
     /**
+     * Acquire Central Master Sync Lock from Senada Hub.
+     *
+     * @return array{acquired: bool, lock_token?: string, holder?: string, ttl_remaining_seconds?: int, message: string}
+     */
+    public function acquireMasterSyncLock(int $ttlSeconds = 300, string $reason = 'catch_up', bool $force = false): array
+    {
+        $senadaUrl = rtrim((string) (config('MasterConfig.senada.url') ?: env('SENADA_URL', 'http://192.168.20.187:9029')), '/');
+        $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_key_secret'));
+        $appCode = (string) (config('MasterConfig.main.APP_CODE') ?: config('app.name') ?: 'client_app');
+        $timeout = (int) (config('MasterConfig.senada.timeout') ?: env('SENADA_TIMEOUT', 5));
+
+        try {
+            $response = Http::timeout($timeout)
+                ->withHeaders([
+                    'X-API-Key' => $apiKey,
+                    'Accept' => 'application/json',
+                ])
+                ->post("{$senadaUrl}/api/broadcast/sync-lock/acquire", [
+                    'app_code' => $appCode,
+                    'ttl_seconds' => $ttlSeconds,
+                    'reason' => $reason,
+                    'force' => $force,
+                ]);
+
+            if ($response->successful() || $response->status() === 423) {
+                return $response->json();
+            }
+
+            Log::warning("[MasterDataSyncService] Acquire lock returned HTTP {$response->status()}: ".$response->body());
+
+            return [
+                'acquired' => true,
+                'fallback' => true,
+                'message' => 'Lock server bypassed due to HTTP response '.$response->status(),
+            ];
+        } catch (Throwable $e) {
+            Log::warning('[MasterDataSyncService] Acquire lock exception: '.$e->getMessage());
+
+            return [
+                'acquired' => true,
+                'fallback' => true,
+                'message' => 'Lock server unreachable: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Release Central Master Sync Lock from Senada Hub.
+     *
+     * @return array{released: bool, message: string}
+     */
+    public function releaseMasterSyncLock(string $lockToken, bool $force = false): array
+    {
+        if (empty($lockToken)) {
+            return ['released' => true, 'message' => 'Empty lock token, nothing to release.'];
+        }
+
+        $senadaUrl = rtrim((string) (config('MasterConfig.senada.url') ?: env('SENADA_URL', 'http://192.168.20.187:9029')), '/');
+        $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_key_secret'));
+        $appCode = (string) (config('MasterConfig.main.APP_CODE') ?: config('app.name') ?: 'client_app');
+        $timeout = (int) (config('MasterConfig.senada.timeout') ?: env('SENADA_TIMEOUT', 5));
+
+        try {
+            $response = Http::timeout($timeout)
+                ->withHeaders([
+                    'X-API-Key' => $apiKey,
+                    'Accept' => 'application/json',
+                ])
+                ->post("{$senadaUrl}/api/broadcast/sync-lock/release", [
+                    'app_code' => $appCode,
+                    'lock_token' => $lockToken,
+                    'force' => $force,
+                ]);
+
+            return $response->json() ?? ['released' => true];
+        } catch (Throwable $e) {
+            Log::warning('[MasterDataSyncService] Release lock exception: '.$e->getMessage());
+
+            return ['released' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Check current status of Central Master Sync Lock on Senada Hub.
+     *
+     * @return array{is_locked: bool, holder?: string, reason?: string, locked_at?: string, expires_at?: string, ttl_remaining_seconds?: int, message?: string}
+     */
+    public function getMasterSyncLockStatus(): array
+    {
+        $senadaUrl = rtrim((string) (config('MasterConfig.senada.url') ?: env('SENADA_URL', 'http://192.168.20.187:9029')), '/');
+        $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_key_secret'));
+        $timeout = (int) (config('MasterConfig.senada.timeout') ?: env('SENADA_TIMEOUT', 5));
+
+        try {
+            $response = Http::timeout($timeout)
+                ->withHeaders([
+                    'X-API-Key' => $apiKey,
+                    'Accept' => 'application/json',
+                ])
+                ->get("{$senadaUrl}/api/broadcast/sync-lock/status");
+
+            return $response->json() ?? ['is_locked' => false];
+        } catch (Throwable $e) {
+            return ['is_locked' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Force release Central Master Sync Lock on Senada Hub.
+     *
+     * @return array{released: bool, message: string}
+     */
+    public function forceReleaseMasterSyncLock(): array
+    {
+        $senadaUrl = rtrim((string) (config('MasterConfig.senada.url') ?: env('SENADA_URL', 'http://192.168.20.187:9029')), '/');
+        $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_key_secret'));
+        $timeout = (int) (config('MasterConfig.senada.timeout') ?: env('SENADA_TIMEOUT', 5));
+
+        try {
+            $response = Http::timeout($timeout)
+                ->withHeaders([
+                    'X-API-Key' => $apiKey,
+                    'Accept' => 'application/json',
+                ])
+                ->post("{$senadaUrl}/api/broadcast/sync-lock/force-release");
+
+            return $response->json() ?? ['released' => true];
+        } catch (Throwable $e) {
+            return ['released' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Catch-up optimized for browser login / connection with local cooldown & mutex.
+     *
+     * @return array<string, mixed>
+     */
+    public function catchUpFromBrowser(int $limit = 50): array
+    {
+        $cooldownSeconds = (int) (config('MasterConfig.sync.browser_cooldown') ?: 300);
+
+        // Check if recently caught up
+        $lastSyncAt = Cache::get('master_last_successful_sync_at');
+        if ($lastSyncAt && (now()->timestamp - (int) $lastSyncAt) < $cooldownSeconds) {
+            return [
+                'success' => true,
+                'skipped' => true,
+                'cooldown' => true,
+                'message' => 'Sync skipped: App was recently synchronized (cooldown active).',
+                'checkpoint' => self::getLastSyncedBroadcastId(),
+                'synced_count' => 0,
+            ];
+        }
+
+        // Local lock to avoid thundering herd across concurrent tabs/logins in this app
+        try {
+            return Cache::lock('local_master_catch_up_in_progress', 30)->get(function () use ($limit) {
+                $result = $this->catchUpMissedBroadcasts(null, $limit);
+                if ($result['success'] ?? false) {
+                    try {
+                        Cache::put('master_last_successful_sync_at', now()->timestamp, now()->addHours(1));
+                    } catch (\Throwable $e) {
+                    }
+                }
+
+                return $result;
+            }) ?? [
+                'success' => true,
+                'skipped' => true,
+                'pending' => true,
+                'message' => 'Catch-up already in progress by another request.',
+                'synced_count' => 0,
+            ];
+        } catch (Throwable $e) {
+            return $this->catchUpMissedBroadcasts(null, $limit);
+        }
+    }
+
+    /**
      * Fetch and synchronize missed broadcast events from Senada (FCM-like catch-up).
+     * Protected by Central Master Sync Lock to prevent overloading Master DB.
      *
      * @param  int|null  $sinceId  If null, reads from dashboard_settings
      * @param  int  $limit  Max events to process in one catch-up cycle
+     * @param  bool  $forceLock  Force override stuck lock on master
      * @return array<string, mixed>
      */
-    public function catchUpMissedBroadcasts(?int $sinceId = null, int $limit = 100): array
+    public function catchUpMissedBroadcasts(?int $sinceId = null, int $limit = 100, bool $forceLock = false): array
     {
         $checkpoint = $sinceId ?? self::getLastSyncedBroadcastId();
 
@@ -672,8 +854,10 @@ class MasterDataSyncService
         $apiKey = (string) (config('MasterConfig.senada.api_key') ?: env('SENADA_API_KEY', 'snd_masterdata_key_secret'));
         $timeout = (int) (config('MasterConfig.senada.timeout') ?: env('SENADA_TIMEOUT', 5));
         $channel = (string) (config('MasterConfig.senada.channel') ?: env('SENADA_CHANNEL_MASTER_ITEMS', 'masterdata.items'));
+        $lockTtl = (int) (config('MasterConfig.sync.lock_ttl') ?: 300);
 
         try {
+            // Step 1: Query missed events from Senada Hub
             $response = Http::timeout($timeout)
                 ->withHeaders([
                     'X-API-Key' => $apiKey,
@@ -707,6 +891,11 @@ class MasterDataSyncService
                     self::setLastSyncedBroadcastId($latestId);
                 }
 
+                try {
+                    Cache::put('master_last_successful_sync_at', now()->timestamp, now()->addHours(1));
+                } catch (\Throwable $e) {
+                }
+
                 return [
                     'success' => true,
                     'message' => 'Up to date. No missed events.',
@@ -718,48 +907,86 @@ class MasterDataSyncService
                 ];
             }
 
-            $processed = [];
-            $lastProcessedId = $checkpoint;
+            // Step 2: Events exist to sync. Acquire Central Master Sync Lock to protect db_master from concurrent app contention
+            $lockRes = $this->acquireMasterSyncLock($lockTtl, 'catch_up', $forceLock);
 
-            foreach ($events as $eventItem) {
-                $eventId = (int) ($eventItem['id'] ?? 0);
-                $payload = $eventItem['payload'] ?? [];
+            if (! ($lockRes['acquired'] ?? false)) {
+                $holder = $lockRes['holder'] ?? 'another_app';
+                $ttlRemaining = (int) ($lockRes['ttl_remaining_seconds'] ?? 0);
 
-                if (! empty($payload) && is_array($payload)) {
-                    $table = $payload['table'] ?? null;
-                    if ($table && $this->isTableSupported($table) && $this->isTableSyncAllowed($table)) {
-                        $syncResult = $this->syncFromBroadcast($payload);
-                        if (! ($syncResult['skipped'] ?? false)) {
-                            $processed[] = [
-                                'event_id' => $eventId,
-                                'table' => $table,
-                                'action' => $payload['action'] ?? 'updated',
-                                'result' => $syncResult,
-                            ];
+                Log::info("[MasterDataSyncService] Master DB sync postponed: active lock held by '{$holder}' (TTL remaining: {$ttlRemaining}s).");
+
+                return [
+                    'success' => true,
+                    'locked' => true,
+                    'holder' => $holder,
+                    'ttl_remaining' => $ttlRemaining,
+                    'message' => "Master DB sync sedang berjalan oleh aplikasi '{$holder}'. Siklus ini ditunda agar DB Master tidak overload.",
+                    'checkpoint' => $checkpoint,
+                    'latest_id' => $latestId,
+                    'synced_count' => 0,
+                    'has_more' => true,
+                    'events_processed' => [],
+                ];
+            }
+
+            $lockToken = (string) ($lockRes['lock_token'] ?? '');
+
+            // Step 3: Perform synchronization under the lock
+            try {
+                $processed = [];
+                $lastProcessedId = $checkpoint;
+
+                foreach ($events as $eventItem) {
+                    $eventId = (int) ($eventItem['id'] ?? 0);
+                    $payload = $eventItem['payload'] ?? [];
+
+                    if (! empty($payload) && is_array($payload)) {
+                        $table = $payload['table'] ?? null;
+                        if ($table && $this->isTableSupported($table) && $this->isTableSyncAllowed($table)) {
+                            $syncResult = $this->syncFromBroadcast($payload);
+                            if (! ($syncResult['skipped'] ?? false)) {
+                                $processed[] = [
+                                    'event_id' => $eventId,
+                                    'table' => $table,
+                                    'action' => $payload['action'] ?? 'updated',
+                                    'result' => $syncResult,
+                                ];
+                            }
                         }
+                    }
+
+                    if ($eventId > $lastProcessedId) {
+                        $lastProcessedId = $eventId;
                     }
                 }
 
-                if ($eventId > $lastProcessedId) {
-                    $lastProcessedId = $eventId;
+                // Save new checkpoint
+                if ($lastProcessedId > $checkpoint) {
+                    self::setLastSyncedBroadcastId($lastProcessedId);
+                }
+
+                try {
+                    Cache::put('master_last_successful_sync_at', now()->timestamp, now()->addHours(1));
+                } catch (\Throwable $e) {
+                }
+
+                return [
+                    'success' => true,
+                    'message' => 'Successfully caught up '.count($processed).' missed events.',
+                    'previous_checkpoint' => $checkpoint,
+                    'new_checkpoint' => $lastProcessedId,
+                    'latest_id' => $latestId,
+                    'has_more' => $hasMore,
+                    'synced_count' => count($processed),
+                    'events_processed' => $processed,
+                ];
+            } finally {
+                // Step 4: Always release lock when done
+                if (! empty($lockToken)) {
+                    $this->releaseMasterSyncLock($lockToken);
                 }
             }
-
-            // Save new checkpoint
-            if ($lastProcessedId > $checkpoint) {
-                self::setLastSyncedBroadcastId($lastProcessedId);
-            }
-
-            return [
-                'success' => true,
-                'message' => 'Successfully caught up '.count($processed).' missed events.',
-                'previous_checkpoint' => $checkpoint,
-                'new_checkpoint' => $lastProcessedId,
-                'latest_id' => $latestId,
-                'has_more' => $hasMore,
-                'synced_count' => count($processed),
-                'events_processed' => $processed,
-            ];
         } catch (Throwable $e) {
             Log::error('[MasterDataSyncService] Catch-up exception: '.$e->getMessage());
 

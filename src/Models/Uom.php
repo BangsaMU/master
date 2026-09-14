@@ -2,24 +2,22 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
+use Illuminate\Support\Facades\Schema;
 
 class Uom extends Model
 {
     use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
-
     use HasFactory;
-    use SoftDeletes;
     use Loggable;
+    use SoftDeletes;
 
-    protected $table = "master_uom";
+    protected $table = 'master_uom';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -28,10 +26,10 @@ class Uom extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();
@@ -40,7 +38,6 @@ class Uom extends Model
                     $table->string('app_code', 10)->default('APP03');
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
-
 
                     $table->index('app_code', 'index_app_code');
                 });

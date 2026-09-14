@@ -13,12 +13,14 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class VendorImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class VendorImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
+
     protected ?Collection $existingVendors = null;
 
     public function getImportTable(): string
@@ -32,7 +34,7 @@ class VendorImport implements ToCollection, WithHeadingRow, WithEvents, WithChun
             $this->existingVendors = DB::table('master_vendor')
                 ->select('id', 'vendor_code', 'vendor_description', 'deleted_at')
                 ->get()
-                ->keyBy(fn ($v) => strtoupper(trim((string) $v->vendor_code)) . '|' . strtoupper(trim((string) $v->vendor_description)));
+                ->keyBy(fn ($v) => strtoupper(trim((string) $v->vendor_code)).'|'.strtoupper(trim((string) $v->vendor_description)));
         }
 
         foreach ($rows as $key => $row) {
@@ -46,7 +48,7 @@ class VendorImport implements ToCollection, WithHeadingRow, WithEvents, WithChun
                 } elseif (empty($vendorDesc)) {
                     $this->error[] = "Row {$row_index} Vendor Description : field is required.";
                 } else {
-                    $lookupKey = strtoupper($vendorCode) . '|' . strtoupper($vendorDesc);
+                    $lookupKey = strtoupper($vendorCode).'|'.strtoupper($vendorDesc);
                     $exists = $this->existingVendors->get($lookupKey);
 
                     if (! $exists) {

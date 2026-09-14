@@ -13,12 +13,14 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class CategoryImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class CategoryImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
+
     protected ?Collection $existingCategories = null;
 
     public function getImportTable(): string
@@ -32,7 +34,7 @@ class CategoryImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
             $this->existingCategories = DB::table('master_category')
                 ->select('id', 'category_code', 'category_name', 'deleted_at')
                 ->get()
-                ->keyBy(fn ($cat) => strtoupper(trim((string) $cat->category_code)) . '|' . strtoupper(trim((string) $cat->category_name)));
+                ->keyBy(fn ($cat) => strtoupper(trim((string) $cat->category_code)).'|'.strtoupper(trim((string) $cat->category_name)));
         }
 
         foreach ($rows as $key => $row) {
@@ -47,11 +49,11 @@ class CategoryImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                 } elseif (empty($categoryName)) {
                     $this->error[] = "Row {$row_index} Category Name : field is required.";
                 } else {
-                    $lookupKey = strtoupper($categoryCode) . '|' . strtoupper($categoryName);
+                    $lookupKey = strtoupper($categoryCode).'|'.strtoupper($categoryName);
                     $exists = $this->existingCategories->get($lookupKey);
 
                     if (! $exists) {
-                        $data = new Category();
+                        $data = new Category;
                         $data->category_code = strtoupper($categoryCode);
                         $data->category_name = $categoryName;
                         $data->remark = $remark;

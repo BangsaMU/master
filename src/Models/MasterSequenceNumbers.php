@@ -2,11 +2,9 @@
 
 namespace Bangsamu\Master\Models;
 
-
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
 
 class MasterSequenceNumbers extends Model
 {
@@ -19,7 +17,8 @@ class MasterSequenceNumbers extends Model
      * @var string
      */
     protected $table = 'sequence_numbers';
- 
+
     protected $connection = 'db_master';
+
     protected $guarded = [];
 }

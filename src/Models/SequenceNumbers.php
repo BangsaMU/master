@@ -2,21 +2,19 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SequenceNumbers extends Model
 {
     use HasFactory;
     use Loggable;
 
-    protected $table = "sequence_numbers";
+    protected $table = 'sequence_numbers';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -25,10 +23,10 @@ class SequenceNumbers extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id(); // bigint(20) unsigned auto_increment
@@ -49,12 +47,12 @@ class SequenceNumbers extends Model
                     $table->engine = 'InnoDB';
                     $table->charset = 'utf8mb4';
                     $table->collation = 'utf8mb4_general_ci';
- 
+
                 });
             }
         }
     }
-    
+
     /**
      * Get the report number format associated with the requisition type.
      */

@@ -2,21 +2,19 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ReportNumberFormat extends Model
 {
     use HasFactory;
     use Loggable;
 
-    protected $table = "report_number_format";
+    protected $table = 'report_number_format';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -25,10 +23,10 @@ class ReportNumberFormat extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->tinyIncrements('id'); // tinyint unsigned auto_increment primary key

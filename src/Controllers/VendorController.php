@@ -3,36 +3,40 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Imports\Master\VendorImport;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Traits\DynamicFilterable;
+use Maatwebsite\Excel\Facades\Excel;
 
 class VendorController extends Controller
 {
     use DynamicFilterable;
+
     protected $readonly = false;
-    protected $sheet_name = 'Master - Vendor'; //nama label untuk FE
-    protected $sheet_slug = 'vendor'; //nama routing (slug)
-    protected $view_tabel_index = array(
+
+    protected $sheet_name = 'Master - Vendor'; // nama label untuk FE
+
+    protected $sheet_slug = 'vendor'; // nama routing (slug)
+
+    protected $view_tabel_index = [
         'mp.id AS No',
         // '"action" AS action',
         'mp.vendor_code AS vendor_code',
         'mp.vendor_description AS vendor_description',
         '"action" AS action',
-    );
-    protected $view_tabel = array(
+    ];
+
+    protected $view_tabel = [
         'mp.id AS id',
         'mp.vendor_code AS vendor_code',
         'mp.vendor_description AS vendor_description',
         '"action" AS action',
-    );
+    ];
 
     /**
      * Create a new controller instance.
@@ -50,18 +54,18 @@ class VendorController extends Controller
         $sheet_slug = $this->sheet_slug;
 
         $data['module']['folder'] = 'module';
-        $data['ajax']['url_prefix'] = $data['module']['folder'] . '.' . $sheet_slug;
+        $data['ajax']['url_prefix'] = $data['module']['folder'].'.'.$sheet_slug;
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
+        $data['page']['new']['url'] = route('master.'.$sheet_slug.'.create');
 
         $data = configDefAction($id, $data);
 
         $data['page']['js_list'][] = 'js.master-data';
 
         $data['page']['id'] = $id;
-        $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
+        $data['modal']['view_path'] = $data['module']['folder'].'.mastermodal';
 
         return $data;
     }
@@ -84,7 +88,7 @@ class VendorController extends Controller
         $data['page']['list'] = route('master.vendor.index');
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_vendor')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -97,7 +101,7 @@ class VendorController extends Controller
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['create']['url'] = route('master.'.$sheet_slug.'.create');
 
             $data['datatable']['btn']['import']['id'] = 'importitem';
             $data['datatable']['btn']['import']['title'] = 'Import Item';
@@ -112,7 +116,6 @@ class VendorController extends Controller
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
             $data['datatable']['btn']['export']['url'] = url('master/getmaster_vendor/export');
         }
-
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.vendor.import');
@@ -132,11 +135,11 @@ class VendorController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -147,8 +150,8 @@ class VendorController extends Controller
         $user_id = Auth::user()->id ?? 0;
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'mp.id';
@@ -161,7 +164,7 @@ class VendorController extends Controller
         $category = 'master_vendor';
         $settings = $this->getSettingsForTable($category);
 
-        $query = DB::table($tableName . ' as mp')
+        $query = DB::table($tableName.' as mp')
             ->whereNull('mp.deleted_at');
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mp');
@@ -171,7 +174,7 @@ class VendorController extends Controller
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table($tableName . ' as mp')
+            $data_tabel = DB::table($tableName.' as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -188,12 +191,11 @@ class VendorController extends Controller
                 ->groupby('mp.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table($tableName . ' as mp')
+            $datatb_request = DB::table($tableName.' as mp')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -213,21 +215,21 @@ class VendorController extends Controller
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
-        if (!empty($data_tabel)) {
+        $data = [];
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -236,8 +238,8 @@ class VendorController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
@@ -245,12 +247,12 @@ class VendorController extends Controller
                 $nestedData['No'] = $DT_RowIndex;
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_vendor'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_vendor'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
                 $nestedData['action'] = @$btn;
@@ -260,13 +262,14 @@ class VendorController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
 
@@ -278,13 +281,13 @@ class VendorController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['list'] = route('master.vendor.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
 
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     protected function syncVendorLocation($vendorCode, $vendorDescription, $oldVendorCode = null)
@@ -307,7 +310,7 @@ class VendorController extends Controller
                     ->where('loc_code', $oldLocationCode)
                     ->whereNull('deleted_at')
                     ->get()
-                    ->each(function ($location) use ($locationCode, $locationName,$currentTimestamp) {
+                    ->each(function ($location) use ($locationCode, $locationName, $currentTimestamp) {
                         $location->update([
                             'loc_code' => $locationCode,
                             'loc_name' => $locationName,
@@ -319,13 +322,13 @@ class VendorController extends Controller
 
         $location = $locationModel::updateOrCreate(
             ['loc_code' => $locationCode, 'group_type' => 'vendor'],
-            ['loc_name' => $locationName,'created_at' => $currentTimestamp]
+            ['loc_name' => $locationName, 'created_at' => $currentTimestamp]
         );
 
-        if (!LibraryClayController::isMasterDbSameAsDefault()) {
+        if (! LibraryClayController::isMasterDbSameAsDefault()) {
             $masterLocation = $masterLocationModel::updateOrCreate(
                 ['loc_code' => $locationCode, 'group_type' => 'vendor'],
-                ['loc_name' => $locationName,'created_at' => $currentTimestamp]
+                ['loc_name' => $locationName, 'created_at' => $currentTimestamp]
             );
 
             return $masterLocation->id;
@@ -347,7 +350,7 @@ class VendorController extends Controller
                 $location->delete();
             });
 
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
             $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
 
             $masterLocationModel::where('group_type', 'vendor')
@@ -363,7 +366,7 @@ class VendorController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'vendor_code' => 'required|unique:master_' . $this->sheet_slug . ',vendor_code' . ($request->id ? ',' . $request->id : ''),
+            'vendor_code' => 'required|unique:master_'.$this->sheet_slug.',vendor_code'.($request->id ? ','.$request->id : ''),
             'vendor_description' => 'required',
             'vendor_address' => 'required',
         ]);
@@ -373,13 +376,13 @@ class VendorController extends Controller
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
             $model = $modelClass::find($request->id);
 
-            if (!$model) {
+            if (! $model) {
                 abort(404, 'Model not found');
             }
 
             $oldVendorCode = $model->vendor_code;
             $locId = $this->syncVendorLocation($request->vendor_code, $request->vendor_description, $oldVendorCode);
-            
+
             $model->forceFill([
                 'vendor_code' => $request->vendor_code,
                 'vendor_description' => $request->vendor_description,
@@ -395,16 +398,16 @@ class VendorController extends Controller
             $contactModelClass = LibraryClayController::resolveModelFromSheetSlug('vendor_contact'); // misalnya "VendorContact"
             $model1 = $contactModelClass::where('vendor_id', $request->id)->first();
 
-            if (!$model1) {
-                $model1 = new $contactModelClass();
+            if (! $model1) {
+                $model1 = new $contactModelClass;
                 $model1->vendor_id = $request->id;
             }
 
             $model1->forceFill([
-                'vendor_contact_name'  => $request->vendor_contact_name,
+                'vendor_contact_name' => $request->vendor_contact_name,
                 'vendor_contact_phone' => $request->vendor_contact_phone,
                 'vendor_contact_email' => $request->vendor_contact_email,
-                'vendor_contact_fax'   => $request->vendor_contact_fax,
+                'vendor_contact_fax' => $request->vendor_contact_fax,
             ]);
             $update1 = $model1->save();
 
@@ -414,12 +417,12 @@ class VendorController extends Controller
             if ($vendorChanged || $contactChanged) {
                 if ($vendorChanged) {
                     $id = $model->id;
-                    $sync_tabel = 'master_' . $this->sheet_slug;
+                    $sync_tabel = 'master_'.$this->sheet_slug;
                     $sync_id = $id;
                     $sync_row = $model->toArray();
                     $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                    //update ke master DB saja
-                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                    // update ke master DB saja
+                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                         $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                     }
                 }
@@ -430,15 +433,15 @@ class VendorController extends Controller
                     $sync_id = $id;
                     $sync_row = $model1->toArray();
                     $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                    //update ke master DB saja
-                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                    // update ke master DB saja
+                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                         $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                     }
                 }
 
-                $message = $this->sheet_name . ' updated successfully';
+                $message = $this->sheet_name.' updated successfully';
             } else {
-                $message = $this->sheet_name . ' no data changed';
+                $message = $this->sheet_name.' no data changed';
             }
 
         } else {
@@ -446,7 +449,7 @@ class VendorController extends Controller
             $locId = $this->syncVendorLocation($request->vendor_code, $request->vendor_description);
 
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
-            $vendor = new $modelClass();
+            $vendor = new $modelClass;
             $vendor->forceFill([
                 'vendor_code' => $request->vendor_code,
                 'vendor_description' => $request->vendor_description,
@@ -469,7 +472,7 @@ class VendorController extends Controller
                 ]
             );
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Sinkronisasi data Vendor ke master DB
                 $masterVendorModel = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
                 try {
@@ -514,15 +517,16 @@ class VendorController extends Controller
                 );
             }
 
-            $message = $this->sheet_name . ' created successfully';
+            $message = $this->sheet_name.' created successfully';
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
 
     public function show($id)
     {
         $this->readonly = true;
+
         return self::edit($id);
     }
 
@@ -533,10 +537,10 @@ class VendorController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
-        $param = DB::table('master_' . $this->sheet_slug . ' as mv')
+        $param = DB::table('master_'.$this->sheet_slug.' as mv')
             ->select(
                 'mv.*',
                 'mvc.vendor_contact_name',
@@ -547,24 +551,24 @@ class VendorController extends Controller
             ->leftJoin('master_vendor_contact as mvc', 'mv.id', 'mvc.vendor_id')
             ->where('mv.id', $id)->first();
 
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
-        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+        $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 
         if (class_exists($modelClass)) {
             $model = $modelClass::findOrFail($id);
             $vendorCode = $model->vendor_code;
             $model->delete(); // akan melakukan soft delete
             $this->deleteVendorLocation($vendorCode);
-        }else{
-            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        } else {
+            abort(403, 'Gagal hapus:: '.$modelClass.class_exists($modelClass));
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
     }
 
     public function import(Request $request)
@@ -573,7 +577,7 @@ class VendorController extends Controller
         ini_set('memory_limit', '512M');
 
         $request->validate([
-            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv'
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv',
         ]);
 
         if ($request->hasFile('file')) {

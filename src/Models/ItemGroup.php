@@ -2,24 +2,22 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
+use Illuminate\Support\Facades\Schema;
 
 class ItemGroup extends Model
 {
     use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
-
     use HasFactory;
-    use SoftDeletes;
     use Loggable;
+    use SoftDeletes;
 
-    protected $table = "master_item_group";
+    protected $table = 'master_item_group';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -28,10 +26,10 @@ class ItemGroup extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();
@@ -41,7 +39,6 @@ class ItemGroup extends Model
                     $table->longText('item_group_attributes')->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
-
 
                     $table->index('app_code', 'index_app_code');
                 });

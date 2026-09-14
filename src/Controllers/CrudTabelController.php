@@ -1,22 +1,27 @@
 <?php
+
 namespace Bangsamu\Master\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CrudTabelController extends Controller
 {
-    protected $table='';
+    protected $table = '';
+
     protected $readonly = false;
-    protected $sheet_name = 'Master - Employee'; //nama label untuk FE
-    protected $sheet_slug = 'employee'; //nama routing (slug)
+
+    protected $sheet_name = 'Master - Employee'; // nama label untuk FE
+
+    protected $sheet_slug = 'employee'; // nama routing (slug)
 
     protected $columns = '';
-    protected $view_tabel_index = array(
+
+    protected $view_tabel_index = [
         'm_crud.id AS No',
         'null AS action',
         'm_crud.no_id_karyawan AS no_id_karyawan',
@@ -49,9 +54,9 @@ class CrudTabelController extends Controller
             )) > 0 THEN "external"
         ELSE "-"
         END AS employee_type',
-    );
+    ];
 
-    protected $view_tabel = array(
+    protected $view_tabel = [
         'm_crud.id AS No',
         'm_crud.no_id_karyawan AS no_id_karyawan',
         'm_crud.employee_name AS nama',
@@ -65,8 +70,7 @@ class CrudTabelController extends Controller
         'm_crud.keterangan AS keterangan',
         'm_crud.app_code AS employee_type',
         'null AS action',
-    );
-
+    ];
 
     public function __construct(Request $request)
     {
@@ -82,7 +86,7 @@ class CrudTabelController extends Controller
         return view('master::crud.index', ['table' => $this->table, 'data' => $data]);
     }
 
-        public function view_form($data)
+    public function view_form($data)
     {
         $readonly = $this->readonly;
         extract($data);
@@ -90,7 +94,7 @@ class CrudTabelController extends Controller
         $global_disable = $readonly == false && checkPermission('is_admin') && $id ? false : true;
         $revisi_disable = @$getRequisition->version > 0 ? true : false;
 
-        $columns = $this->columns??[];
+        $columns = $this->columns ?? [];
 
         foreach ($columns as $key => $column) {
             $view_form[$key] = [
@@ -103,9 +107,6 @@ class CrudTabelController extends Controller
             ];
         }
         // dd($columns,$view_form);
-
-
-
 
         // dd($readonly,$global_disable);
         // dd($global_disable);
@@ -238,7 +239,6 @@ class CrudTabelController extends Controller
             'disabled' => $global_disable || $revisi_disable ? true : false,
         ];
 
-
         $view_form[90] = [
             'field' => 'space',
             'type' => 'space',
@@ -276,7 +276,7 @@ class CrudTabelController extends Controller
 
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_employee') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -289,7 +289,7 @@ class CrudTabelController extends Controller
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('crud.create',['table' => $this->table]);
+            $data['datatable']['btn']['create']['url'] = route('crud.create', ['table' => $this->table]);
 
             if (checkPermission('is_admin')) {
                 $data['datatable']['btn']['import']['id'] = 'importitem';
@@ -299,42 +299,43 @@ class CrudTabelController extends Controller
                 $data['datatable']['btn']['import']['act'] = 'importFn()';
             }
         }
-/*
-        if ((checkPermission('is_admin') || checkPermission('read_employee'))) {
-            $data['datatable']['btn']['export']['id'] = 'exportdata';
-            $data['datatable']['btn']['export']['title'] = 'Export';
-            $data['datatable']['btn']['export']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['export']['url'] = route('crud.table.export', ['table' => 'master_employee']);
-        }
+        /*
+                if ((checkPermission('is_admin') || checkPermission('read_employee'))) {
+                    $data['datatable']['btn']['export']['id'] = 'exportdata';
+                    $data['datatable']['btn']['export']['title'] = 'Export';
+                    $data['datatable']['btn']['export']['icon'] = 'btn-primary';
+                    $data['datatable']['btn']['export']['url'] = route('crud.table.export', ['table' => 'master_employee']);
+                }
 
 
-        $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('crud.employee.import');
-        $data['page']['import']['template'] = url('/template/form_import_hrd.xlsx');
-*/
+                $data['page']['import']['layout'] = 'layouts.import.form';
+                $data['page']['import']['post'] = route('crud.employee.import');
+                $data['page']['import']['template'] = url('/template/form_import_hrd.xlsx');
+        */
         $errors = new \Illuminate\Support\ViewErrorBag;
-        $page_var = compact('data','errors');
+        $page_var = compact('data', 'errors');
 
         $page_var['formModal'] = searchConfig($data, $view_tabel_index);
 
         return view('master::layouts.dashboard.index', $page_var);
     }
+
     public function config($id = null, $data = null)
     {
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
 
         $data['module']['folder'] = 'module';
-        $data['ajax']['url_prefix'] = $data['module']['folder'] . '.' . $sheet_slug;
+        $data['ajax']['url_prefix'] = $data['module']['folder'].'.'.$sheet_slug;
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('crud.create',['table' => $this->table]);
+        $data['page']['new']['url'] = route('crud.create', ['table' => $this->table]);
 
         $data = configDefAction($id, $data);
 
         $data['page']['id'] = $id;
-        $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
+        $data['modal']['view_path'] = $data['module']['folder'].'.mastermodal';
 
         $data['page']['js_list'][] = 'js.master-data';
 
@@ -347,7 +348,7 @@ class CrudTabelController extends Controller
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
-        $tabel = $this->tabel??$request->route('table');
+        $tabel = $this->tabel ?? $request->route('table');
 
         $columns = Schema::getColumnListing($this->table);
 
@@ -362,11 +363,11 @@ class CrudTabelController extends Controller
         array_unshift($columns, 'null AS action');
         $view_tabel_index = $columns;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -379,9 +380,9 @@ class CrudTabelController extends Controller
 
         if (method_exists(User::class, 'details')) {
             $details = User::details($user_id);
-            if($details){
+            if ($details) {
                 $user_location_id = $details->location_id;
-            }else {
+            } else {
                 $user_location_id = '';
             }
         } else {
@@ -389,8 +390,8 @@ class CrudTabelController extends Controller
         }
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'm_crud.created_at';
@@ -402,18 +403,17 @@ class CrudTabelController extends Controller
         // dd($columns,$array_data_maping);
         // APP11 = HRD app
         $totalData = DB::table($this->table.' as m_crud')
-            ->where(function ($query) use ($user_id,$user_location_id) {
+            ->where(function ($query) {
                 if (checkPermission('is_admin')) {
-                    //bisa liat semua employee
+                    // bisa liat semua employee
                 } else {
-                    //hanya app hrd demo
+                    // hanya app hrd demo
                     // $query
                     // ->where('m_crud.app_code', 'APP11')
                     // ->whereIn('hire_id', explode(',', $user_location_id))
                     // ;
                 }
             })->whereNull('m_crud.deleted_at')->count();
-
 
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
@@ -426,11 +426,11 @@ class CrudTabelController extends Controller
                 // ->leftJoin('master_status as m_s', 'm_crud.status_id', '=', 'm_s.id')
                 // ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_crud.work_location_id')
                 // ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_crud.hire_id')
-                ->where(function ($query) use ($user_id,$user_location_id) {
+                ->where(function ($query) {
                     if (checkPermission('is_admin')) {
-                        //bisa liat semua employee
+                        // bisa liat semua employee
                     } else {
-                        //hanya app hrd demo
+                        // hanya app hrd demo
                         // $query
                         // ->where('m_crud.app_code', 'APP11')
                         // ->whereIn('hire_id', explode(',', $user_location_id))
@@ -446,8 +446,7 @@ class CrudTabelController extends Controller
                 ->groupby('m_crud.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
@@ -458,11 +457,11 @@ class CrudTabelController extends Controller
                 // ->leftJoin('master_status as m_s', 'm_crud.status_id', '=', 'm_s.id')
                 // ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_crud.work_location_id')
                 // ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_crud.hire_id')
-                ->where(function ($query) use ($user_id,$user_location_id) {
+                ->where(function ($query) {
                     if (checkPermission('is_admin')) {
-                        //bisa liat semua employee
+                        // bisa liat semua employee
                     } else {
-                        //hanya app hrd demo
+                        // hanya app hrd demo
                         // $query
                         // ->where('m_crud.app_code', 'APP11')
                         // ->whereIn('hire_id', explode(',', $user_location_id))
@@ -482,22 +481,22 @@ class CrudTabelController extends Controller
         // $mapping_json[11] = 'action';
         // dd($view_tabel_index);
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
+        $data = [];
         // dd($data_tabel);
-        if (!empty($data_tabel)) {
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -506,23 +505,23 @@ class CrudTabelController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
                 }
                 $nestedData['No'] = $DT_RowIndex;
                 // dd(1,$this->table,$row,checkPermission('is_admin'));
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin') ) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && checkPermission('is_admin')) {
 
                     // $btn .=  route('crud.edit',['id'=>$row->id,'table'=>$tabel]);
 
                     // $btn .= '<a href="' . route('crud.edit',['id'=>$row->id,'tabel'=>$tabel]) . '" class="btn btn-primary btn-sm">Update</a> ';
-                    $btn .= '<a href="' . route('crud.edit',['id'=>$row->id,'table'=>$tabel]) . '" class="btn btn-primary btn-sm">Update</a>';
-                    $btn .= '<a href="' . route('crud.destroy',['id'=>$row->id,'table'=>$tabel]) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="'.route('crud.edit', ['id' => $row->id, 'table' => $tabel]).'" class="btn btn-primary btn-sm">Update</a>';
+                    $btn .= '<a href="'.route('crud.destroy', ['id' => $row->id, 'table' => $tabel]).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 } else {
-                    $btn .= '<a href="' . route('crud.show',['id'=>$row->id,'table'=>$tabel]) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('crud.show', ['id' => $row->id, 'table' => $tabel]).'" class="btn btn-primary btn-sm">View</a>';
                     // $btn .= '<a href="' . route('crud.show',['id'=>$row->id,'tabel'=>$tabel]) . '" class="btn btn-primary btn-sm">View</a>';
                 }
 
@@ -533,16 +532,16 @@ class CrudTabelController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
-
 
     public function create()
     {
@@ -553,35 +552,36 @@ class CrudTabelController extends Controller
     {
         $input = $request->except(['_token']);
         DB::table($this->table)->insert($input);
+
         return redirect()->route('master::crud.index', ['table' => $this->table]);
     }
 
-    public function show(Request $request,$tabel,$id)
+    public function show(Request $request, $tabel, $id)
     {
         // $item = DB::table($this->table)->find($id);
         // return view('master::crud.show', ['table' => $this->table, 'item' => $item]);
 
         $this->readonly = true;
-        return self::edit($request,$tabel,$id);
+
+        return self::edit($request, $tabel, $id);
     }
 
-    public function edit(Request $request,$tabel,$id)
+    public function edit(Request $request, $tabel, $id)
     {
-        if(empty($this->table) || empty($id)){
+        if (empty($this->table) || empty($id)) {
             abort(404, 'Tabel tidak ditemukan');
         }
-        $form_row_type = 'single'; /*single / multi kalo single cek detail kosong redirect*/
+        $form_row_type = 'single'; /* single / multi kalo single cek detail kosong redirect */
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('crud.store',['table' => $this->table]);
+        $data['page']['store'] = route('crud.store', ['table' => $this->table]);
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
 
-        $formdata = DB::table($this->table)->where('id',$id)->get();
-
+        $formdata = DB::table($this->table)->where('id', $id)->get();
 
         $formdata_multi = $formdata;
 
@@ -602,13 +602,15 @@ class CrudTabelController extends Controller
     public function update(Request $request, $id)
     {
         $input = $request->except(['_token', '_method']);
-        DB::table($this->table)->where('id',$id)->update($input);
+        DB::table($this->table)->where('id', $id)->update($input);
+
         return redirect()->route('master::crud.index', ['table' => $this->table]);
     }
 
     public function destroy($id)
     {
-        DB::table($this->table)->where('id',$id)->delete();
+        DB::table($this->table)->where('id', $id)->delete();
+
         return redirect()->route('master::crud.index', ['table' => $this->table]);
     }
 }

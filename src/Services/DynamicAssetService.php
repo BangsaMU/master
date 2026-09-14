@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class DynamicAssetService
 {
@@ -44,7 +43,7 @@ class DynamicAssetService
             })
             ->where(function ($q) {
                 $q->where('field_key', 'company_id')
-                  ->orWhere('field_key', 'company');
+                    ->orWhere('field_key', 'company');
             })
             ->whereNull('deleted_at')
             ->first();
@@ -79,7 +78,7 @@ class DynamicAssetService
                     : (Schema::hasTable('user_details') ? 'user_details' : null);
 
                 if ($userDetailTable) {
-                    $gallery = DB::table($userDetailTable . ' as ud')
+                    $gallery = DB::table($userDetailTable.' as ud')
                         ->join('master_company as mc', DB::raw('CAST(mc.id AS CHAR)'), '=', DB::raw('CAST(ud.field_value AS CHAR)'))
                         ->join('master_gallery as mg', 'mg.id', '=', 'mc.company_logo_id')
                         ->where(function ($q) use ($user) {
@@ -96,7 +95,7 @@ class DynamicAssetService
 
                     if ($gallery) {
                         if (! empty($gallery->path) && ! empty($gallery->filename)) {
-                            $storagePath = storage_path('app/public/' . trim($gallery->path, '/') . '/' . $gallery->filename);
+                            $storagePath = storage_path('app/public/'.trim($gallery->path, '/').'/'.$gallery->filename);
                             if (File::exists($storagePath)) {
                                 return $storagePath;
                             }

@@ -12,7 +12,6 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class ItemCodeExport implements FromCollection, ShouldAutoSize, WithHeadings
 {
-
     public function collection()
     {
         $query = DB::table('master_item_code as mic')
@@ -36,13 +35,13 @@ class ItemCodeExport implements FromCollection, ShouldAutoSize, WithHeadings
             $settings = DashboardSettings::where('group', 'master_item_code')->get();
         }
 
-        if (!$settings->isEmpty()) {
+        if (! $settings->isEmpty()) {
             $query->where(function ($q) use ($settings) {
                 foreach ($settings as $setting) {
                     $column = $setting->name ?? $setting->key;
                     $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
 
-                    if (!empty($column) && !empty($values) && Schema::hasColumn('master_item_code', $column)) {
+                    if (! empty($column) && ! empty($values) && Schema::hasColumn('master_item_code', $column)) {
                         $q->orWhereIn("mic.$column", $values);
                     }
                 }

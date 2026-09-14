@@ -4,16 +4,17 @@ namespace Bangsamu\Master\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use RalphJSmit\Laravel\SEO\Support\HasSEO;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use RalphJSmit\Laravel\SEO\Support\HasSEO;
 
 class Requisition extends Model
 {
     use HasFactory, SoftDeletes;
+
     // HasSEO,
     protected $table = 'requisition';
 
@@ -55,10 +56,10 @@ class Requisition extends Model
         $user = getMasterUserByEmail($user_email);
         $user_id = $user[0]->master_user_id;
 
-        if(empty($id)){
-            abort(403,'ID required');
+        if (empty($id)) {
+            abort(403, 'ID required');
         }
-        $where = !empty($request->input('search')['value']) ? " and r.subject like '%" . $request->input('search')['value'] . "%' " : '';
+        $where = ! empty($request->input('search')['value']) ? " and r.subject like '%".$request->input('search')['value']."%' " : '';
 
         // $query_text = "
         // /*detail SPB corporate*/
@@ -212,7 +213,6 @@ class Requisition extends Model
         // ";
         // $results = DB::select($query_text, [$id, $id, $limit, $offest]);
 
-
         $query_text = "
                         select
                                 ro.id AS routing_id,
@@ -247,7 +247,7 @@ class Requisition extends Model
                                 r.originator_id AS originator_id,
                                 r.label_originator AS originator_name,
                                 r.pdf_id AS pdf_id,
-                                if(ro.label_email='" . $user_email . "' and  ro.active =1,1,0)AS can_edit,
+                                if(ro.label_email='".$user_email."' and  ro.active =1,1,0)AS can_edit,
                                 r.duration_id AS duration_id,
                                 w.name AS duration_name,
                                 r.worklocation_id AS worklocation_id,
@@ -274,20 +274,20 @@ class Requisition extends Model
                                 left join master_location l on l.id = r.worklocation_id
 
                             where 1=1
-                                and r.id=" . $id . "
+                                and r.id=".$id.'
                                 order By ro.sequence desc
                                 limit 1
-                        ";
+                        ';
 
         $results = DB::select($query_text);
         $results = isset($results[0]) ? $results[0] : [];
 
-        if(empty($results)){
-            abort(403,'slip route detail empty');
+        if (empty($results)) {
+            abort(403, 'slip route detail empty');
         }
+
         return $results;
     }
-
 
     protected static $hasCheckedTable = false;
 
@@ -295,40 +295,40 @@ class Requisition extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id(); // bigint unsigned auto_increment
 
                     $table->string('code_number', 255)->nullable()->unique()
-                        ->comment("format: 21295-SPB-2021-XII-PMT-000001_R1");
+                        ->comment('format: 21295-SPB-2021-XII-PMT-000001_R1');
 
                     $table->string('subject', 255);
                     $table->string('project_id', 255)->nullable();
 
-                    $table->unsignedBigInteger('created_by')->nullable()->comment("user login pembuat");
+                    $table->unsignedBigInteger('created_by')->nullable()->comment('user login pembuat');
 
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
 
-                    $table->unsignedBigInteger('type_id')->comment("SPB/SPJ/SPB-Corporate/SPJ-Corporate");
+                    $table->unsignedBigInteger('type_id')->comment('SPB/SPJ/SPB-Corporate/SPJ-Corporate');
 
                     $table->unsignedBigInteger('department_id')->nullable();
 
                     $table->enum('status', ['draft', 'submit', 'open', 'revision', 'rejected', 'close'])
-                        ->default('draft')->comment("status lifecycle SPB/SPJ");
+                        ->default('draft')->comment('status lifecycle SPB/SPJ');
 
-                    $table->unsignedInteger('duration_id')->default(1)->comment("join ke terms (durasi hari)");
+                    $table->unsignedInteger('duration_id')->default(1)->comment('join ke terms (durasi hari)');
                     $table->unsignedBigInteger('spb_source_id')->nullable();
                     $table->unsignedBigInteger('worklocation_id')->nullable();
 
-                    $table->string('remarks', 255)->nullable()->comment("Scope of Work");
+                    $table->string('remarks', 255)->nullable()->comment('Scope of Work');
 
-                    $table->string('approve_by_id', 255)->nullable()->comment("user approval aktif (sequence tertentu)");
-                    $table->string('for_info_id', 255)->nullable()->comment("readonly user info (setelah approved)");
-                    $table->unsignedBigInteger('originator_id')->nullable()->comment("user pengaju");
+                    $table->string('approve_by_id', 255)->nullable()->comment('user approval aktif (sequence tertentu)');
+                    $table->string('for_info_id', 255)->nullable()->comment('readonly user info (setelah approved)');
+                    $table->unsignedBigInteger('originator_id')->nullable()->comment('user pengaju');
 
                     $table->date('requisition_date')->useCurrent();
                     $table->date('submit_date')->nullable();
@@ -337,10 +337,10 @@ class Requisition extends Model
                     $table->string('label_disetujui_oleh', 255)->nullable()->collation('utf8mb4_unicode_ci');
                     $table->string('label_diketahui_oleh', 255)->nullable()->collation('utf8mb4_unicode_ci');
 
-                    $table->unsignedBigInteger('routing_id')->comment("deprecated, routing.active yang digunakan");
-                    $table->tinyInteger('version')->comment("increment versi batch (0 default)");
+                    $table->unsignedBigInteger('routing_id')->comment('deprecated, routing.active yang digunakan');
+                    $table->tinyInteger('version')->comment('increment versi batch (0 default)');
 
-                    $table->unsignedBigInteger('pdf_id')->comment("file PDF hasil generate submit");
+                    $table->unsignedBigInteger('pdf_id')->comment('file PDF hasil generate submit');
                     $table->unsignedBigInteger('expense_id')->nullable();
                     $table->string('project2_id', 255)->nullable();
 

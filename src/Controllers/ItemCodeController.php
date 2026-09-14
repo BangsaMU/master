@@ -2,30 +2,31 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use App\Http\Controllers\Controller;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\ItemCodeExport;
 use Bangsamu\Master\Exports\Master\ItemCodeTemplateExport;
-use App\Http\Controllers\Controller;
-
 use Bangsamu\Master\Imports\Master\ItemCodeImport;
+use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\ItemCode;
+use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\MasterBroadcastService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Illuminate\Support\Str;
-use Bangsamu\Master\Models\Setting; 
 use Illuminate\Support\Facades\Schema;
-use Bangsamu\Master\Models\DashboardSettings;
-use Bangsamu\Master\Services\MasterBroadcastService;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ItemCodeController extends Controller
 {
     protected $readonly = false;
-    protected $sheet_name = 'Master - Item Code'; //nama label untuk FE
-    protected $sheet_slug = 'item_code'; //nama routing (slug)
-    protected $view_tabel_index = array(
+
+    protected $sheet_name = 'Master - Item Code'; // nama label untuk FE
+
+    protected $sheet_slug = 'item_code'; // nama routing (slug)
+
+    protected $view_tabel_index = [
         'mic.id AS No',
         'mic.item_code AS item_code',
         'mic.item_name AS description',
@@ -40,8 +41,9 @@ class ItemCodeController extends Controller
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.size_2')) AS size_2",
         // "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.unit_weight')) AS unit_weight",
         '"action" AS action',
-    );
-    protected $view_tabel = array(
+    ];
+
+    protected $view_tabel = [
         'mic.id AS id',
         'mic.item_code AS item_code',
         'mic.item_name AS description',
@@ -50,7 +52,7 @@ class ItemCodeController extends Controller
         'mc.category_name AS category',
         'mig.item_group_name AS item_group',
         '"action" AS action',
-    );
+    ];
 
     /**
      * Create a new controller instance.
@@ -68,7 +70,7 @@ class ItemCodeController extends Controller
         $sheet_slug = $this->sheet_slug;
 
         $data['module']['folder'] = 'module';
-        $data['ajax']['url_prefix'] = $data['module']['folder'] . '.' . $sheet_slug;
+        $data['ajax']['url_prefix'] = $data['module']['folder'].'.'.$sheet_slug;
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
@@ -79,7 +81,7 @@ class ItemCodeController extends Controller
         $data = configDefAction($id, $data);
 
         $data['page']['id'] = $id;
-        $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
+        $data['modal']['view_path'] = $data['module']['folder'].'.mastermodal';
 
         return $data;
     }
@@ -102,7 +104,7 @@ class ItemCodeController extends Controller
         $data['page']['list'] = route('master.item-code.index');
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_item_code')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -111,7 +113,7 @@ class ItemCodeController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('category,uom,pca,item-group,item_code')";
         }
 
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true  && (checkPermission('is_admin') || checkPermission('create_item_code'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_item_code'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -145,11 +147,10 @@ class ItemCodeController extends Controller
     /**
      * Handle the incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
-     * untuk set filter dari db bisa dari setting atau dashboard_settings
-     * INSERT INTO `dashboard_settings`(`key`, `value`, `group`, `type`, `label`, `options`, `order`, `created_at`, `updated_at` ) VALUES ('app_code', 'APP09,APP32', 'master_item_code', 'config', 'Config Master Item Code', NULL, '0', NULL, NULL );
-     * INSERT INTO `setting`(`name`, `value`, `created_at`, `updated_at`, `deleted_at`, `category` ) VALUES ('app_code', 'APP09,APP32', '2026-03-03 10:38:23', NULL, NULL, 'master_item_codeX' );
+     *                                   untuk set filter dari db bisa dari setting atau dashboard_settings
+     *                                   INSERT INTO `dashboard_settings`(`key`, `value`, `group`, `type`, `label`, `options`, `order`, `created_at`, `updated_at` ) VALUES ('app_code', 'APP09,APP32', 'master_item_code', 'config', 'Config Master Item Code', NULL, '0', NULL, NULL );
+     *                                   INSERT INTO `setting`(`name`, `value`, `created_at`, `updated_at`, `deleted_at`, `category` ) VALUES ('app_code', 'APP09,APP32', '2026-03-03 10:38:23', NULL, NULL, 'master_item_codeX' );
      */
     public function dataJson(Request $request)
     {
@@ -158,11 +159,11 @@ class ItemCodeController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -173,8 +174,8 @@ class ItemCodeController extends Controller
         $user_id = Auth::user()->id ?? 0;
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'mic.id';
@@ -191,32 +192,32 @@ class ItemCodeController extends Controller
 
         // 1. Ambil semua setting secara dinamis
         $settings = Setting::where('category', $category)
-                    ->get();
-     
-        //dashboard_settings
-        if($settings->isEmpty()){
+            ->get();
+
+        // dashboard_settings
+        if ($settings->isEmpty()) {
             $settings = DashboardSettings::
             // where('key', $key)
             where('group', $category)
-            ->get();
+                ->get();
         }
 
-        $query = DB::table($tableName . ' as mic')
-                ->whereNull('mic.deleted_at');
+        $query = DB::table($tableName.' as mic')
+            ->whereNull('mic.deleted_at');
         // 2. Tambahkan grup filter dengan logika OR di dalamnya
         $query->where(function ($q) use ($settings, $tableName) {
             foreach ($settings as $setting) {
                 $column = $setting->name ?? $setting->key;
-                $values = array_filter(explode(",", $setting->value));
+                $values = array_filter(explode(',', $setting->value));
                 // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
-                if (Schema::hasColumn($tableName, $column) && !empty($values)) {
+                if (Schema::hasColumn($tableName, $column) && ! empty($values)) {
                     // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
                     $q->orWhereIn("mic.$column", $values);
                 }
             }
         });
         $totalData = $query->count();
- 
+
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
@@ -233,15 +234,15 @@ class ItemCodeController extends Controller
             $data_tabel->where(function ($q) use ($settings, $tableName) {
                 foreach ($settings as $setting) {
                     $column = $setting->name ?? $setting->key;
-                    $values = array_filter(explode(",", $setting->value));
+                    $values = array_filter(explode(',', $setting->value));
                     // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
-                    if (Schema::hasColumn($tableName, $column) && !empty($values)) {
+                    if (Schema::hasColumn($tableName, $column) && ! empty($values)) {
                         // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
                         $q->orWhereIn("mic.$column", $values);
                     }
                 }
             })
-            ->groupby('mic.id');
+                ->groupby('mic.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -251,8 +252,7 @@ class ItemCodeController extends Controller
                 ->groupby('mic.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
@@ -268,9 +268,9 @@ class ItemCodeController extends Controller
             $datatb_request->where(function ($q) use ($settings, $tableName) {
                 foreach ($settings as $setting) {
                     $column = $setting->name ?? $setting->key;
-                    $values = array_filter(explode(",", $setting->value));
+                    $values = array_filter(explode(',', $setting->value));
                     // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
-                    if (Schema::hasColumn($tableName, $column) && !empty($values)) {
+                    if (Schema::hasColumn($tableName, $column) && ! empty($values)) {
                         // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
                         $q->orWhereIn("mic.$column", $values);
                     }
@@ -288,25 +288,25 @@ class ItemCodeController extends Controller
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
 
-            if ($name == "uom") {
+            if ($name == 'uom') {
                 $columns[$keyC]['name'] = 'Unit (UoM)';
             }
         }
 
-        $data = array();
-        if (!empty($data_tabel)) {
+        $data = [];
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -315,21 +315,21 @@ class ItemCodeController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) ) {
-                    $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
+                    $btn .= '<a href="'.route('master.item-code.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
-                    $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.item-code.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) {
-                    $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID'))) {
+                    $btn .= '<a href="'.route('master.item-code.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
                 $attributesArray = json_decode($nestedData['attributes'], true);
@@ -337,11 +337,10 @@ class ItemCodeController extends Controller
                 $nestedData['attributes'] = is_array($attributesArray)
                     ? implode('<br>', array_map(function ($key, $value) {
                         $formattedKey = ucfirst(str_replace('_', ' ', $key));
+
                         return "$formattedKey: $value";
                     }, array_keys($attributesArray), $attributesArray))
                     : '';
-
-
 
                 $nestedData['action'] = @$btn;
 
@@ -350,13 +349,14 @@ class ItemCodeController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
 
@@ -375,14 +375,14 @@ class ItemCodeController extends Controller
         $data['page']['attributes'] = '{"size_1":null,"size_2":null,"unit_weight":null}';
         $param = null;
 
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
     {
         // dd($request->all());
         $request->validate([
-            'item_code' => 'required|unique:master_' . $this->sheet_slug . ',item_code' . ($request->id ? ',' . $request->id : ''),
+            'item_code' => 'required|unique:master_'.$this->sheet_slug.',item_code'.($request->id ? ','.$request->id : ''),
             'item_name' => 'required',
             'uom_id' => 'required',
             // 'pca_id' => 'required',
@@ -403,7 +403,7 @@ class ItemCodeController extends Controller
             $attributes = $request->input('attributes');
             if ($attributes) {
                 foreach ($item_code_attributes as $key => $detail) {
-                    $keyIndex = array_key_exists($key, $attributes) ?  array_key_exists($key, $attributes) : $indexI;//key ganti ke id karena index jika kosong
+                    $keyIndex = array_key_exists($key, $attributes) ? array_key_exists($key, $attributes) : $indexI; // key ganti ke id karena index jika kosong
                     if (array_key_exists($keyIndex, $attributes)) {
                         // dd(2,$keyIndex,$attributes);
                         $item_code_attributes->$key = $attributes[$keyIndex];
@@ -431,21 +431,21 @@ class ItemCodeController extends Controller
             ]);
 
             if ($update && $item_code->wasChanged()) {
-                /*sync callback*/
-                $id =  $item_code->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+                /* sync callback */
+                $id = $item_code->id;
+                $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
                 $sync_row = $item_code->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                // update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
 
-                $message = $this->sheet_name . ' updated successfully';
+                $message = $this->sheet_name.' updated successfully';
             } else {
-                $message = $this->sheet_name . ' no data changed';
+                $message = $this->sheet_name.' no data changed';
             }
         } else {
             // Create new Item Code
@@ -454,7 +454,7 @@ class ItemCodeController extends Controller
             $indexI = 0;
             $attributes = $request->input('attributes');
             // dd($item_group_attributes,$item_code_attributes,$attributes);
-            if (!empty($item_code_attributes) && $attributes) {
+            if (! empty($item_code_attributes) && $attributes) {
                 foreach ($item_code_attributes as $key => $detail) {
                     $item_code_attributes->$key = $attributes[$indexI];
                     $indexI++;
@@ -478,26 +478,25 @@ class ItemCodeController extends Controller
                 'created_at' => now(),
             ]); // ini akan trigger Loggable
 
-
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new item code
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
                 $modelClass::create([
-                'item_code' => $request->item_code,
-                'item_name' => $request->item_name,
-                'uom_id' => $request->uom_id,
-                'pca_id' => $request->pca_id,
-                'category_id' => $request->category_id,
-                'group_id' => $request->group_id,
-                'attributes' => $item_code_attributes,
-                'app_code' => config('SsoConfig.main.APP_CODE'),
-                'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
-                'created_at' => now(),
+                    'item_code' => $request->item_code,
+                    'item_name' => $request->item_name,
+                    'uom_id' => $request->uom_id,
+                    'pca_id' => $request->pca_id,
+                    'category_id' => $request->category_id,
+                    'group_id' => $request->group_id,
+                    'attributes' => $item_code_attributes,
+                    'app_code' => config('SsoConfig.main.APP_CODE'),
+                    'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
+                    'created_at' => now(),
                 ]);
             }
 
-            $message = $this->sheet_name . ' created successfully';
+            $message = $this->sheet_name.' created successfully';
         }
 
         return redirect()->route('master.item-code.index')->with('success_message', $message);
@@ -506,6 +505,7 @@ class ItemCodeController extends Controller
     public function show($id)
     {
         $this->readonly = true;
+
         return self::edit($id);
     }
 
@@ -519,29 +519,30 @@ class ItemCodeController extends Controller
         $data['page']['store'] = route('master.item-code.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
-        $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
+        $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
 
         $param->uom_name = DB::table('master_uom')->where('id', $param->uom_id)->value('uom_name');
         $param->pca_name = DB::table('master_pca')->where('id', $param->pca_id)->value('pca_name');
         $param->category_name = DB::table('master_category')->where('id', $param->category_id)->value('category_name');
         $param->item_group_name = DB::table('master_item_group')->where('id', $param->group_id)->value('item_group_name');
+
         // dd($param);
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
-        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+        $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 
         if (class_exists($modelClass)) {
             $deletedItem = $modelClass::findOrFail($id);
             $deletedItem->delete(); // akan melakukan soft delete
-        }else{
-            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        } else {
+            abort(403, 'Gagal hapus:: '.$modelClass.class_exists($modelClass));
         }
 
-        return redirect()->route('master.item-code.index')->with('success', $this->sheet_name . ' deleted successfully');
+        return redirect()->route('master.item-code.index')->with('success', $this->sheet_name.' deleted successfully');
     }
 
     public function import(Request $request)
@@ -550,9 +551,9 @@ class ItemCodeController extends Controller
         ini_set('memory_limit', '512M');
 
         $request->validate([
-            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv'
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv',
         ]);
-        
+
         if ($request->hasFile('file')) {
             $file = $request->file('file');
 
@@ -592,13 +593,13 @@ class ItemCodeController extends Controller
         $sheet_slug = $this->sheet_slug;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
         $search = $request->input('search.value');
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $column_field = explode(" AS ", $view_tabel_index[$request->input('order.0.column')]);
+            /* remove alias */
+            $column_field = explode(' AS ', $view_tabel_index[$request->input('order.0.column')]);
             $order = $column_field[0] ?? 'id';
         } else {
             $order = 'mic.id';
@@ -619,7 +620,7 @@ class ItemCodeController extends Controller
         $totalFiltered = $totalRecords;
 
         if ($search) {
-            $search = '%' . $search . '%';
+            $search = '%'.$search.'%';
 
             foreach ($view_tabel_index as $valC) {
                 $column_field = explode(' AS ', $valC)[0];
@@ -645,21 +646,21 @@ class ItemCodeController extends Controller
             ->get();
 
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $column_field = explode(" AS ", $valC);
+            /* remove alias */
+            $column_field = explode(' AS ', $valC);
             $c_filed = $column_field[1] ?? $column_field[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
-        if (!empty($data_get)) {
+        $data = [];
+        if (! empty($data_get)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_get as $row) {
@@ -667,8 +668,8 @@ class ItemCodeController extends Controller
                 $nestedData['DT_RowIndex'] = $DT_RowIndex;
 
                 foreach ($view_tabel_index as $keyC => $valC) {
-                    /*remove alias*/
-                    $column_field = explode(" AS ", $valC);
+                    /* remove alias */
+                    $column_field = explode(' AS ', $valC);
                     $c_filed = $column_field[1] ?? $column_field[0];
                     $nestedData[$c_filed] = @$row->$c_filed;
                 }
@@ -676,13 +677,13 @@ class ItemCodeController extends Controller
 
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) ) {
-                    $btn .= '<a href="' . route('master.item-code.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
+                    $btn .= '<a href="'.route('master.item-code.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
-                    $btn .= '<a href="' . route('master.item-code.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.item-code.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('delete_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE')||$row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')) ) ) {
-                    $btn .= '<a href="' . route('master.item-code.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('delete_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
+                    $btn .= '<a href="'.route('master.item-code.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
                 $nestedData['attributes'] = $nestedData['attributes']
@@ -690,7 +691,6 @@ class ItemCodeController extends Controller
                         return "$key: $value";
                     }, array_keys(json_decode($nestedData['attributes'], true)), json_decode($nestedData['attributes'], true)))
                     : '';
-
 
                 $nestedData['action'] = @$btn;
 
@@ -704,7 +704,7 @@ class ItemCodeController extends Controller
             'recordsTotal' => $totalRecords,
             'recordsFiltered' => $totalFiltered,
             'data' => $data,
-            "columns" => $columns,
+            'columns' => $columns,
         ]);
     }
 }

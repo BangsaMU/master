@@ -2,15 +2,19 @@
 
 namespace Bangsamu\Master\Components;
 
-use Illuminate\View\Component;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\View\Component;
 
 class Select2Ajax extends Component
 {
     public string $name;
+
     public string $model;
+
     public string $label;
+
     public bool $multiple;
+
     public Collection $initialSelection;
 
     public function __construct(
@@ -18,7 +22,7 @@ class Select2Ajax extends Component
         string $model,
         string $label,
         bool $multiple = false,
-        Collection $initialSelection = null
+        ?Collection $initialSelection = null
     ) {
         $this->name = $name;
         $this->model = $model;

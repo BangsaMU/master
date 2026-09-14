@@ -3,35 +3,38 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Imports\Master\PcaImport;
+use Bangsamu\Master\Models\Pca;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Models\Pca;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
     protected $readonly = false;
-    protected $sheet_name = 'Master - PCA'; //nama label untuk FE
-    protected $sheet_slug = 'pca'; //nama routing (slug)
-    protected $view_tabel_index = array(
+
+    protected $sheet_name = 'Master - PCA'; // nama label untuk FE
+
+    protected $sheet_slug = 'pca'; // nama routing (slug)
+
+    protected $view_tabel_index = [
         'mp.id AS No',
         // '"action" AS action',
         'mp.pca_code AS pca_code',
         'mp.pca_name AS pca_name',
         'mp.app_code AS app_code',
         '"action" AS action',
-    );
-    protected $view_tabel = array(
+    ];
+
+    protected $view_tabel = [
         'mp.id AS id',
         'mp.pca_code AS pca_code',
         'mp.pca_name AS pca_name',
         '"action" AS action',
-    );
+    ];
 
     /**
      * Create a new controller instance.
@@ -49,18 +52,18 @@ class ReportController extends Controller
         $sheet_slug = $this->sheet_slug;
 
         $data['module']['folder'] = 'module';
-        $data['ajax']['url_prefix'] = $data['module']['folder'] . '.' . $sheet_slug;
+        $data['ajax']['url_prefix'] = $data['module']['folder'].'.'.$sheet_slug;
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
+        $data['page']['new']['url'] = route('master.'.$sheet_slug.'.create');
 
         $data = configDefAction($id, $data);
 
         $data['page']['js_list'][] = 'js.master-data';
 
         $data['page']['id'] = $id;
-        $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
+        $data['modal']['view_path'] = $data['module']['folder'].'.mastermodal';
 
         return $data;
     }
@@ -83,7 +86,7 @@ class ReportController extends Controller
         $data['page']['list'] = route('master.pca.index');
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_pca')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -96,7 +99,7 @@ class ReportController extends Controller
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['create']['url'] = route('master.'.$sheet_slug.'.create');
 
             $data['datatable']['btn']['import']['id'] = 'importitem';
             $data['datatable']['btn']['import']['title'] = 'Import Item';
@@ -111,7 +114,6 @@ class ReportController extends Controller
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
             $data['datatable']['btn']['export']['url'] = url('master/getmaster_pca/export');
         }
-
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.pca.import');
@@ -131,11 +133,11 @@ class ReportController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -146,8 +148,8 @@ class ReportController extends Controller
         $user_id = Auth::user()->id ?? 0;
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'mp.created_at';
@@ -176,8 +178,7 @@ class ReportController extends Controller
                 ->groupby('mp.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
@@ -198,21 +199,21 @@ class ReportController extends Controller
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
-        if (!empty($data_tabel)) {
+        $data = [];
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -221,8 +222,8 @@ class ReportController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
@@ -230,14 +231,13 @@ class ReportController extends Controller
                 $nestedData['No'] = $DT_RowIndex;
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_pca')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
-                }else {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
+                } else {
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_pca')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
-
 
                 $nestedData['action'] = @$btn;
 
@@ -246,13 +246,14 @@ class ReportController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
 
@@ -264,19 +265,19 @@ class ReportController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
+        $data['page']['list'] = route('master.'.$sheet_slug.'.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
 
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'pca_code' => 'required|unique:master_' . $this->sheet_slug . ',pca_code' . ($request->id ? ',' . $request->id : ''),
+            'pca_code' => 'required|unique:master_'.$this->sheet_slug.',pca_code'.($request->id ? ','.$request->id : ''),
             'pca_name' => 'required',
         ]);
 
@@ -289,20 +290,20 @@ class ReportController extends Controller
             ]);
 
             if ($update && $pca->wasChanged()) {
-                /*sync callback*/
-                $id =  $pca->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+                /* sync callback */
+                $id = $pca->id;
+                $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
                 $sync_row = $pca->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                // update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message = $this->sheet_name . ' updated successfully';
+                $message = $this->sheet_name.' updated successfully';
             } else {
-                $message = $this->sheet_name . ' no data changed';
+                $message = $this->sheet_name.' no data changed';
             }
         } else {
             // Create new category
@@ -322,15 +323,16 @@ class ReportController extends Controller
             //     'created_at' => now(),
             // ]);
 
-            $message = $this->sheet_name . ' created successfully';
+            $message = $this->sheet_name.' created successfully';
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
 
     public function show($id)
     {
         $this->readonly = true;
+
         return self::edit($id);
     }
 
@@ -341,32 +343,32 @@ class ReportController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
-        $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
+        $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
 
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
-        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+        $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 
         if (class_exists($modelClass)) {
             $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
-        }else{
-            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        } else {
+            abort(403, 'Gagal hapus:: '.$modelClass.class_exists($modelClass));
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
     }
 
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|max:2048|mimes:xls,xlsx,txt'
+            'file' => 'required|file|max:2048|mimes:xls,xlsx,txt',
         ]);
 
         if ($request->hasFile('file')) {

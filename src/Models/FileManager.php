@@ -2,25 +2,21 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
-use Illuminate\Support\Facades\DB;
-
-use App\Jobs\SyncMasterJob;
+use Illuminate\Support\Facades\Schema;
 
 class FileManager extends Model
 {
     use HasFactory;
-    use SoftDeletes;
     use Loggable;
+    use SoftDeletes;
 
-    protected $table = "master_file_manager";
+    protected $table = 'master_file_manager';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -29,10 +25,10 @@ class FileManager extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('tfr_id');

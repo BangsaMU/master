@@ -2,35 +2,35 @@
 
 namespace Bangsamu\Master\Imports;
 
-use Bangsamu\Master\Models\ItemCode;
-use Bangsamu\Master\Models\ItemGroup;
 use Bangsamu\Master\Models\Category;
+use Bangsamu\Master\Models\ItemCode;
 use Bangsamu\Master\Models\ItemCodePicture;
-use Bangsamu\Master\Models\UoM;
+use Bangsamu\Master\Models\ItemGroup;
 use Bangsamu\Master\Models\Pca;
+use Bangsamu\Master\Models\UoM;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
-use \Carbon\Carbon;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
-use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultipleSheets, WithHeadingRow, WithChunkReading, WithEvents
+class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithChunkReading, WithEvents, WithHeadingRow, WithMultipleSheets
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
 
     public function getImportTable(): string
     {
         return 'master_item_code';
     }
-
 
     public function sheets(): array
     {
@@ -174,49 +174,50 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
 
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if($row->filter()->isNotEmpty()) {
+            if ($row->filter()->isNotEmpty()) {
 
                 if (empty($row['item_code'])) {
-                    $text = "Row ".$row_index." Item Code : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['item_name'])) {
-                    $text = "Row ".$row_index." Item Name : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['uom_code'])) {
-                    $text = "Row ".$row_index." UoM Code : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['uom_name'])) {
-                    $text = "Row ".$row_index." UoM Name : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['pca_code'])) {
-                    $text = "Row ".$row_index." PCA Code : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['pca_name'])) {
-                    $text = "Row ".$row_index." PCA Name : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['category_code'])) {
-                    $text = "Row ".$row_index." Category Code : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['category_name'])) {
-                    $text = "Row ".$row_index." Category Name : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['item_group_code'])) {
-                    $text = "Row ".$row_index." Item Group Code : field is required.";
-                    array_push($this->error,$text);
-                } else if (empty($row['item_group_name'])) {
-                    $text = "Row ".$row_index." Item Group Name : field is required.";
-                    array_push($this->error,$text);
+                    $text = 'Row '.$row_index.' Item Code : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['item_name'])) {
+                    $text = 'Row '.$row_index.' Item Name : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['uom_code'])) {
+                    $text = 'Row '.$row_index.' UoM Code : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['uom_name'])) {
+                    $text = 'Row '.$row_index.' UoM Name : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['pca_code'])) {
+                    $text = 'Row '.$row_index.' PCA Code : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['pca_name'])) {
+                    $text = 'Row '.$row_index.' PCA Name : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['category_code'])) {
+                    $text = 'Row '.$row_index.' Category Code : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['category_name'])) {
+                    $text = 'Row '.$row_index.' Category Name : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['item_group_code'])) {
+                    $text = 'Row '.$row_index.' Item Group Code : field is required.';
+                    array_push($this->error, $text);
+                } elseif (empty($row['item_group_name'])) {
+                    $text = 'Row '.$row_index.' Item Group Name : field is required.';
+                    array_push($this->error, $text);
                 } else {
 
                     $item_code = $existingItemCodes->get($row['item_code']);
 
                     if ($item_code) {
                         if ($item_code->deleted_at !== null) {
-                            $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists with soft delete status.";
+                            $text = 'Row '.$row_index.": Item Code '".$row['item_code']."' already exists with soft delete status.";
                         } else {
-                            $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists.";
+                            $text = 'Row '.$row_index.": Item Code '".$row['item_code']."' already exists.";
                         }
-                        array_push($this->error,$text);
+                        array_push($this->error, $text);
+
                         continue;
                     }
 
@@ -224,14 +225,15 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                         try {
                             $uom_key = strtoupper($row['uom_code']);
                             $uom = $existingUoms->get($uom_key);
-                            if(!empty($uom)){
+                            if (! empty($uom)) {
                                 if ($uom->deleted_at !== null) {
-                                    $text = "Row ".$row_index.": UoM Code '".$row['uom_code']."' already exists with soft delete status.";
-                                    array_push($this->error,$text);
+                                    $text = 'Row '.$row_index.": UoM Code '".$row['uom_code']."' already exists with soft delete status.";
+                                    array_push($this->error, $text);
+
                                     continue;
                                 }
                                 $uom_id = $uom->id;
-                            }else{
+                            } else {
                                 $create_uom = UoM::create([
                                     'uom_code' => strtoupper($row['uom_code']),
                                     'uom_name' => $row['uom_name'] ?? $row['uom_code'],
@@ -243,14 +245,15 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
 
                             $pca_key = strtoupper($row['pca_code']);
                             $pca = $existingPcas->get($pca_key);
-                            if(!empty($pca)){
+                            if (! empty($pca)) {
                                 if ($pca->deleted_at !== null) {
-                                    $text = "Row ".$row_index.": PCA Code '".$row['pca_code']."' already exists with soft delete status.";
-                                    array_push($this->error,$text);
+                                    $text = 'Row '.$row_index.": PCA Code '".$row['pca_code']."' already exists with soft delete status.";
+                                    array_push($this->error, $text);
+
                                     continue;
                                 }
                                 $pca_id = $pca->id;
-                            }else{
+                            } else {
                                 $create_pca = Pca::create([
                                     'pca_code' => strtoupper($row['pca_code']),
                                     'pca_name' => $row['pca_name'] ?? $row['pca_code'],
@@ -262,14 +265,15 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
 
                             $cat_key = strtoupper($row['category_code']);
                             $category = $existingCategories->get($cat_key);
-                            if(!empty($category)){
+                            if (! empty($category)) {
                                 if ($category->deleted_at !== null) {
-                                    $text = "Row ".$row_index.": Category Code '".$row['category_code']."' already exists with soft delete status.";
-                                    array_push($this->error,$text);
+                                    $text = 'Row '.$row_index.": Category Code '".$row['category_code']."' already exists with soft delete status.";
+                                    array_push($this->error, $text);
+
                                     continue;
                                 }
                                 $category_id = $category->id;
-                            }else{
+                            } else {
                                 $create_category = Category::create([
                                     'category_code' => strtoupper($row['category_code']),
                                     'category_name' => $row['category_name'] ?? $row['category_code'],
@@ -281,14 +285,15 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
 
                             $item_group_key = strtoupper($row['item_group_code']);
                             $item_group = $existingItemGroups->get($item_group_key);
-                            if(!empty($item_group)){
+                            if (! empty($item_group)) {
                                 if ($item_group->deleted_at !== null) {
-                                    $text = "Row ".$row_index.": Item Group Code '".$row['item_group_code']."' already exists with soft delete status.";
-                                    array_push($this->error,$text);
+                                    $text = 'Row '.$row_index.": Item Group Code '".$row['item_group_code']."' already exists with soft delete status.";
+                                    array_push($this->error, $text);
+
                                     continue;
                                 }
                                 $item_group_id = $item_group->id;
-                            }else{
+                            } else {
                                 $create_item_group = ItemGroup::create([
                                     'item_group_code' => strtoupper($row['item_group_code']),
                                     'item_group_name' => $row['item_group_name'] ?? $row['item_group_code'],
@@ -309,10 +314,10 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 'created_at' => now(),
                             ]);
 
-                            $existingItemCodes->put($row['item_code'], (object)[
+                            $existingItemCodes->put($row['item_code'], (object) [
                                 'id' => $data->id,
                                 'item_code' => $row['item_code'],
-                                'deleted_at' => null
+                                'deleted_at' => null,
                             ]);
 
                             if (@$row['url']) {
@@ -321,20 +326,20 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
                                 $itemcodepicture->save();
                             }
 
-                            $text = "Row ".$row_index." : ".$row['item_code']." has been imported successfully.";
-                            array_push($this->success,$text);
+                            $text = 'Row '.$row_index.' : '.$row['item_code'].' has been imported successfully.';
+                            array_push($this->success, $text);
                         } catch (\Throwable $th) {
                             $errorMessage = $th->getMessage();
                             if (str_contains($errorMessage, '1062') || str_contains($errorMessage, 'Duplicate entry')) {
-                                $text = "Row ".$row_index.": Item Code '".$row['item_code']."' already exists.";
+                                $text = 'Row '.$row_index.": Item Code '".$row['item_code']."' already exists.";
                             } else {
-                                $text = "Row ".$row_index.": Item Code created failed!" . $errorMessage;
+                                $text = 'Row '.$row_index.': Item Code created failed!'.$errorMessage;
                             }
-                            array_push($this->error,$text);
+                            array_push($this->error, $text);
                         }
-                    }else{
-                        $text = "Row ".$row_index.": Item Code already exists!";
-                        array_push($this->error,$text);
+                    } else {
+                        $text = 'Row '.$row_index.': Item Code already exists!';
+                        array_push($this->error, $text);
                     }
                 }
             }
@@ -342,15 +347,18 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithMultip
 
     }
 
-    public function fixDate($date){
+    public function fixDate($date)
+    {
         $date = (int) $date;
+
         return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($date))->format('Y-m-d');
     }
 
-    public function checkDate($date){
-        if(is_string($date)){
-            $return = Carbon::createFromFormat('d/m/Y',$date)->format('Y-m-d H:i');
-        }else if(is_int($date)){
+    public function checkDate($date)
+    {
+        if (is_string($date)) {
+            $return = Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d H:i');
+        } elseif (is_int($date)) {
             $return = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($date);
         }
 

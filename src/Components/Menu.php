@@ -2,10 +2,10 @@
 
 namespace Bangsamu\Master\Components;
 
-use Illuminate\View\Component;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Illuminate\View\Component;
 use JeroenNoten\LaravelAdminLte\Events\BuildingMenu;
 use JeroenNoten\LaravelAdminLte\Menu\Builder as MenuBuilder;
 
@@ -21,7 +21,7 @@ class Menu extends Component
     /**
      * Create a new component instance.
      *
-     * @param string $menu
+     * @param  string  $menu
      * @return void
      */
     public function __construct($menu = 'main_menu')
@@ -60,7 +60,7 @@ class Menu extends Component
         }
 
         if (empty($rawItems)) {
-            $rawItems = config("adminlte.menu", []);
+            $rawItems = config('adminlte.menu', []);
         }
 
         if (empty($rawItems)) {
@@ -72,11 +72,6 @@ class Menu extends Component
 
     /**
      * Normalize menu items for unified rendering across themes, removing dummy anchors and duplicates.
-     *
-     * @param array $items
-     * @param array $seenKeys
-     * @param array $seenSignatures
-     * @return array
      */
     protected function normalizeMenuItems(array $items, array &$seenKeys = [], array &$seenSignatures = []): array
     {
@@ -86,7 +81,7 @@ class Menu extends Component
             // Support raw string headers (e.g. 'MASTER', 'CMS Menu')
             if (is_string($item)) {
                 $headerTitle = trim($item);
-                $headerSig = 'header|' . strtolower($headerTitle);
+                $headerSig = 'header|'.strtolower($headerTitle);
                 if (in_array($headerSig, $seenSignatures, true)) {
                     continue;
                 }
@@ -95,25 +90,26 @@ class Menu extends Component
                     'type' => 'header',
                     'title' => $headerTitle,
                 ];
+
                 continue;
             }
 
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
             // Skip topnav items or navbar widgets when rendering sidebar
-            if (!empty($item['topnav']) || !empty($item['topnav_right'])) {
+            if (! empty($item['topnav']) || ! empty($item['topnav_right'])) {
                 continue;
             }
-            if (!empty($item['type']) && in_array($item['type'], ['navbar-search', 'fullscreen-widget', 'sidebar-menu-search'])) {
+            if (! empty($item['type']) && in_array($item['type'], ['navbar-search', 'fullscreen-widget', 'sidebar-menu-search'])) {
                 continue;
             }
 
             // Header item defined as array ['header' => 'Title']
             if (isset($item['header'])) {
                 $headerTitle = trim($item['header']);
-                $headerSig = 'header|' . strtolower($headerTitle);
+                $headerSig = 'header|'.strtolower($headerTitle);
                 if (in_array($headerSig, $seenSignatures, true)) {
                     continue;
                 }
@@ -122,11 +118,12 @@ class Menu extends Component
                     'type' => 'header',
                     'title' => $headerTitle,
                 ];
+
                 continue;
             }
 
             // Check permissions if 'can' attribute is set
-            if (!empty($item['can'])) {
+            if (! empty($item['can'])) {
                 $can = $item['can'];
                 if (function_exists('auth') && Auth::check()) {
                     $canList = is_array($can) ? $can : [$can];
@@ -153,14 +150,14 @@ class Menu extends Component
                             }
                         }
                     }
-                    if (!$hasPermission) {
+                    if (! $hasPermission) {
                         continue;
                     }
                 }
             }
 
             // Check for duplicate key
-            if (!empty($item['key'])) {
+            if (! empty($item['key'])) {
                 if (in_array($item['key'], $seenKeys, true)) {
                     continue;
                 }
@@ -171,11 +168,11 @@ class Menu extends Component
 
             // URL resolution
             $url = '#';
-            if (!empty($item['url'])) {
+            if (! empty($item['url'])) {
                 $url = ($item['url'] === '#' || Str::startsWith($item['url'], ['http://', 'https://', '/']))
                     ? $item['url']
                     : url($item['url']);
-            } elseif (!empty($item['route'])) {
+            } elseif (! empty($item['route'])) {
                 if (is_array($item['route'])) {
                     $routeName = $item['route'][0] ?? '';
                     $routeParams = $item['route'][1] ?? [];
@@ -188,12 +185,12 @@ class Menu extends Component
             // Submenu handling
             $submenuRaw = $item['submenu'] ?? $item['children'] ?? [];
             $submenu = [];
-            if (!empty($submenuRaw)) {
+            if (! empty($submenuRaw)) {
                 $submenu = $this->normalizeMenuItems($submenuRaw, $seenKeys, $seenSignatures);
             }
 
             // Skip dummy anchor keys (e.g. cms-item, module-item, master-item) used only for addBefore placement
-            if (!empty($item['key']) && Str::endsWith($item['key'], '-item') && empty($submenu)) {
+            if (! empty($item['key']) && Str::endsWith($item['key'], '-item') && empty($submenu)) {
                 continue;
             }
 
@@ -203,20 +200,20 @@ class Menu extends Component
             }
 
             // Check for duplicate signature (Title + URL)
-            $signature = strtolower($title) . '|' . strtolower($url);
+            $signature = strtolower($title).'|'.strtolower($url);
             if ($url !== '#' && in_array($signature, $seenSignatures, true)) {
                 continue;
             }
 
             // Mark key and signature as seen
-            if (!empty($item['key'])) {
+            if (! empty($item['key'])) {
                 $seenKeys[] = $item['key'];
             }
             if ($url !== '#') {
                 $seenSignatures[] = $signature;
             }
 
-            $type = !empty($submenu) ? 'dropdown' : ($item['type'] ?? 'item');
+            $type = ! empty($submenu) ? 'dropdown' : ($item['type'] ?? 'item');
 
             $normalized[] = [
                 'type' => $type,

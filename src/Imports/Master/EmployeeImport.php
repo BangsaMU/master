@@ -2,24 +2,25 @@
 
 namespace Bangsamu\Master\Imports\Master;
 
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Employee as HrdKaryawan;
 use Bangsamu\Master\Models\JobPosition as HrdJobPosition;
 use Bangsamu\Master\Models\MasterIncrement as HrdIncrement;
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Carbon\Carbon;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
+use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class EmployeeImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
 
     public function getImportTable(): string
@@ -31,7 +32,6 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
     {
         return 500;
     }
-
 
     // protected $request;
 
@@ -46,16 +46,16 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
 
     public function collection(Collection $rows)
     {
-        //check format data
-        if($rows){
+        // check format data
+        if ($rows) {
             $list_status = DB::connection('db_master')->table('master_status')->get();
             $list_hire = DB::connection('db_master')->table('master_location')->where('group_type', 'hrd')->get();
 
             foreach ($rows as $key => $row) {
-                //skip header row
-                if($key > 0){
+                // skip header row
+                if ($key > 0) {
 
-                    $key = $key + 1; //adjust key to start from 1
+                    $key = $key + 1; // adjust key to start from 1
                     $data['key'] = $key;
                     $data['employee_name'] = $row['nama'];
                     $data['employee_email'] = empty($row['email_personal']) ? null : $row['email_personal'];
@@ -74,39 +74,45 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                     $data['employee_project'] = $row['employee_project'];
                     $data['keterangan'] = $row['keterangan'];
 
-                    //validate nama
-                    if(empty($data['employee_name'])){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom nama yang kosong';
+                    // validate nama
+                    if (empty($data['employee_name'])) {
+                        $this->error[$key]['message'] = 'Data row '.$key.' memiliki kolom nama yang kosong';
+
                         continue;
-                    }else if(strlen($data['employee_name']) > 150){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki nama lebih dari 150 karakter';
+                    } elseif (strlen($data['employee_name']) > 150) {
+                        $this->error[$key]['message'] = 'Data row '.$key.' memiliki nama lebih dari 150 karakter';
+
                         continue;
-                    }else{
+                    } else {
                         $data['employee_name'] = strtoupper($data['employee_name']);
                     }
 
-                    //validate nik
-                    if(empty($data['no_ktp'])){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom NO_KTP yang kosong';
+                    // validate nik
+                    if (empty($data['no_ktp'])) {
+                        $this->error[$key]['message'] = 'Data row '.$key.' memiliki kolom NO_KTP yang kosong';
+
                         continue;
-                    }else if(strlen($data['no_ktp']) > 16){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki NO_KTP lebih dari 16 karakter';
+                    } elseif (strlen($data['no_ktp']) > 16) {
+                        $this->error[$key]['message'] = 'Data row '.$key.' memiliki NO_KTP lebih dari 16 karakter';
+
                         continue;
-                    }else{
+                    } else {
                         $data['no_ktp'] = strtoupper($data['no_ktp']);
                     }
 
-                    //validate posisi (jabatan)
-                    if(!$job_position_code){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom kode posisi yang kosong';
+                    // validate posisi (jabatan)
+                    if (! $job_position_code) {
+                        $this->error[$key]['message'] = 'Data row '.$key.' memiliki kolom kode posisi yang kosong';
+
                         continue;
-                    }else{
+                    } else {
                         $jobPositionData = HrdJobPosition::where('position_code', $job_position_code)->with('department')->first();
 
-                        if(!$jobPositionData){
-                            $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki Kode Posisi yang salah, Mohon cek kembali kode pada menu Job Position!';
+                        if (! $jobPositionData) {
+                            $this->error[$key]['message'] = 'Data row '.$key.' memiliki Kode Posisi yang salah, Mohon cek kembali kode pada menu Job Position!';
+
                             continue;
-                        }else{
+                        } else {
                             $data['employee_department'] = $jobPositionData->department->department_name;
                             $data['employee_job_title'] = $jobPositionData->position_name;
                             $data['job_position_code'] = $jobPositionData->position_code;
@@ -114,46 +120,49 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                         }
                     }
 
-                    //validate hire
-                    if($poh_code){
-                        //get hire data
+                    // validate hire
+                    if ($poh_code) {
+                        // get hire data
                         $pohData = self::getDataByColumn($list_hire, $poh_code, 'loc_name');
 
-                        //cek nama lokasi sesuai
-                        if(!$pohData){
-                            $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki hire lokasi yang salah';
+                        // cek nama lokasi sesuai
+                        if (! $pohData) {
+                            $this->error[$key]['message'] = 'Data row '.$key.' memiliki hire lokasi yang salah';
+
                             continue;
-                        }else{
+                        } else {
                             $data['hire_id'] = $pohData->id;
                             $data['hire_code'] = $pohData->loc_code;
                             $data['hire_name'] = $pohData->loc_name;
                         }
                     }
 
-                    //validate status
-                    if(!is_numeric($status)){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom status yang kosong / tidak sesuai';
+                    // validate status
+                    if (! is_numeric($status)) {
+                        $this->error[$key]['message'] = 'Data row '.$key.' memiliki kolom status yang kosong / tidak sesuai';
+
                         continue;
-                    }else{
-                        //get status data
+                    } else {
+                        // get status data
                         $statusData = self::getDataByColumn($list_status, $status, 'status');
 
-                        //cek nama status sesuai
-                        if(!$statusData){
-                            $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki status yang salah';
+                        // cek nama status sesuai
+                        if (! $statusData) {
+                            $this->error[$key]['message'] = 'Data row '.$key.' memiliki status yang salah';
+
                             continue;
-                        }else{
+                        } else {
                             $data['status_id'] = $statusData->id;
                             $data['status_kode'] = $statusData->kode;
                             $data['status_name'] = $statusData->status;
                         }
                     }
 
-                    //validate DOB
-                    if(empty($data['dob'])){
+                    // validate DOB
+                    if (empty($data['dob'])) {
                         $extractDataKTP = LibraryClayController::extractDataKTP($data['no_ktp']);
                         $data['dob'] = $extractDataKTP['tanggalLahir'];
-                    }else{
+                    } else {
                         try {
                             $data['dob'] = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($data['dob'])->format('Y-m-d');
                         } catch (\Throwable $th) {
@@ -161,11 +170,12 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                         }
                     }
 
-                    //validate tahun join
-                    if(empty($data['tanggal_join']) && $data['status_id'] != 0){
-                        $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom tahun join yang kosong';
+                    // validate tahun join
+                    if (empty($data['tanggal_join']) && $data['status_id'] != 0) {
+                        $this->error[$key]['message'] = 'Data row '.$key.' memiliki kolom tahun join yang kosong';
+
                         continue;
-                    }else{
+                    } else {
                         try {
                             $data['tanggal_join'] = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($data['tanggal_join'])->format('Y-m-d');
                         } catch (\Throwable $th) {
@@ -175,14 +185,14 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                         $data['tahun_join_y'] = Carbon::createFromFormat('Y-m-d', $data['tanggal_join'])->format('y');
                     }
 
-                    //validate tanggal akhir kontrak
+                    // validate tanggal akhir kontrak
                     try {
                         $data['tanggal_akhir_kontrak'] = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($data['tanggal_akhir_kontrak'])->format('Y-m-d');
                     } catch (\Throwable $th) {
                         $data['tanggal_akhir_kontrak'] = LibraryClayController::convertDate($data['tanggal_akhir_kontrak']);
                     }
 
-                    if($data['tanggal_akhir_kerja']){
+                    if ($data['tanggal_akhir_kerja']) {
                         try {
                             $data['tanggal_akhir_kerja'] = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($data['tanggal_akhir_kerja'])->format('Y-m-d');
                         } catch (\Throwable $th) {
@@ -190,34 +200,36 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                         }
                     }
 
-                    if($data['employee_blood_type']){
-                        $bloodTypes = ['A','A+','A-','B','B+','B-','O','O+','O-','AB','AB+','AB-'];
+                    if ($data['employee_blood_type']) {
+                        $bloodTypes = ['A', 'A+', 'A-', 'B', 'B+', 'B-', 'O', 'O+', 'O-', 'AB', 'AB+', 'AB-'];
 
-                        if (!in_array($data['employee_blood_type'], $bloodTypes)) {
-                            $this->error[$key]['message'] = 'Data row ' . $key . ' memiliki kolom Blood Type yang tidak sesuai!';
+                        if (! in_array($data['employee_blood_type'], $bloodTypes)) {
+                            $this->error[$key]['message'] = 'Data row '.$key.' memiliki kolom Blood Type yang tidak sesuai!';
+
                             continue;
                         }
                     }
 
-                    //validate no id karyawan
-                    if(!empty($data['no_id_karyawan'])){
+                    // validate no id karyawan
+                    if (! empty($data['no_id_karyawan'])) {
                         $karyawan = HrdKaryawan::where('no_id_karyawan', $data['no_id_karyawan'])->first();
 
-                        if($karyawan){
-                            $this->error[$key]['message'] = 'Data row ' . $key . ' dengan No Induk Karyawan ' . $data['no_id_karyawan'] . ' sudah digunakan oleh '.$karyawan->employee_name. '! Mohon di cek & update kembali';
+                        if ($karyawan) {
+                            $this->error[$key]['message'] = 'Data row '.$key.' dengan No Induk Karyawan '.$data['no_id_karyawan'].' sudah digunakan oleh '.$karyawan->employee_name.'! Mohon di cek & update kembali';
+
                             continue;
                         }
 
                     }
 
-                    //get data karyawan
+                    // get data karyawan
                     $data_karyawan = HrdKaryawan::where('no_ktp', $data['no_ktp'])->latest()->first();
 
-                    //Check if data karyawan exist
-                    if($data_karyawan){
+                    // Check if data karyawan exist
+                    if ($data_karyawan) {
                         $original = $data_karyawan->getOriginal();
-                        //check data import, no id karyawan is not null
-                        if(!empty($data['no_id_karyawan'])){
+                        // check data import, no id karyawan is not null
+                        if (! empty($data['no_id_karyawan'])) {
                             // $data_karyawan_exist = HrdKaryawan::where('no_ktp', $data['no_ktp'])->where('no_id_karyawan', $data['no_id_karyawan'])->latest()->first();
                             // $data_karyawan_exist = HrdKaryawan::where('no_ktp', $data['no_ktp'])->latest()->first();
 
@@ -239,8 +251,8 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                                 'keterangan' => $data['keterangan'],
                             ]);
 
-                            $this->success[$key]['message'] = 'Data row ' . $key . ' dengan NIK ' . $data['no_ktp'] . ' berhasil diupdate';
-                        }else{
+                            $this->success[$key]['message'] = 'Data row '.$key.' dengan NIK '.$data['no_ktp'].' berhasil diupdate';
+                        } else {
                             /*
                             if(empty($data_karyawan->tanggal_akhir_kerja)){
                                 //check hire, status, tahun join, same as exist data db
@@ -292,14 +304,14 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
                                 'keterangan' => $data['keterangan'],
                             ]);
 
-                            $this->success[$key]['message'] = 'Data row ' . $key . ' dengan NIK ' . $data['no_ktp'] . ' berhasil diupdate';
+                            $this->success[$key]['message'] = 'Data row '.$key.' dengan NIK '.$data['no_ktp'].' berhasil diupdate';
                         }
-                    }else{
+                    } else {
                         $insert = self::insertData($data);
                     }
                 }
             }
-        }else{
+        } else {
             $this->error[]['message'] = 'Format data salah';
         }
     }
@@ -319,7 +331,8 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
         return $list_data->where($column, $search)->first();
     }
 
-    public function insertData($data){
+    public function insertData($data)
+    {
 
         $karyawan = HrdKaryawan::create([
             'employee_name' => $data['employee_name'],
@@ -340,54 +353,54 @@ class EmployeeImport implements ToCollection, WithHeadingRow, WithEvents, WithCh
             'keterangan' => $data['keterangan'],
         ]);
 
-        //cek NIP null
-        $skip=true;
-        if(empty($data['no_id_karyawan'])&&$skip=='false'){
+        // cek NIP null
+        $skip = true;
+        if (empty($data['no_id_karyawan']) && $skip == 'false') {
 
-            $unique_group = $data['status_kode'] . $data['hire_kode'] . $data['tahun_join_y'];
+            $unique_group = $data['status_kode'].$data['hire_kode'].$data['tahun_join_y'];
 
-            //checking unique group on hrd increment
+            // checking unique group on hrd increment
             $increment_data = HrdIncrement::where('unique_group', $unique_group)->max('increment');
 
-            //create increment data
-            if(!$increment_data){
+            // create increment data
+            if (! $increment_data) {
                 $increment_create = HrdIncrement::create([
                     'karyawan_id' => $karyawan->id,
                     'unique_group' => $unique_group,
-                    'increment'=> 1,
+                    'increment' => 1,
                 ]);
-            }else{
-                $increment_create  = HrdIncrement::create([
+            } else {
+                $increment_create = HrdIncrement::create([
                     'karyawan_id' => $karyawan->id,
                     'unique_group' => $unique_group,
-                    'increment'=> $increment_data + 1,
+                    'increment' => $increment_data + 1,
                 ]);
             }
 
-            //merge to no id karyawan
-            $no_urut_karyawan = str_pad($increment_create->increment,5,"0", STR_PAD_LEFT);
-            $no_id_karyawan = $unique_group . $no_urut_karyawan;
+            // merge to no id karyawan
+            $no_urut_karyawan = str_pad($increment_create->increment, 5, '0', STR_PAD_LEFT);
+            $no_id_karyawan = $unique_group.$no_urut_karyawan;
 
             $karyawan->update([
                 'no_id_karyawan' => $no_id_karyawan,
             ]);
 
-            $this->success[]['message'] = 'Data row ' . $data['key'] . ' dengan NIK ' . $data['no_ktp'] . ' berhasil ditambah dan generate NIP';
-        }else{
+            $this->success[]['message'] = 'Data row '.$data['key'].' dengan NIK '.$data['no_ktp'].' berhasil ditambah dan generate NIP';
+        } else {
             $unique_group = substr($data['no_id_karyawan'], 0, 5);
             $no_urut_karyawan = (int) substr($data['no_id_karyawan'], 5);
 
             $increment = HrdIncrement::create([
                 'karyawan_id' => $karyawan->id,
                 'unique_group' => $unique_group,
-                'increment'=> $no_urut_karyawan,
+                'increment' => $no_urut_karyawan,
             ]);
 
             $karyawan->update([
                 'no_id_karyawan' => $data['no_id_karyawan'],
             ]);
 
-            $this->success[]['message'] = 'Data row ' . $data['key'] . ' dengan NIK ' . $data['no_ktp'] . ' berhasil ditambah tanpa generate NIP';
+            $this->success[]['message'] = 'Data row '.$data['key'].' dengan NIK '.$data['no_ktp'].' berhasil ditambah tanpa generate NIP';
         }
     }
 }

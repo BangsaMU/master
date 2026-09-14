@@ -1,20 +1,21 @@
 <?php
+
 return [
-    'curl' => array(
+    'curl' => [
         'TIMEOUT' => 30,
         'VERIFY' => false,
         'LIST_NETWORK' => env('APP_LIST_NETWORK'),
-    ),
-    'main' => array(
-        'APP_CODE' => 'APP03', /*10 digit max char dari master app */
-        'KEY' => '', /*32 digit  char random untuk hasing token harus sama antara server an client untuk decode token dari server */
-        'ACTIVE' => env('SSO_ACTIVE', false), /*jika akan login mengunakan sso set ke true [true,false], tambahkan di env SSO_ACTIVE untuk config di lokal development*/
-        'TOKEN' => '', /*auth untuk masuk ke sytem api sso*/
-        'URL' => env('SSO_URL', 'http://sso.test'), /*harus diakhiri dengan / (slash) url untuk login SSO*/
+    ],
+    'main' => [
+        'APP_CODE' => 'APP03', /* 10 digit max char dari master app */
+        'KEY' => '', /* 32 digit  char random untuk hasing token harus sama antara server an client untuk decode token dari server */
+        'ACTIVE' => env('SSO_ACTIVE', false), /* jika akan login mengunakan sso set ke true [true,false], tambahkan di env SSO_ACTIVE untuk config di lokal development */
+        'TOKEN' => '', /* auth untuk masuk ke sytem api sso */
+        'URL' => env('SSO_URL', 'http://sso.test'), /* harus diakhiri dengan / (slash) url untuk login SSO */
         'CALL_BACK' => '',
-    ),
+    ],
     'MASTER_TABEL' => ['location', 'project', 'project_detail', 'employee', 'item_code', 'uom', 'company'],
-    'master' => array(
+    'master' => [
         'company' => [
             'MODEL' => env('TABEL_MASTER_COMPANY', 'MasterCompany'),
             // 'FIELD' => json_decode(env('SYNC_MASTER_COMPANY', '["id","employee_name","employee_job_title","employee_email"]')),
@@ -35,8 +36,8 @@ return [
             'MODEL' => env('TABEL_MASTER_UOM', 'MasterUom'),
             // 'FIELD' => json_decode(env('SYNC_MASTER_UOM', '["id","uom_code","uom_name"]')),
         ],
-    ),
-    'lokal' => array(
+    ],
+    'lokal' => [
         'company' => [
             'MODEL' => env('TABEL_MASTER_COMPANY', 'Company'),
             // 'FIELD' => json_decode(env('SYNC_MASTER_COMPANY', '["id","employee_name","employee_job_title","employee_email"]')),
@@ -65,7 +66,7 @@ return [
             'MODEL' => env('TABEL_LOKAL_UOM', 'Uom'),
             // 'FIELD' => json_decode(env('SYNC_LOKAL_UOM', '["id","uom_code","uom_name"]')),
         ],
-    ),
+    ],
     'senada' => [
         'active' => env('SENADA_BROADCAST_ACTIVE', true),
         'url' => env('SENADA_URL', 'http://192.168.20.187:9029'),
@@ -77,5 +78,13 @@ return [
         'reverb_host' => env('REVERB_HOST', '192.168.20.187'),
         'reverb_port' => env('REVERB_PORT', 9029),
         'reverb_scheme' => env('REVERB_SCHEME', 'http'),
+    ],
+    'sync' => [
+        'schedule_enabled' => env('MASTER_SYNC_SCHEDULE_ENABLED', true),
+        'schedule_frequency' => env('MASTER_SYNC_SCHEDULE_INTERVAL', 'hourly'), // 'hourly', 'everyThirtyMinutes', 'everyTwoHours', 'daily', or cron '0 * * * *'
+        'schedule_limit' => (int) env('MASTER_SYNC_SCHEDULE_LIMIT', 50),
+        'lock_ttl' => (int) env('MASTER_SYNC_LOCK_TTL', 300), // Default 300s (5m), max 3600s (1h)
+        'browser_cooldown' => (int) env('MASTER_SYNC_BROWSER_COOLDOWN', 300), // 5 minutes cooldown for browser catch-up
+        'browser_auto_catchup' => env('MASTER_SYNC_BROWSER_AUTO_CATCHUP', true),
     ],
 ];

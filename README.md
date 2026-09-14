@@ -89,6 +89,20 @@ REVERB_APP_SECRET=senada_hub_secret
 REVERB_HOST="192.168.20.187"
 REVERB_PORT=9029
 REVERB_SCHEME=http
+
+# ==============================================================================
+# JADWAL OTOMATIS & DISTRIBUTED LOCK SINKRONISASI MASTER
+# ==============================================================================
+# Mengaktifkan/menonaktifkan auto-schedule catch-up di Laravel Scheduler (true/false)
+MASTER_SYNC_SCHEDULE_ENABLED=true
+# Frekuensi jadwal: hourly (default 1 jam), everyThirtyMinutes, everyTwoHours, daily, atau cron string "0 * * * *"
+MASTER_SYNC_SCHEDULE_INTERVAL=hourly
+# Maksimal jumlah event broadcast yang disinkronkan per siklus
+MASTER_SYNC_SCHEDULE_LIMIT=50
+# Durasi masa aktif Central Master Sync Lock (detik, default: 300 = 5 menit, maks 3600 = 1 jam)
+MASTER_SYNC_LOCK_TTL=300
+# Cooldown pencegah banjir sync saat user login / buka tab baru di browser (detik, default: 300 = 5 menit)
+MASTER_SYNC_BROWSER_COOLDOWN=300
 ```
 
 ---
@@ -104,7 +118,7 @@ Cukup tambahkan komponen Blade ini di layout utama aplikasi (seperti di `layouts
 
 Komponen ini akan secara otomatis:
 1. Menginisiasi koneksi ke Senada WebSocket Reverb.
-2. Saat koneksi terhubung (`connected`), otomatis memanggil *catch-up* ke Senada untuk menyinkronkan event master data yang terlewat selama aplikasi/browser offline.
+2. Saat koneksi terhubung (`connected`), otomatis memanggil *catch-up* ke Senada dengan proteksi **Local Cooldown & Multi-Tab Debounce** (`localStorage`), sehingga saat 50 user login bersamaan tidak terjadi banjir request ke database master.
 3. Berlangganan ke channel `masterdata.items` dan channel privat pengguna (`private-user.{email}`).
 4. Menampilkan toast notifikasi modern saat master data berubah atau saat catch-up selesai.
 5. Melakukan sinkronisasi database lokal ke `db_master` via endpoint bawaan paket `/master-sync/sync`.
@@ -113,33 +127,58 @@ Komponen ini akan secara otomatis:
 
 ---
 
-### 2. Perintah Artisan Catch-Up (CLI / Scheduler)
+### 2. Penjadwalan Otomatis & Central Distributed Lock
 
-Aplikasi klien dapat menjalankan sinkronisasi catch-up melalui Artisan:
-
+#### A. Penjadwalan Otomatis (Auto-Scheduler)
+Paket secara otomatis mendaftarkan task `php artisan master:catch-up` ke Laravel Scheduler tanpa perlu mengedit file `app/Console/Kernel.php` secara manual.
+Pastikan cron server aplikasi Anda sudah menjalankan scheduler standar Laravel:
 ```bash
-# Sinkronkan semua broadcast yang terlewat sejak checkpoint terakhir
+* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1
+```
+Frekuensi eksekusi dapat diatur bebas via `.env`:
+- `MASTER_SYNC_SCHEDULE_INTERVAL=hourly` (Default: setiap 1 jam)
+- `MASTER_SYNC_SCHEDULE_INTERVAL=everyThirtyMinutes` (Setiap 30 menit)
+- `MASTER_SYNC_SCHEDULE_INTERVAL=everyTwoHours` (Setiap 2 jam)
+- `MASTER_SYNC_SCHEDULE_INTERVAL="0 */4 * * *"` (Custom cron: setiap 4 jam)
+
+#### B. Central Distributed Lock (Perlindungan DB Master Lintas Aplikasi)
+Untuk mencegah lonjakan koneksi dan perlambatan pada Database Master ketika banyak aplikasi (Clay, MCU, Warehouse, dll.) menjalankan sync secara bersamaan:
+1. **Single-Sync Guarantee**: Sebelum melakukan sinkronisasi dari `db_master`, aplikasi meminta *Central Lock* ke Senada Hub. Hanya **1 aplikasi** yang diizinkan melakukan sinkronisasi dalam satu waktu.
+2. **Auto-Postpone yang Ramah**: Jika aplikasi lain sedang melakukan sinkronisasi, proses sync ditunda secara elegan tanpa membebani koneksi DB Master.
+3. **Anti-Stuck & Auto-Expire**: Lock memiliki TTL otomatis (default 5 menit / diset via `MASTER_SYNC_LOCK_TTL`). Jika aplikasi mati mendadak saat proses sync, lock otomatis kadaluarsa sehingga proses sync berikutnya tidak akan macet selamanya.
+4. **Force Override**: Tersedia opsi `--force-lock` untuk memecah lock yang dicurigai macet.
+
+---
+
+### 3. Perintah Artisan Catch-Up & Lock Management
+
+#### A. Catch-Up Sync
+```bash
+# Sinkronkan semua broadcast yang terlewat (dilindungi Central Lock)
 php artisan master:catch-up
 
 # Cek ID checkpoint sinkronisasi saat ini
 php artisan master:catch-up --info
 
-# Paksa catch-up dari ID tertentu dengan batas maksimal event
+# Paksa catch-up dan override lock jika lock terindikasi macet
+php artisan master:catch-up --force-lock
+
+# Jalankan dengan parameter checkpoint & limit tertentu
 php artisan master:catch-up --since=80 --limit=50
 ```
 
-*Contoh Output:*
-```
-Fetching missed master data events from Senada (Current Checkpoint: #90)...
-✓ Successfully synced 1 missed master data event(s). Checkpoint updated to #91.
-+----------+-----------------+---------+--------+
-| Event ID | Table           | Action  | Status |
-+----------+-----------------+---------+--------+
-| 91       | master_category | updated | OK     |
-+----------+-----------------+---------+--------+
+#### B. Inspeksi & Rilis Central Lock (`master:sync-lock`)
+```bash
+# Cek apakah saat ini ada aplikasi yang sedang mengunci DB Master
+php artisan master:sync-lock --status
+
+# Paksa rilis lock yang macet di Senada Hub
+php artisan master:sync-lock --release
+
+# Manual lock untuk kebutuhan maintenance khusus
+php artisan master:sync-lock --acquire --ttl=600
 ```
 
----
 
 ### 3. Memanggil Broadcast Secara Manual dari Kode
 Setiap Model di bawah namespace `Bangsamu\Master\Models\*` sudah terpasang trait `BroadcastsMasterChanges` secara otomatis. Namun jika ingin memanggil secara manual:

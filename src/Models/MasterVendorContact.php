@@ -2,28 +2,24 @@
 
 namespace Bangsamu\Master\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-
 use Bangsamu\LibraryClay\Traits\Loggable;
-
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 
 class MasterVendorContact extends Model
 {
     use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
-
     use HasFactory, Notifiable;
-    use SoftDeletes;
     use Loggable;
+    use SoftDeletes;
 
     protected $connection = 'db_master';
-    protected $table = "master_vendor_contact";
+
+    protected $table = 'master_vendor_contact';
+
     protected $guarded = [];
+
     protected $dateFormat = 'Y-m-d H:i:s';
 }

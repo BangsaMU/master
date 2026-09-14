@@ -2,34 +2,36 @@
 
 namespace Bangsamu\Master\Imports\Master;
 
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Category;
 use Bangsamu\Master\Models\ItemCode;
 use Bangsamu\Master\Models\ItemGroup;
 use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\Uom;
-
+use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-
 use Maatwebsite\Excel\Concerns\WithEvents;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReading, WithEvents
+class ItemCodeImport implements ToCollection, WithChunkReading, WithEvents, WithMultipleSheets
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
 
     protected ?Collection $existingItemCodes = null;
+
     protected ?Collection $existingUoms = null;
+
     protected ?Collection $existingPcas = null;
+
     protected ?Collection $existingCategories = null;
+
     protected ?Collection $existingItemGroups = null;
 
     public function getImportTable(): string
@@ -104,7 +106,7 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
             $row_index = $key;
             if ($row->filter()->isNotEmpty() && $key > 0) {
 
-                //fix column
+                // fix column
                 $item_code = $row[0];
                 $item_name = $row[1];
                 $uom_code = $row[2];
@@ -116,52 +118,55 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
 
                 if ($item_code_exist) {
                     if ($item_code_exist->deleted_at !== null) {
-                        $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists with soft delete status.";
+                        $text = 'Row '.$row_index.": Item Code '".$item_code."' already exists with soft delete status.";
                     } else {
-                        $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists.";
+                        $text = 'Row '.$row_index.": Item Code '".$item_code."' already exists.";
                     }
                     array_push($this->error, $text);
+
                     continue;
                 }
 
                 if (true) {
                     if (empty($item_code)) {
-                        $text = "Row " . $row_index . " Item Code : field is required.";
+                        $text = 'Row '.$row_index.' Item Code : field is required.';
                         array_push($this->error, $text);
-                    } else if (empty($item_name)) {
-                        $text = "Row " . $row_index . " Item Name : field is required.";
+                    } elseif (empty($item_name)) {
+                        $text = 'Row '.$row_index.' Item Name : field is required.';
                         array_push($this->error, $text);
-                    } else if (empty($uom_code)) {
-                        $text = "Row " . $row_index . " UoM Code : field is required.";
+                    } elseif (empty($uom_code)) {
+                        $text = 'Row '.$row_index.' UoM Code : field is required.';
                         array_push($this->error, $text);
-                    }
-                    else if (empty($category_code)) {
-                        $text = "Row " . $row_index . " Category Code : field is required.";
+                    } elseif (empty($category_code)) {
+                        $text = 'Row '.$row_index.' Category Code : field is required.';
                         array_push($this->error, $text);
-                    } else if (empty($item_group_code)) {
-                        $text = "Row " . $row_index . " Item Group Code : field is required.";
+                    } elseif (empty($item_group_code)) {
+                        $text = 'Row '.$row_index.' Item Group Code : field is required.';
                         array_push($this->error, $text);
                     } else {
                         // validate that config values required for import are present
                         $company_id = config('MasterCrudConfig.MASTER_COMPANY_ID');
                         if (empty($app_code)) {
-                            $text = "Row " . $row_index . " APP CODE : configuration is missing.";
+                            $text = 'Row '.$row_index.' APP CODE : configuration is missing.';
                             array_push($this->error, $text);
+
                             continue;
                         }
                         if (empty($company_id)) {
-                            $text = "Row " . $row_index . " COMPANY ID : configuration is missing.";
+                            $text = 'Row '.$row_index.' COMPANY ID : configuration is missing.';
                             array_push($this->error, $text);
+
                             continue;
                         }
 
                         try {
                             $uom_key = strtoupper($uom_code);
                             $uom = $existingUoms->get($uom_key);
-                            if (!empty($uom)) {
+                            if (! empty($uom)) {
                                 if ($uom->deleted_at !== null) {
-                                    $text = "Row " . $row_index . ": UoM Code '" . $uom_code . "' already exists with soft delete status.";
+                                    $text = 'Row '.$row_index.": UoM Code '".$uom_code."' already exists with soft delete status.";
                                     array_push($this->error, $text);
+
                                     continue;
                                 }
                                 $uom_id = $uom->id;
@@ -174,27 +179,28 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
 
                                 $uom_id = $create_uom->id;
                                 $existingUoms->put($uom_key, $create_uom);
-                                                
-                                /*sync callback master DB*/
+
+                                /* sync callback master DB */
                                 $sync_tabel = 'master_uom';
                                 $sync_id = $uom_id;
                                 $sync_row = $create_uom->toArray();
                                 // $sync_row['deleted_at'] = null;
                                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                                //update ke master DB saja
-                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                                // update ke master DB saja
+                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                                 }
                             }
 
                             $pca_id = 0;
-                            if (!empty($pca_code)) {
+                            if (! empty($pca_code)) {
                                 $pca_key = strtoupper($pca_code);
                                 $pca = $existingPcas->get($pca_key);
-                                if (!empty($pca)) {
+                                if (! empty($pca)) {
                                     if ($pca->deleted_at !== null) {
-                                        $text = "Row " . $row_index . ": PCA Code '" . $pca_code . "' already exists with soft delete status.";
+                                        $text = 'Row '.$row_index.": PCA Code '".$pca_code."' already exists with soft delete status.";
                                         array_push($this->error, $text);
+
                                         continue;
                                     }
                                     $pca_id = $pca->id;
@@ -208,27 +214,28 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
                                     $pca_id = $create_pca->id;
                                     $existingPcas->put($pca_key, $create_pca);
 
-                                    /*sync callback master DB*/
+                                    /* sync callback master DB */
                                     $sync_tabel = 'master_pca';
                                     $sync_id = $pca_id;
                                     $sync_row = $create_pca->toArray();
                                     // $sync_row['deleted_at'] = null;
                                     $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                                    //update ke master DB saja
-                                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                                    // update ke master DB saja
+                                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                                         $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                                     }
                                 }
                             }
 
                             $category_id = 0;
-                            if (!empty($category_code)) {
+                            if (! empty($category_code)) {
                                 $cat_key = strtoupper($category_code);
                                 $category = $existingCategories->get($cat_key);
-                                if (!empty($category)) {
+                                if (! empty($category)) {
                                     if ($category->deleted_at !== null) {
-                                        $text = "Row " . $row_index . ": Category Code '" . $category_code . "' already exists with soft delete status.";
+                                        $text = 'Row '.$row_index.": Category Code '".$category_code."' already exists with soft delete status.";
                                         array_push($this->error, $text);
+
                                         continue;
                                     }
                                     $category_id = $category->id;
@@ -242,14 +249,14 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
                                     $category_id = $create_category->id;
                                     $existingCategories->put($cat_key, $create_category);
 
-                                    /*sync callback master DB*/
+                                    /* sync callback master DB */
                                     $sync_tabel = 'master_category';
                                     $sync_id = $category_id;
                                     $sync_row = $create_category->toArray();
                                     // $sync_row['deleted_at'] = null;
                                     $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                                    //update ke master DB saja
-                                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                                    // update ke master DB saja
+                                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                                         $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                                     }
                                 }
@@ -267,10 +274,11 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
 
                             $item_group_attributes_json = json_encode($item_group_attributes);
                             $need_sync_group = false;
-                            if (!empty($item_group)) {
+                            if (! empty($item_group)) {
                                 if ($item_group->deleted_at !== null) {
-                                    $text = "Row " . $row_index . ": Item Group Code '" . $item_group_code . "' already exists with soft delete status.";
+                                    $text = 'Row '.$row_index.": Item Group Code '".$item_group_code."' already exists with soft delete status.";
                                     array_push($this->error, $text);
+
                                     continue;
                                 }
                                 $item_group_id = $item_group->id;
@@ -295,19 +303,19 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
                             }
 
                             if ($need_sync_group) {
-                                /*sync callback master DB*/
+                                /* sync callback master DB */
                                 $sync_tabel = 'master_item_group';
                                 $sync_id = $item_group_id;
                                 $sync_row = $item_group->toArray();
                                 // $sync_row['deleted_at'] = null;
                                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                                //update ke master DB saja
-                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                                // update ke master DB saja
+                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                                 }
                             }
 
-                            //attribute column
+                            // attribute column
                             $attributes = (object) [];
                             foreach ($headers as $key => $header_val) {
                                 if ($key > 5) {
@@ -317,10 +325,10 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
                             }
 
                             $filteredAttributes = array_filter((array) $attributes, function ($value) {
-                                return !is_null($value);
+                                return ! is_null($value);
                             });
 
-                            $json = !empty($filteredAttributes) ? json_encode($filteredAttributes) : null;
+                            $json = ! empty($filteredAttributes) ? json_encode($filteredAttributes) : null;
 
                             $data = [
                                 'item_code' => $item_code,
@@ -344,45 +352,45 @@ class ItemCodeImport implements ToCollection, WithMultipleSheets, WithChunkReadi
                             );
 
                             $need_sync_code = false;
-                            if (!$item_code_exist) {
-                                $existingItemCodes->put($item_code, (object)[
+                            if (! $item_code_exist) {
+                                $existingItemCodes->put($item_code, (object) [
                                     'id' => $masterItemCode->id,
                                     'item_code' => $item_code,
-                                    'deleted_at' => null
+                                    'deleted_at' => null,
                                 ]);
                                 $need_sync_code = true;
-                            } else if ($masterItemCode->wasChanged()) {
+                            } elseif ($masterItemCode->wasChanged()) {
                                 $need_sync_code = true;
                             }
-                                                        
+
                             if ($need_sync_code) {
-                                /*sync callback master DB*/
+                                /* sync callback master DB */
                                 $sync_tabel = 'master_item_code';
                                 $sync_id = $masterItemCode->id;
                                 $sync_row = $masterItemCode->toArray();
 
                                 // $sync_row['deleted_at'] = null;
                                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                                //update ke master DB saja
-                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                                // update ke master DB saja
+                                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                                 }
                             }
 
-                            $text = "Row " . $row_index . " : " . $item_code . " has been imported successfully.";
+                            $text = 'Row '.$row_index.' : '.$item_code.' has been imported successfully.';
                             array_push($this->success, $text);
                         } catch (\Throwable $th) {
                             $errorMessage = $th->getMessage();
                             if (str_contains($errorMessage, '1062') || str_contains($errorMessage, 'Duplicate entry')) {
-                                $text = "Row " . $row_index . ": Item Code '" . $item_code . "' already exists.";
+                                $text = 'Row '.$row_index.": Item Code '".$item_code."' already exists.";
                             } else {
-                                $text = "Row " . $row_index . ": Item Code created failed!" . $errorMessage;
+                                $text = 'Row '.$row_index.': Item Code created failed!'.$errorMessage;
                             }
                             array_push($this->error, $text);
                         }
                     }
                 } else {
-                    $text = "Row " . $row_index . ": Item Code already exists!";
+                    $text = 'Row '.$row_index.': Item Code already exists!';
                     array_push($this->error, $text);
                 }
             }

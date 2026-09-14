@@ -2,34 +2,30 @@
 
 namespace Bangsamu\Master\Exports;
 
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
-
 use App\Http\Controllers\Module\Procurement\ProcurementController;
-
+use App\Models\Requisition;
 use Illuminate\Support\Collection;
-
-use Carbon\Carbon;
-
 use Illuminate\Support\Facades\Auth;
-use App\Models\Requisition; // Pastikan model Requisition sudah ada
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithStyles; // Pastikan model Requisition sudah ada
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ProcurementExport implements WithMultipleSheets
 {
     protected $request;
 
-    function __construct($request)
+    public function __construct($request)
     {
         $this->request = $request;
     }
+
     public function sheets(): array
     {
         return [
@@ -38,10 +34,11 @@ class ProcurementExport implements WithMultipleSheets
     }
 }
 
-class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, withStyles, WithTitle, WithColumnFormatting
+class ProcurementList implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithHeadings, withStyles, WithTitle
 {
     protected $request;
-    protected $view_tabel_index = array(
+
+    protected $view_tabel_index = [
         'r.id AS No',
         'r.requisition_date AS requisition_date',
         'r.submit_date AS submit_date',
@@ -77,13 +74,14 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
         'ro.label_email AS last_approver',
         'Replace(ro.comment, \'<hr>\', \'|\') AS comment',
         // 'ro.label_email AS last_approver',
-        'ro.status AS approval_status'
-    );
+        'ro.status AS approval_status',
+    ];
 
-    function __construct($request)
+    public function __construct($request)
     {
         $this->request = $request;
     }
+
     public function title(): string
     {
         return 'Report requisition Corporate';
@@ -92,7 +90,7 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -101,10 +99,11 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
         $view_tabel_index = $this->view_tabel_index;
 
         foreach ($view_tabel_index as $keyC => $valC) {
-            $colom_filed = explode(" AS ", $valC);
+            $colom_filed = explode(' AS ', $valC);
             $name = $colom_filed[1] ?? $colom_filed[0];
             $return[] = str_replace('_', ' ', $name);
         }
+
         return $return;
         // return [
         //     'No',
@@ -122,6 +121,7 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
         //     'Approval status',
         // ];
     }
+
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -132,7 +132,7 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
         $protectedValue = $exampleController->config();
         $view_tabel_index = $this->view_tabel_index;
         $request = $this->request;
-        $columns =  $request->columns;
+        $columns = $request->columns;
         $datas = DB::table('requisition as r')
             ->select(
                 DB::raw(implode(',', $view_tabel_index)),
@@ -160,8 +160,8 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
             ->where(function ($query) use ($columns, $protectedValue) {
                 if (is_array($columns)) {
                     foreach ($columns as $keyC => $valC) {
-                        if (!empty($valC)) {
-                            $colom_filed = explode(" AS ",  $protectedValue['view_tabel_index'][$keyC]);
+                        if (! empty($valC)) {
+                            $colom_filed = explode(' AS ', $protectedValue['view_tabel_index'][$keyC]);
                             $name = $colom_filed[0];
                             $query->where($name, $valC);
                         }
@@ -169,7 +169,7 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
                 }
             })
             ->where(function ($query) use ($email) {
-                if (!checkPermission('is_admin')) {
+                if (! checkPermission('is_admin')) {
                     $query->where('label_originator', $email);
                 }
             })
@@ -183,7 +183,7 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
         foreach ($datas as $key => $item) {
 
             foreach ($view_tabel_index as $keyC => $valC) {
-                $colom_filed = explode(" AS ", $valC);
+                $colom_filed = explode(' AS ', $valC);
                 $name = $colom_filed[1] ?? $colom_filed[0];
                 $return[] = str_replace('_', ' ', $name);
 
@@ -215,6 +215,7 @@ class ProcurementList implements ShouldAutoSize, FromCollection, WithHeadings, w
 
         return collect($collections);
     }
+
     public function columnFormats(): array
     {
         return [

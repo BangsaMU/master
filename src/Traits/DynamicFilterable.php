@@ -26,7 +26,7 @@ trait DynamicFilterable
             return;
         }
 
-        if (!is_iterable($settings)) {
+        if (! is_iterable($settings)) {
             return;
         }
 
@@ -34,9 +34,9 @@ trait DynamicFilterable
             foreach ($settings as $setting) {
                 $column = $setting->name ?? $setting->key;
                 $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
-                $columnRef = $alias ? $alias . '.' . $column : $column;
+                $columnRef = $alias ? $alias.'.'.$column : $column;
 
-                if (!empty($column) && !empty($values) && Schema::hasColumn($table, $column)) {
+                if (! empty($column) && ! empty($values) && Schema::hasColumn($table, $column)) {
                     $q->orWhereIn($columnRef, $values);
                 }
             }

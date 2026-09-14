@@ -7,28 +7,28 @@ use Bangsamu\Master\Models\MasterItemGroup;
 use Bangsamu\Master\Models\MasterPca;
 use Bangsamu\Master\Models\MasterUom;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class ItemCodeTemplateExport implements WithMultipleSheets
 {
     public function sheets(): array
     {
         return [
-            new ItemCodeTemplate(),
-            new UomList(),
-            new PcaList(),
-            new CategoryList(),
-            new ItemGroupList(),
+            new ItemCodeTemplate,
+            new UomList,
+            new PcaList,
+            new CategoryList,
+            new ItemGroupList,
         ];
     }
 }
 
-class ItemCodeTemplate implements ShouldAutoSize, FromCollection, WithHeadings, WithStyles, WithTitle
+class ItemCodeTemplate implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
 {
     public function title(): string
     {
@@ -38,7 +38,7 @@ class ItemCodeTemplate implements ShouldAutoSize, FromCollection, WithHeadings, 
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -76,7 +76,7 @@ class ItemCodeTemplate implements ShouldAutoSize, FromCollection, WithHeadings, 
     }
 }
 
-class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyles, WithTitle
+class UomList implements FromCollection, ShouldAutoSize, WithHeadings, withStyles, WithTitle
 {
     public function title(): string
     {
@@ -86,7 +86,7 @@ class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -97,6 +97,7 @@ class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
             'UoM Name',
         ];
     }
+
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -110,7 +111,7 @@ class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
 
         $collections = [];
 
-        foreach($datas as $key => $item){
+        foreach ($datas as $key => $item) {
             // Create the collection
             $collections[$key] = [
                 'uom_code' => $item->uom_code,
@@ -122,7 +123,7 @@ class UomList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
     }
 }
 
-class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyles, WithTitle
+class PcaList implements FromCollection, ShouldAutoSize, WithHeadings, withStyles, WithTitle
 {
     public function title(): string
     {
@@ -132,7 +133,7 @@ class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -143,6 +144,7 @@ class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
             'PCA Name',
         ];
     }
+
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -156,7 +158,7 @@ class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
 
         $collections = [];
 
-        foreach($datas as $key => $item){
+        foreach ($datas as $key => $item) {
             // Create the collection
             $collections[$key] = [
                 'pca_code' => $item->pca_code,
@@ -168,7 +170,7 @@ class PcaList implements ShouldAutoSize, FromCollection, WithHeadings, withStyle
     }
 }
 
-class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, withStyles, WithTitle
+class CategoryList implements FromCollection, ShouldAutoSize, WithHeadings, withStyles, WithTitle
 {
     public function title(): string
     {
@@ -178,7 +180,7 @@ class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, with
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -189,6 +191,7 @@ class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, with
             'Category Name',
         ];
     }
+
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -202,7 +205,7 @@ class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, with
 
         $collections = [];
 
-        foreach($datas as $key => $item){
+        foreach ($datas as $key => $item) {
             // Create the collection
             $collections[$key] = [
                 'category_code' => $item->category_code,
@@ -214,7 +217,7 @@ class CategoryList implements ShouldAutoSize, FromCollection, WithHeadings, with
     }
 }
 
-class ItemGroupList implements ShouldAutoSize, FromCollection, WithHeadings, withStyles, WithTitle
+class ItemGroupList implements FromCollection, ShouldAutoSize, WithHeadings, withStyles, WithTitle
 {
     public function title(): string
     {
@@ -224,7 +227,7 @@ class ItemGroupList implements ShouldAutoSize, FromCollection, WithHeadings, wit
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 
@@ -235,6 +238,7 @@ class ItemGroupList implements ShouldAutoSize, FromCollection, WithHeadings, wit
             'Item Group Name',
         ];
     }
+
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -248,7 +252,7 @@ class ItemGroupList implements ShouldAutoSize, FromCollection, WithHeadings, wit
 
         $collections = [];
 
-        foreach($datas as $key => $item){
+        foreach ($datas as $key => $item) {
             // Create the collection
             $collections[$key] = [
                 'item_group_code' => $item->item_group_code,

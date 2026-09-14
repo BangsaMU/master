@@ -2,8 +2,8 @@
 
 namespace Bangsamu\Master\Database\Seeds;
 
-use Illuminate\Database\Seeder;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 
 class AssignAdminSeeder extends Seeder
@@ -30,13 +30,13 @@ class AssignAdminSeeder extends Seeder
 
             // if ($user) {
             //     // MENGGUNAKAN SYNC ROLES (Akan me-replace / menghapus role selain admin)
-            //     $user->syncRoles([$role]); 
+            //     $user->syncRoles([$role]);
             //     $this->command->info("Berhasil! Role user {$email} telah di-replace menjadi admin.");
             // }
 
             if ($user) {
                 // Cek apakah user sudah punya role admin atau belum
-                if (!$user->hasRole('admin')) {
+                if (! $user->hasRole('admin')) {
                     $user->assignRole($role);
                     $this->command->info("Berhasil! User {$email} sekarang menjadi admin.");
                 } else {

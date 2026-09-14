@@ -2,12 +2,12 @@
 
 namespace Bangsamu\Master;
 
-use Illuminate\Support\ServiceProvider;
-use Jenssegers\Agent\Agent as Agent;
-use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Blade;
-use Symfony\Component\Finder\Finder;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Jenssegers\Agent\Agent;
+use Symfony\Component\Finder\Finder;
 
 class MasterPackageServiceProvider extends ServiceProvider
 {
@@ -24,19 +24,19 @@ class MasterPackageServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(\Bangsamu\Master\Services\DynamicAssetService::class, function ($app) {
-            return new \Bangsamu\Master\Services\DynamicAssetService();
+            return new \Bangsamu\Master\Services\DynamicAssetService;
         });
 
         $this->app->singleton(\Bangsamu\Master\Services\MasterBroadcastService::class, function ($app) {
-            return new \Bangsamu\Master\Services\MasterBroadcastService();
+            return new \Bangsamu\Master\Services\MasterBroadcastService;
         });
 
         $this->app->singleton(\Bangsamu\Master\Services\MasterItemSyncService::class, function ($app) {
-            return new \Bangsamu\Master\Services\MasterItemSyncService();
+            return new \Bangsamu\Master\Services\MasterItemSyncService;
         });
 
         $this->app->singleton(\Bangsamu\Master\Services\MasterDataSyncService::class, function ($app) {
-            return new \Bangsamu\Master\Services\MasterDataSyncService();
+            return new \Bangsamu\Master\Services\MasterDataSyncService;
         });
     }
 
@@ -45,24 +45,24 @@ class MasterPackageServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (file_exists(__DIR__ . '/helpers.php')) {
-            require_once __DIR__ . '/helpers.php';
+        if (file_exists(__DIR__.'/helpers.php')) {
+            require_once __DIR__.'/helpers.php';
         }
 
-        $agent = new Agent();
+        $agent = new Agent;
         View::share('agent', $agent);
         //
         $this->loadConfig();
-        $this->loadRoutesFrom(__DIR__ . '/routes.php');
+        $this->loadRoutesFrom(__DIR__.'/routes.php');
         $this->publishes([
-            __DIR__ . '/../resources/config/MasterConfig.php' => config_path('MasterConfig.php'),
+            __DIR__.'/../resources/config/MasterConfig.php' => config_path('MasterConfig.php'),
         ]);
 
         // componen & view master
-        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'master');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'master');
 
         $this->publishes([
-            __DIR__ . '/../resources/views' => resource_path('views/vendor/master'),
+            __DIR__.'/../resources/views' => resource_path('views/vendor/master'),
         ]);
 
         // $this->publishes([
@@ -70,10 +70,8 @@ class MasterPackageServiceProvider extends ServiceProvider
         // ]);
 
         $this->publishes([
-            __DIR__ . '/routes.php' => base_path('routes/master.php'),
+            __DIR__.'/routes.php' => base_path('routes/master.php'),
         ]);
-
-
 
         // // Path ke folder komponen
         // $componentPath = __DIR__.'/Components';
@@ -99,7 +97,40 @@ class MasterPackageServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \Bangsamu\Master\Commands\MasterCatchUpCommand::class,
+                \Bangsamu\Master\Commands\MasterSyncLockCommand::class,
             ]);
+
+            // Auto-register scheduled master sync catch-up if enabled
+            if (config('MasterConfig.sync.schedule_enabled', true)) {
+                $this->app->booted(function () {
+                    try {
+                        $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
+                        $frequency = (string) config('MasterConfig.sync.schedule_frequency', 'hourly');
+                        $limit = (int) config('MasterConfig.sync.schedule_limit', 50);
+
+                        $event = $schedule->command("master:catch-up --limit={$limit}")
+                            ->name('bangsamu-master-catch-up')
+                            ->withoutOverlapping(60)
+                            ->runInBackground();
+
+                        match ($frequency) {
+                            'everyMinute' => $event->everyMinute(),
+                            'everyFiveMinutes' => $event->everyFiveMinutes(),
+                            'everyTenMinutes' => $event->everyTenMinutes(),
+                            'everyFifteenMinutes' => $event->everyFifteenMinutes(),
+                            'everyThirtyMinutes' => $event->everyThirtyMinutes(),
+                            'everyTwoHours' => $event->cron('0 */2 * * *'),
+                            'everyThreeHours' => $event->cron('0 */3 * * *'),
+                            'everySixHours' => $event->cron('0 */6 * * *'),
+                            'daily' => $event->daily(),
+                            'hourly' => $event->hourly(),
+                            default => (str_contains($frequency, ' ') ? $event->cron($frequency) : $event->hourly()),
+                        };
+                    } catch (\Throwable $e) {
+                        // Suppress if scheduler is unavailable
+                    }
+                });
+            }
         }
     }
 
@@ -110,12 +141,12 @@ class MasterPackageServiceProvider extends ServiceProvider
      */
     private function loadConfig()
     {
-        $configPath = $this->packagePath('resources/config/' . ucfirst($this->pkgPrefix) . 'Config' . '.php');
-        $configPath2 = $this->packagePath('resources/config/' . ucfirst($this->pkgPrefix) . 'CrudConfig' . '.php');
-        $configMenu = $this->packagePath('resources/config/' . ucfirst($this->pkgPrefix) . 'Menu' . '.php');
-        $this->mergeConfigFrom($configPath, ucfirst($this->pkgPrefix . 'Config'));
-        $this->mergeConfigFrom($configPath2, ucfirst($this->pkgPrefix . 'CrudConfig'));
-        $this->mergeConfigFrom($configMenu, ucfirst($this->pkgPrefix . 'Menu'));
+        $configPath = $this->packagePath('resources/config/'.ucfirst($this->pkgPrefix).'Config'.'.php');
+        $configPath2 = $this->packagePath('resources/config/'.ucfirst($this->pkgPrefix).'CrudConfig'.'.php');
+        $configMenu = $this->packagePath('resources/config/'.ucfirst($this->pkgPrefix).'Menu'.'.php');
+        $this->mergeConfigFrom($configPath, ucfirst($this->pkgPrefix.'Config'));
+        $this->mergeConfigFrom($configPath2, ucfirst($this->pkgPrefix.'CrudConfig'));
+        $this->mergeConfigFrom($configMenu, ucfirst($this->pkgPrefix.'Menu'));
         // dd(config());
     }
 
@@ -127,6 +158,6 @@ class MasterPackageServiceProvider extends ServiceProvider
      */
     private function packagePath($path)
     {
-        return __DIR__ . "/../$path";
+        return __DIR__."/../$path";
     }
 }

@@ -50,8 +50,14 @@ class MasterSyncController extends Controller
     {
         $sinceId = $request->has('since_id') ? (int) $request->input('since_id') : null;
         $limit = (int) $request->input('limit', 100);
+        $forceLock = $request->boolean('force_lock');
+        $isBrowser = $request->input('source') === 'browser' || (! $request->has('since_id') && ! $forceLock && ! $request->isMethod('cli'));
 
-        $result = $this->syncService->catchUpMissedBroadcasts($sinceId, $limit);
+        if ($isBrowser) {
+            $result = $this->syncService->catchUpFromBrowser($limit);
+        } else {
+            $result = $this->syncService->catchUpMissedBroadcasts($sinceId, $limit, $forceLock);
+        }
 
         $statusCode = ($result['success'] ?? false)
             ? Response::HTTP_OK

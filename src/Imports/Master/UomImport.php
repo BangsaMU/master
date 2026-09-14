@@ -13,12 +13,14 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class UomImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class UomImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
+
     protected ?Collection $existingUoms = null;
 
     public function getImportTable(): string
@@ -32,7 +34,7 @@ class UomImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkRe
             $this->existingUoms = DB::table('master_uom')
                 ->select('id', 'uom_code', 'uom_name', 'deleted_at')
                 ->get()
-                ->keyBy(fn ($uom) => strtoupper(trim((string) $uom->uom_code)) . '|' . strtoupper(trim((string) $uom->uom_name)));
+                ->keyBy(fn ($uom) => strtoupper(trim((string) $uom->uom_code)).'|'.strtoupper(trim((string) $uom->uom_name)));
         }
 
         foreach ($rows as $key => $row) {
@@ -46,11 +48,11 @@ class UomImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkRe
                 } elseif (empty($name)) {
                     $this->error[] = "Row {$row_index} UOM Name : field is required.";
                 } else {
-                    $lookupKey = strtoupper($code) . '|' . strtoupper($name);
+                    $lookupKey = strtoupper($code).'|'.strtoupper($name);
                     $exists = $this->existingUoms->get($lookupKey);
 
                     if (! $exists) {
-                        $data = new UoM();
+                        $data = new UoM;
                         $data->uom_code = strtoupper($code);
                         $data->uom_name = $name;
                         $data->save();

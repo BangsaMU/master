@@ -2,25 +2,21 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
 
 class MasterCompany extends Model
 {
     use \Bangsamu\Master\Traits\BroadcastsMasterChanges;
-
     use HasFactory;
-    use SoftDeletes;
     use Loggable;
+    use SoftDeletes;
 
     protected $connection = 'db_master';
-    protected $table = "master_company";
-    protected $guarded = [];
 
+    protected $table = 'master_company';
+
+    protected $guarded = [];
 }

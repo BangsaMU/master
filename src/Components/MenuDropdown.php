@@ -30,9 +30,9 @@ class MenuDropdown extends Component
     /**
      * Create a new component instance.
      *
-     * @param array $item
-     * @param bool $isActive
-     * @param \App\View\Components\Menu $component
+     * @param  array  $item
+     * @param  bool  $isActive
+     * @param  \App\View\Components\Menu  $component
      * @return void
      */
     public function __construct($item, $isActive = false, $component = null)

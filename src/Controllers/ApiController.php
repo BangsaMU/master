@@ -34,15 +34,15 @@ class ApiController extends Controller
         extract($data_var);
 
         $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {
-            return $res . $w[0];
+            return $res.$w[0];
         });
 
         foreach ($field as $kolom) {
-            /*validasi kolom tabel*/
+            /* validasi kolom tabel */
             if (Schema::hasColumn($tabel, $kolom)) {
                 $select[] = "$alias_tabel.$kolom";
             }
-            /*validasi kolom tabel join*/
+            /* validasi kolom tabel join */
             // if (is_array($join)) {
             //     foreach ($join as $tabel_join => $id_join) {
             //         $tabel_join_schema = explode('.', $tabel_join);
@@ -90,32 +90,32 @@ class ApiController extends Controller
         // contoh group multi text dari group http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][|]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1&set[text][]=email&set[text][|]=id&group[]=mu.id&group[]=mup.position_code
         // contoh cek not null http://clay.localhost/api/getmaster_locationbyparams?set[field][]=loc_code&set[field][]=loc_name&set[text][|]=loc_code&set[text][]=loc_name&ap_token=a86a41aabe5fdc9ee11e1cd27af1a920&_token=Gtg1LbQL1yTmkR79Yjc4rHfaPRfeop2JjhorSzmg&not_null[]=loc_code
         // filter join baru bisa di param search
-        /*Param serch support array dan string data yg diambil param terakhir */
+        /* Param serch support array dan string data yg diambil param terakhir */
         $search = $request->search;
         $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {
-            return $res . $w[0];
+            return $res.$w[0];
         });
         // FIND_IN_SET(master_project.id, mcu_package.project_id)
-        $not_null = $request->input("not_null");
-        $find_in_set = $request->input("find_in_set");
-        $where = $request->input("where");
-        $set = $request->input("set");
-        $join = $request->input("join");
-        $start = $request->input("start", 0);
-        $limit = $request->input("limit", 10);
-        $order = $request->input("order");
-        $group = $request->input("group");
+        $not_null = $request->input('not_null');
+        $find_in_set = $request->input('find_in_set');
+        $where = $request->input('where');
+        $set = $request->input('set');
+        $join = $request->input('join');
+        $start = $request->input('start', 0);
+        $limit = $request->input('limit', 10);
+        $order = $request->input('order');
+        $group = $request->input('group');
 
-        $join_tabel= null;
+        $join_tabel = null;
         // dd($order);
         // dd($set,$start,$limit);
         // $field = $request->set['field'];
         $id = $request->id;
         // dd($field);
-        $data_lokal = DB::table($tabel . " as " . $alias_tabel);
-        $key = md5($id . ':' . config('SsoConfig.main.KEY'));
+        $data_lokal = DB::table($tabel.' as '.$alias_tabel);
+        $key = md5($id.':'.config('SsoConfig.main.KEY'));
         // $token = $key == $request->input('api_token');
-        $token = true; //bypass test
+        $token = true; // bypass test
 
         if (is_array($set)) {
             $change_id = @$set['id'];
@@ -124,12 +124,12 @@ class ApiController extends Controller
         }
         if (isset($change_id)) {
             if (Schema::hasColumn($tabel, $change_id)) {
-                $select[] = $alias_tabel . "." . $change_id . " AS id";
+                $select[] = $alias_tabel.'.'.$change_id.' AS id';
             } else {
                 abort(403, 'set id not valid');
             }
         } else {
-            $select[] = $alias_tabel . ".id AS id";
+            $select[] = $alias_tabel.'.id AS id';
         }
 
         $data_array = $data_lokal;
@@ -140,13 +140,13 @@ class ApiController extends Controller
             // dd($join);
             // $join_tabel=1;
             foreach ($join as $tabel_join => $id_join) {
-                $tabel_join_schema = explode('.', $tabel_join); //extrak join tabel dan field
+                $tabel_join_schema = explode('.', $tabel_join); // extrak join tabel dan field
                 // array:2 [▼ // packages\bangsamu\master\src\Controllers\ApiController.php:113
                 //     0 => "master_uom"
                 //     1 => "id"
                 // ]
                 $alias_tabel_join = array_reduce(str_word_count("$tabel_join_schema[0]", 1), function ($res, $w) {
-                    return $res . $w[0];
+                    return $res.$w[0];
                 });
                 // dd($alias_tabel_join,$tabel_join_schema,$tabel_join,$id_join);
                 $join_tabel[] = [
@@ -177,7 +177,7 @@ class ApiController extends Controller
                     $ptabel_join = $join_val['tabel'];
                     // $alias_tabel = $join_val['tabel_join_alias'];
                     $select = self::getSelect($field, $ptabel_join, compact('select'));
-                    $data_array = $data_array->leftjoin($join_val['tabel'] . ' as ' . $join_val['tabel_join_alias'], $join_val['tabel_join'], $join_val['tabel_join_reff']);
+                    $data_array = $data_array->leftjoin($join_val['tabel'].' as '.$join_val['tabel_join_alias'], $join_val['tabel_join'], $join_val['tabel_join_reff']);
                     // $data_array = $data_array->join($tabel_join_schema[0] . ' as ' . $alias_tabel_join, "$alias_tabel_join.$tabel_join_schema[1]", $id_join);
                 }
             }
@@ -201,7 +201,7 @@ class ApiController extends Controller
         if (isset($set)) {
             if ($set) {
                 $selectRaw = '';
-                /*validasi kolom tabel*/
+                /* validasi kolom tabel */
                 if (is_array($text)) {
                     $text_concat = 'concat(';
                     // $last = end($text);
@@ -212,44 +212,44 @@ class ApiController extends Controller
                         $sparator = $keyText;
                         $sparator = is_numeric($sparator) ? '-' : $sparator;
 
-                        if($last_key==$keyText){
-                            $sparator='';
+                        if ($last_key == $keyText) {
+                            $sparator = '';
                         }
                         // dd(array_key_last($text),$text,$sparator,$last,$field_text);
                         if (Schema::hasColumn($tabel, $field_text)) {
-                            $sparator = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
-                            $text_concat .= 'coalesce('.$alias_tabel . '.' . $field_text.',"")' . $sparator;
+                            $sparator = $sparator !== '' ? ',\''.$sparator.'\',' : '';
+                            $text_concat .= 'coalesce('.$alias_tabel.'.'.$field_text.',"")'.$sparator;
                             // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
-                        }else{
+                        } else {
 
                             if (is_array(@$join_tabel)) {
                                 foreach ($join_tabel as $key_index => $join_val) {
-                                        // dd($join_val['tabel']);
-                                        if(Schema::hasColumn($join_val['tabel'], $field_text)){
-                                                    //jik pakek joint
-                                                    $sparatorjoin = $sparator !== '' ? ',\'' . $sparator . '\',' : '';
-                                                    $text_concat .= 'coalesce('.$field_text .',"")' . $sparatorjoin;
-                                        }else{
-                                            //buang last sparator
-                                            // $lastCommaPos = strrpos($text_concat, ',');
+                                    // dd($join_val['tabel']);
+                                    if (Schema::hasColumn($join_val['tabel'], $field_text)) {
+                                        // jik pakek joint
+                                        $sparatorjoin = $sparator !== '' ? ',\''.$sparator.'\',' : '';
+                                        $text_concat .= 'coalesce('.$field_text.',"")'.$sparatorjoin;
+                                    } else {
+                                        // buang last sparator
+                                        // $lastCommaPos = strrpos($text_concat, ',');
 
-                                            // if ($lastCommaPos !== false) {
-                                                // $text_concat = substr($text_concat, 0, $lastCommaPos);
-                                            // }
+                                        // if ($lastCommaPos !== false) {
+                                        // $text_concat = substr($text_concat, 0, $lastCommaPos);
+                                        // }
 
-                                        };
+                                    }
                                 }
                             }
 
-                                        // dd($text_concat,$sparator);
+                            // dd($text_concat,$sparator);
                         }
                     }
 
                     $text_concat .= ')';
 
-                    //validasi concat tidak kosong
+                    // validasi concat tidak kosong
                     if ($text_concat !== 'concat()') {
-                        $selectRaw = $text_concat . " AS text";
+                        $selectRaw = $text_concat.' AS text';
                     }
                     // dd($text_concat);
                     // dd($selectRaw,$text_concat, $text);
@@ -258,7 +258,7 @@ class ApiController extends Controller
                         $select[] = "$text AS text";
                     }
                 }
-                /*validasi kolom tabel id*/
+                /* validasi kolom tabel id */
                 // if (Schema::hasColumn($tabel, $change_id)) {
                 //     $select[] = "$change_id AS id";
                 // }
@@ -269,7 +269,7 @@ class ApiController extends Controller
         // dd($token ,$tabel_exist);
         if ($token && $tabel_exist) {
             $select_text = implode(',', $select);
-            $list_select = !empty($selectRaw) ? $selectRaw . ',' . $select_text : $select_text;
+            $list_select = ! empty($selectRaw) ? $selectRaw.','.$select_text : $select_text;
             // $select=DB::raw($selectRaw);
             // $data_array = $data_array->select($select);
             $data_array = $data_array->select(DB::raw($list_select));
@@ -277,7 +277,7 @@ class ApiController extends Controller
             if (empty($request->deleted_at)) {
                 // buang delete_at
                 if (Schema::hasColumn($tabel, 'deleted_at')) {
-                    $data_array = $data_array->whereNull($alias_tabel . '.deleted_at');
+                    $data_array = $data_array->whereNull($alias_tabel.'.deleted_at');
                 }
             }
 
@@ -287,7 +287,7 @@ class ApiController extends Controller
                 $data_array = $data_array->having('id', $id);
                 // $data_array = $data_array->find($id);
             } else {
-                /*buang array by value*/
+                /* buang array by value */
                 $del_val = 'id';
                 if (($key = array_search($del_val, $select)) !== false) {
                     unset($select[$key]);
@@ -346,17 +346,17 @@ class ApiController extends Controller
                         $data_array = $data_array->where(function ($query) use ($search, $tabel, $join_tabel) {
 
                             foreach ($search as $searchKey => $searchVal) {
-                                /*validasi kolom pencarian di tabel*/
+                                /* validasi kolom pencarian di tabel */
                                 if (Schema::hasColumn($tabel, $searchKey)) {
-                                    //cek where or atau and
+                                    // cek where or atau and
                                     if (is_array($searchVal)) {
-                                        //cek jika int gunakan where selian itu like
+                                        // cek jika int gunakan where selian itu like
                                         // if (is_numeric(array_values($searchVal)[0])) {
                                         //     $query->oRwhere($searchKey, array_values($searchVal)[0]);
                                         // } else {
                                         foreach ($searchVal as $searchValdata) {
                                             // dd('arrayMulti',$search,$searchVal,$searchValdata,$searchValdata);
-                                            $query->oRwhere($searchKey, 'like', '%' . $searchValdata . '%');
+                                            $query->oRwhere($searchKey, 'like', '%'.$searchValdata.'%');
                                         }
                                         // }
                                     } else {
@@ -364,15 +364,15 @@ class ApiController extends Controller
                                         //     $query->where($searchKey, $searchVal);
                                         // } else {
                                         // dd('arraySingle',$search,$searchVal);
-                                        $query->where($searchKey, 'like', '%' . $searchVal . '%');
+                                        $query->where($searchKey, 'like', '%'.$searchVal.'%');
                                         // }
                                     }
                                     // $query->where($whereKey, $whereVal);
                                     // dd($where, $whereKey, $whereVal);
-                                }elseif(is_array($join_tabel)){
+                                } elseif (is_array($join_tabel)) {
                                     foreach ($join_tabel as $key_index => $join_val) {
-                                        //jik pakek joint
-                                        if(Schema::hasColumn($join_val['tabel'], $searchKey)){
+                                        // jik pakek joint
+                                        if (Schema::hasColumn($join_val['tabel'], $searchKey)) {
                                             // dd($join_val,$join_val['tabel'],$searchKey,$searchVal);
                                             // array:5 [▼ // vendor/bangsamu/master/src/Controllers/ApiController.php:372
                                             //         "tabel" => "master_item_code"
@@ -382,15 +382,15 @@ class ApiController extends Controller
                                             //         "tabel_join_reff" => "item_code_id"
                                             //         ]
 
-                                            //cek where or atau and
+                                            // cek where or atau and
                                             if (is_array($searchVal)) {
-                                                //cek jika int gunakan where selian itu like
+                                                // cek jika int gunakan where selian itu like
                                                 // if (is_numeric(array_values($searchVal)[0])) {
                                                 //     $query->oRwhere($searchKey, array_values($searchVal)[0]);
                                                 // } else {
                                                 foreach ($searchVal as $searchValdata) {
                                                     // dd('arrayMulti',$search,$searchVal,$searchValdata,$searchValdata);
-                                                    $query->oRwhere($join_val['tabel_join_alias'].'.'.$searchKey, 'like', '%' . $searchValdata . '%');
+                                                    $query->oRwhere($join_val['tabel_join_alias'].'.'.$searchKey, 'like', '%'.$searchValdata.'%');
                                                 }
                                                 // }
                                             } else {
@@ -398,7 +398,7 @@ class ApiController extends Controller
                                                 //     $query->where($searchKey, $searchVal);
                                                 // } else {
                                                 // dd('arraySingle',$search,$searchVal);
-                                                $query->where($join_val['tabel_join_alias'].'.'.$searchKey, 'like', '%' . $searchVal . '%');
+                                                $query->where($join_val['tabel_join_alias'].'.'.$searchKey, 'like', '%'.$searchVal.'%');
                                                 // }
                                             }
 
@@ -410,7 +410,7 @@ class ApiController extends Controller
                             // dd($query->toRawsql());
                         });
                     } elseif (is_string($search)) {
-                        $data_array = $data_array->where($search, 'like', '%' . $search . '%');
+                        $data_array = $data_array->where($search, 'like', '%'.$search.'%');
                     } elseif (is_numeric($search)) {
                         $data_array = $data_array->where($search, $search);
                     }
@@ -421,21 +421,21 @@ class ApiController extends Controller
                     $data_array = $data_array->where(function ($query) use ($where, $tabel) {
 
                         foreach ($where as $whereKey => $whereVal) {
-                            /*validasi kolom pencarian di tabel*/
+                            /* validasi kolom pencarian di tabel */
                             if (Schema::hasColumn($tabel, $whereKey)) {
-                                //cek where or atau and
+                                // cek where or atau and
                                 if (is_array($whereVal)) {
-                                    //cek jika int gunakan where selian itu like
+                                    // cek jika int gunakan where selian itu like
                                     if (is_numeric(array_values($whereVal)[0])) {
                                         $query->oRwhere($whereKey, array_values($whereVal)[0]);
                                     } else {
-                                        $query->oRwhere($whereKey, 'like', '%' . array_values($whereVal)[0] . '%');
+                                        $query->oRwhere($whereKey, 'like', '%'.array_values($whereVal)[0].'%');
                                     }
                                 } else {
                                     if (is_numeric($whereVal)) {
                                         $query->where($whereKey, $whereVal);
                                     } else {
-                                        $query->where($whereKey, 'like', '%' . $whereVal . '%');
+                                        $query->where($whereKey, 'like', '%'.$whereVal.'%');
                                     }
                                 }
                                 // $query->where($whereKey, $whereVal);
@@ -449,9 +449,9 @@ class ApiController extends Controller
 
                         foreach ($find_in_set as $findKey => $findVal) {
                             // dd($tabel,$findKey);
-                            /*validasi kolom pencarian di tabel*/
+                            /* validasi kolom pencarian di tabel */
                             if (Schema::hasColumn($tabel, $findKey)) {
-                                //cek where or atau and
+                                // cek where or atau and
                                 //    dd(1,$findVal);
                                 //    dd(array_values($findVal),array_values($findVal)[0],is_numeric(array_values($findVal)[0]),is_array($findVal),$findVal);
                                 // find_in_set[project_code][]=21317&find_in_set[project_code][]=21318
@@ -481,11 +481,11 @@ class ApiController extends Controller
                     $data_array = $data_array->where(function ($query) use ($not_null, $tabel) {
                         foreach ($not_null as $findKey => $findVal) {
                             // dd(11,'array',$tabel, $findKey,Schema::hasColumn($tabel, $findVal));
-                            /*validasi kolom pencarian di tabel*/
+                            /* validasi kolom pencarian di tabel */
                             if (Schema::hasColumn($tabel, $findVal)) {
-                                //cek where or atau and
+                                // cek where or atau and
                                 if (is_array($findVal)) {
-                                    $query->whereNotNull( $findVal);
+                                    $query->whereNotNull($findVal);
                                 } else {
                                     if (is_numeric($findVal)) {
                                         $query->whereNotNull($findVal);
@@ -507,13 +507,12 @@ class ApiController extends Controller
                 $data_array->groupBy($group);
             }
 
-
             $builder = $data_array->offset($start)->limit($limit);
             $data_array = $builder->get()->toArray();
             $respon = $data_array;
 
             if ($request->debug) {
-                $query_debug = str_replace(array('?'), array('\'%s\''), $builder->toSql());
+                $query_debug = str_replace(['?'], ['\'%s\''], $builder->toSql());
                 $query_debug = vsprintf($query_debug, $builder->getBindings());
                 $respon['query'] = $query_debug;
             }
@@ -535,15 +534,15 @@ class ApiController extends Controller
         if ($search == '') {
             $company = Company::orderBy('id', 'desc')->select('id', 'company_code', 'company_name')->limit($this->LIMIT)->get();
         } else {
-            $company = Company::orderBy('id', 'desc')->select('id', 'company_code', 'company_name')->where('company_code', 'like', '%' . $search . '%')->orwhere('company_name', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $company = Company::orderBy('id', 'desc')->select('id', 'company_code', 'company_name')->where('company_code', 'like', '%'.$search.'%')->orwhere('company_name', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($company as $item) {
-            $response[] = array(
-                "id" => $item->id,
-                "text" => $item->company_code . ' - ' . $item->company_name,
-            );
+            $response[] = [
+                'id' => $item->id,
+                'text' => $item->company_code.' - '.$item->company_name,
+            ];
         }
 
         return response()->json($response);
@@ -556,15 +555,15 @@ class ApiController extends Controller
         if ($search == '') {
             $item_codes = ItemCode::orderBy('id', 'desc')->select('id', 'item_code')->limit($this->LIMIT)->get();
         } else {
-            $item_codes = ItemCode::orderBy('id', 'desc')->select('id', 'item_code')->where('item_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $item_codes = ItemCode::orderBy('id', 'desc')->select('id', 'item_code')->where('item_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($item_codes as $item) {
-            $response[] = array(
-                "id" => $item->id,
-                "text" => $item->item_code,
-            );
+            $response[] = [
+                'id' => $item->id,
+                'text' => $item->item_code,
+            ];
         }
 
         return response()->json($response);
@@ -577,17 +576,17 @@ class ApiController extends Controller
         if ($search == '') {
             $apps = Apps::orderBy('id', 'asc')->select('id', 'app_code', 'name')->limit($this->LIMIT)->get();
         } else {
-            $apps = Apps::orderBy('id', 'asc')->select('id', 'app_code', 'name')->orwhere('name', 'like', '%' . $search . '%')->orwhere('app_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $apps = Apps::orderBy('id', 'asc')->select('id', 'app_code', 'name')->orwhere('name', 'like', '%'.$search.'%')->orwhere('app_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($apps as $app) {
-            $app_name = $app->name ? ': ' . $app->name : '';
-            $response[] = array(
-                "id" => $app->id,
-                "code" => $app->app_code,
-                "text" => $app->app_code . $app_name,
-            );
+            $app_name = $app->name ? ': '.$app->name : '';
+            $response[] = [
+                'id' => $app->id,
+                'code' => $app->app_code,
+                'text' => $app->app_code.$app_name,
+            ];
         }
 
         return response()->json($response);
@@ -600,17 +599,17 @@ class ApiController extends Controller
         if ($search == '') {
             $uoms = UoM::orderBy('id', 'desc')->select('id', 'uom_code', 'uom_name')->limit($this->LIMIT)->get();
         } else {
-            $uoms = UoM::orderBy('id', 'desc')->select('id', 'uom_code', 'uom_name')->orwhere('uom_code', 'like', '%' . $search . '%')->orwhere('uom_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $uoms = UoM::orderBy('id', 'desc')->select('id', 'uom_code', 'uom_name')->orwhere('uom_code', 'like', '%'.$search.'%')->orwhere('uom_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($uoms as $uom) {
-            $uom_name = $uom->uom_name ? ': ' . $uom->uom_name : '';
-            $response[] = array(
-                "id" => $uom->id,
-                "code" => $uom->uom_code,
-                "text" => $uom->uom_code . $uom_name,
-            );
+            $uom_name = $uom->uom_name ? ': '.$uom->uom_name : '';
+            $response[] = [
+                'id' => $uom->id,
+                'code' => $uom->uom_code,
+                'text' => $uom->uom_code.$uom_name,
+            ];
         }
 
         return response()->json($response);
@@ -623,15 +622,15 @@ class ApiController extends Controller
         if ($search == '') {
             $pcas = Pca::orderBy('id', 'desc')->select('id', 'pca_code')->limit($this->LIMIT)->get();
         } else {
-            $pcas = Pca::orderBy('id', 'desc')->select('id', 'pca_code')->where('pca_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $pcas = Pca::orderBy('id', 'desc')->select('id', 'pca_code')->where('pca_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($pcas as $pca) {
-            $response[] = array(
-                "id" => $pca->id,
-                "text" => $pca->pca_code,
-            );
+            $response[] = [
+                'id' => $pca->id,
+                'text' => $pca->pca_code,
+            ];
         }
 
         return response()->json($response);
@@ -644,15 +643,15 @@ class ApiController extends Controller
         if ($search == '') {
             $categories = Category::orderBy('id', 'desc')->select('id', 'category_name')->limit($this->LIMIT)->get();
         } else {
-            $categories = Category::orderBy('id', 'desc')->select('id', 'category_name')->where('category_name', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $categories = Category::orderBy('id', 'desc')->select('id', 'category_name')->where('category_name', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($categories as $category) {
-            $response[] = array(
-                "id" => $category->id,
-                "text" => $category->category_name,
-            );
+            $response[] = [
+                'id' => $category->id,
+                'text' => $category->category_name,
+            ];
         }
 
         return response()->json($response);
@@ -665,15 +664,15 @@ class ApiController extends Controller
         if ($search == '') {
             $itemgroups = ItemGroup::orderBy('id', 'desc')->select('id', 'item_group_code')->limit($this->LIMIT)->get();
         } else {
-            $itemgroups = ItemGroup::orderBy('id', 'desc')->select('id', 'item_group_code')->where('item_group_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $itemgroups = ItemGroup::orderBy('id', 'desc')->select('id', 'item_group_code')->where('item_group_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($itemgroups as $item_group) {
-            $response[] = array(
-                "id" => $item_group->id,
-                "text" => $item_group->item_group_code,
-            );
+            $response[] = [
+                'id' => $item_group->id,
+                'text' => $item_group->item_group_code,
+            ];
         }
 
         return response()->json($response);
@@ -690,15 +689,15 @@ class ApiController extends Controller
         if ($search == '') {
             $projects = Project::orderBy('id', 'desc')->select('id', 'project_code', 'project_name')->limit($this->LIMIT)->get();
         } else {
-            $projects = Project::orderBy('id', 'desc')->select('id', 'project_code', 'project_name')->orwhere('project_name', 'like', '%' . $search . '%')->orwhere('project_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $projects = Project::orderBy('id', 'desc')->select('id', 'project_code', 'project_name')->orwhere('project_name', 'like', '%'.$search.'%')->orwhere('project_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($projects as $project) {
-            $response[] = array(
-                "id" => $project->id,
-                "text" => $project->project_code . ' - ' . $project->project_name,
-            );
+            $response[] = [
+                'id' => $project->id,
+                'text' => $project->project_code.' - '.$project->project_name,
+            ];
         }
 
         return response()->json($response);
@@ -711,15 +710,15 @@ class ApiController extends Controller
         if ($search == '') {
             $departments = Department::orderBy('id', 'desc')->select('id', 'department_code')->limit($this->LIMIT)->get();
         } else {
-            $departments = Department::orderBy('id', 'desc')->select('id', 'department_code')->where('department_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $departments = Department::orderBy('id', 'desc')->select('id', 'department_code')->where('department_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($departments as $department) {
-            $response[] = array(
-                "id" => $department->id,
-                "text" => $department->department_code,
-            );
+            $response[] = [
+                'id' => $department->id,
+                'text' => $department->department_code,
+            ];
         }
 
         return response()->json($response);
@@ -737,18 +736,18 @@ class ApiController extends Controller
 
         if ($search) {
             $locations->where(function ($q) use ($search) {
-                $q->orwhere('loc_code', 'like', '%' . $search . '%')->orwhere('loc_name', 'like', '%' . $search . '%');
+                $q->orwhere('loc_code', 'like', '%'.$search.'%')->orwhere('loc_name', 'like', '%'.$search.'%');
             });
         }
 
         $locations = $locations->orderBy('id', 'desc')->limit($this->LIMIT)->get();
 
-        $response = array();
+        $response = [];
         foreach ($locations as $location) {
-            $response[] = array(
-                "id" => $location->id,
-                "text" => ($location->loc_code ? $location->loc_code . ' - ' : '') . $location->loc_name,
-            );
+            $response[] = [
+                'id' => $location->id,
+                'text' => ($location->loc_code ? $location->loc_code.' - ' : '').$location->loc_name,
+            ];
         }
 
         return response()->json($response);
@@ -761,16 +760,16 @@ class ApiController extends Controller
         if ($search == '') {
             $employees = Employee::orderBy('id', 'desc')->select('id', 'employee_name', 'employee_job_title')->limit($this->LIMIT)->get();
         } else {
-            $employees = Employee::orderBy('id', 'desc')->select('id', 'employee_name', 'employee_job_title')->where('employee_name', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $employees = Employee::orderBy('id', 'desc')->select('id', 'employee_name', 'employee_job_title')->where('employee_name', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($employees as $employee) {
-            $response[] = array(
-                "id" => $employee->id,
-                "text" => $employee->employee_name,
-                "position" => $employee->employee_job_title,
-            );
+            $response[] = [
+                'id' => $employee->id,
+                'text' => $employee->employee_name,
+                'position' => $employee->employee_job_title,
+            ];
         }
 
         return response()->json($response);
@@ -783,15 +782,15 @@ class ApiController extends Controller
         if ($search == '') {
             $brands = Brand::orderBy('id', 'desc')->select('id', 'brand_code')->limit($this->LIMIT)->get();
         } else {
-            $brands = Brand::orderBy('id', 'desc')->select('id', 'brand_code')->where('brand_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $brands = Brand::orderBy('id', 'desc')->select('id', 'brand_code')->where('brand_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($brands as $brand) {
-            $response[] = array(
-                "id" => $brand->id,
-                "text" => $brand->brand_code,
-            );
+            $response[] = [
+                'id' => $brand->id,
+                'text' => $brand->brand_code,
+            ];
         }
 
         return response()->json($response);
@@ -804,15 +803,15 @@ class ApiController extends Controller
         if ($search == '') {
             $vendors = Vendor::orderBy('id', 'desc')->select('id', 'vendor_code')->limit($this->LIMIT)->get();
         } else {
-            $vendors = Vendor::orderBy('id', 'desc')->select('id', 'vendor_code')->where('vendor_code', 'like', '%' . $search . '%')->limit($this->LIMIT)->get();
+            $vendors = Vendor::orderBy('id', 'desc')->select('id', 'vendor_code')->where('vendor_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
-        $response = array();
+        $response = [];
         foreach ($vendors as $vendor) {
-            $response[] = array(
-                "id" => $vendor->id,
-                "text" => $vendor->vendor_code,
-            );
+            $response[] = [
+                'id' => $vendor->id,
+                'text' => $vendor->vendor_code,
+            ];
         }
 
         return response()->json($response);

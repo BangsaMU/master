@@ -3,14 +3,13 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
+use Bangsamu\ExportRunner\Jobs\RunExportReportJob;
 use Bangsamu\Master\Exports\DataExport;
 use Illuminate\Http\Request;
-use Maatwebsite\Excel\Facades\Excel;
-use Bangsamu\ExportRunner\Jobs\RunExportReportJob;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ExportController extends Controller
 {
@@ -25,7 +24,6 @@ class ExportController extends Controller
             $table_name = substr($table, 3); // Hapus prefix "GO-"
         }
 
-
         switch ($table) {
             case 'master_project':
                 $table_name = 'Project';
@@ -34,8 +32,8 @@ class ExportController extends Controller
 
         // dd($report == 'goReport',$report,$table,$table_name);
 
-        if($report == 'Maatwebsite'){
-            $file_name = $table_name . '.xlsx';
+        if ($report == 'Maatwebsite') {
+            $file_name = $table_name.'.xlsx';
 
             $export = new DataExport;
             $export->setTable($table);
@@ -43,9 +41,9 @@ class ExportController extends Controller
             return Excel::download($export, $file_name);
         }
 
-        if($report == 'goReport'){
+        if ($report == 'goReport') {
 
-            $file_name = $table_name . '.xlsx';
+            $file_name = $table_name.'.xlsx';
 
             $data = [
                 'file_name' => $file_name,
@@ -59,11 +57,9 @@ class ExportController extends Controller
 
         // Default fallback: report type tidak ditemukan
         return response()->json([
-            'message' => 'Report type '.$report.' tidak ditemukan untuk table: ' . $table_name
+            'message' => 'Report type '.$report.' tidak ditemukan untuk table: '.$table_name,
         ], 400); // 400 Bad Request
     }
-
-
 
     public function exportExcel($request)
     {
@@ -74,7 +70,7 @@ class ExportController extends Controller
         $input = $request->all();
         $prefixedInput = [];
         foreach ($input as $key => $value) {
-            $prefixedInput["param_" . $key] = $value;
+            $prefixedInput['param_'.$key] = $value;
         }
 
         // 2. Tambah extra param
@@ -82,29 +78,27 @@ class ExportController extends Controller
         $params = array_merge($prefixedInput, $extraParams);
         $params_json = json_encode($params);
 
-
-
         // 4. Cek apakah file sudah dibuat sebelumnya
         $query = DB::table('report_log as rl')
-                    ->where('report_id', $report_id)
-                    ->where('executed_by', $user_email);
-                    foreach ($params as $key => $value) {
+            ->where('report_id', $report_id)
+            ->where('executed_by', $user_email);
+        foreach ($params as $key => $value) {
 
-                        $jsonKey = "params_json->$key";
+            $jsonKey = "params_json->$key";
 
-                    //     if (is_array($value)) {
-                    //         $query->whereJsonContains($jsonKey, $user_email);
-                    //     } else {
-                    //         $query->where($jsonKey, $value);
-                    //     }
+            //     if (is_array($value)) {
+            //         $query->whereJsonContains($jsonKey, $user_email);
+            //     } else {
+            //         $query->where($jsonKey, $value);
+            //     }
 
-                        $excludeKeys = ['param__token', 'param__'];
+            $excludeKeys = ['param__token', 'param__'];
 
-                        if (!empty($key) && !empty($value) && !in_array($key, $excludeKeys, true)) {
-                        // dd($key , $value);
-                            $query->whereJsonContains($jsonKey, $value);
-                        };
-                    }
+            if (! empty($key) && ! empty($value) && ! in_array($key, $excludeKeys, true)) {
+                // dd($key , $value);
+                $query->whereJsonContains($jsonKey, $value);
+            }
+        }
 
         $log = $query->latest('created_at')->first();
         // $log = DB::table('report_log as rl')
@@ -115,14 +109,13 @@ class ExportController extends Controller
         //     ->first();
         // dd( $user_email,$log,$params_json,$query->toSql());
 
-        Log::info("DD params:: ",$params);
-        Log::info("DD query:: ",[$query->toSql()]);
-        Log::info("DD log:: ", (array) $log??[]); // casting ke array juga aman
+        Log::info('DD params:: ', $params);
+        Log::info('DD query:: ', [$query->toSql()]);
+        Log::info('DD log:: ', (array) $log ?? []); // casting ke array juga aman
         // Log::info("DD query:: ".json_encode([$user_email,$log,$params_json,$query->toSql()]));
         if ($log) {
             $relativePath = ltrim(preg_replace('#^storage/?#', '', $log->file_name), '/');
             $fullPath = storage_path($relativePath);
-
 
             // 3. Bersihkan file lebih dari 7 hari
             $this->cleanupOldFiles(storage_path($relativePath), 7);
@@ -142,7 +135,7 @@ class ExportController extends Controller
                 }
             }
 
-        }else{
+        } else {
             // 5. Dispatch job baru
             $job = new RunExportReportJob($report_id, $params, $user_email);
             dispatch($job);
@@ -154,7 +147,6 @@ class ExportController extends Controller
             ], 422);
         }
 
-
     }
 
     // 🧹 Helper: Hapus file lebih dari X hari
@@ -163,10 +155,12 @@ class ExportController extends Controller
         $directoryPath = dirname($directory);
         Log::info("cleanupOldFiles: $directoryPath");
 
-        if (!is_dir($directoryPath)) return;
+        if (! is_dir($directoryPath)) {
+            return;
+        }
 
-        $files = glob($directoryPath . '/*');
-        Log::info("list files: ",$files);
+        $files = glob($directoryPath.'/*');
+        Log::info('list files: ', $files);
 
         foreach ($files as $file) {
             if (is_file($file)) {
@@ -180,5 +174,4 @@ class ExportController extends Controller
             }
         }
     }
-
 }

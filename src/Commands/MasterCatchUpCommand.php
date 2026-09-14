@@ -17,6 +17,7 @@ class MasterCatchUpCommand extends Command
     protected $signature = 'master:catch-up 
                             {--since= : Specific broadcast ID to start catching up from}
                             {--limit=100 : Maximum events to fetch and sync per cycle}
+                            {--force-lock : Force acquire lock even if another lock is active or stuck}
                             {--info : Display the current sync checkpoint without syncing}';
 
     /**
@@ -24,7 +25,7 @@ class MasterCatchUpCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Synchronize missed master data broadcast events from Senada Hub (FCM-Like Catch-Up)';
+    protected $description = 'Synchronize missed master data broadcast events from Senada Hub (Protected by Master Sync Lock)';
 
     /**
      * Execute the console command.
@@ -35,19 +36,34 @@ class MasterCatchUpCommand extends Command
 
         if ($this->option('info')) {
             $this->info("Current Senada Broadcast Checkpoint: ID #{$currentCheckpoint}");
+
             return self::SUCCESS;
         }
 
         $sinceId = $this->option('since') !== null ? (int) $this->option('since') : null;
         $limit = (int) $this->option('limit');
+        $forceLock = (bool) $this->option('force-lock');
 
-        $this->line("Fetching missed master data events from Senada (Current Checkpoint: #" . ($sinceId ?? $currentCheckpoint) . ")...");
+        $this->line('Fetching missed master data events from Senada (Current Checkpoint: #'.($sinceId ?? $currentCheckpoint).')...');
 
-        $result = $syncService->catchUpMissedBroadcasts($sinceId, $limit);
+        $result = $syncService->catchUpMissedBroadcasts($sinceId, $limit, $forceLock);
 
         if (! ($result['success'] ?? false)) {
-            $this->error("Catch-up failed: " . ($result['message'] ?? 'Unknown error'));
+            $this->error('Catch-up failed: '.($result['message'] ?? 'Unknown error'));
+
             return self::FAILURE;
+        }
+
+        // Handle Master Lock Postponement
+        if ($result['locked'] ?? false) {
+            $holder = $result['holder'] ?? 'another_app';
+            $ttlRemaining = (int) ($result['ttl_remaining'] ?? 0);
+
+            $this->warn("⚠ [LOCK ACTIVE] Master sync is currently in progress by '{$holder}' (TTL remaining: {$ttlRemaining}s).");
+            $this->line('  Synchronization cycle postponed to prevent connection contention on Master DB.');
+            $this->line("  Use 'php artisan master:catch-up --force-lock' or 'php artisan master:sync-lock --release' if lock is stuck.");
+
+            return self::SUCCESS;
         }
 
         $syncedCount = (int) ($result['synced_count'] ?? 0);
@@ -55,6 +71,7 @@ class MasterCatchUpCommand extends Command
 
         if ($syncedCount === 0) {
             $this->info("✓ Everything is up to date. No missed broadcast events (Checkpoint: #{$newCheckpoint}).");
+
             return self::SUCCESS;
         }
 

@@ -1,4 +1,5 @@
 <?php
+
 // config/menu.php
 return [
     'main_menu' => [
@@ -26,7 +27,7 @@ return [
                     'url' => config('app.url').'/roles', // Using direct URL
                     'active' => 'roles*',
                     'icon' => 'ti ti-adjustments',
-                ]
+                ],
             ],
         ],
         [
@@ -34,7 +35,7 @@ return [
             'title' => 'Settings',
             'url' => config('app.url').'/settings', // Using direct URL
             'icon' => 'ti ti-settings',
-            'permissions' => ['manage settings']
+            'permissions' => ['manage settings'],
         ],
         [
             'type' => 'dropdown',
@@ -113,7 +114,7 @@ return [
             'title' => 'Activity Logs',
             'route' => 'activity-logs.index',
             'icon' => 'ti ti-activity',
-            'permissions' => ['view activity logs']
+            'permissions' => ['view activity logs'],
         ],
         [
             'type' => 'item',
@@ -121,7 +122,7 @@ return [
             'route' => 'requisitions.index',
             'active' => 'requisitions*',
             'icon' => 'ti ti-files',
-            'permissions' => ['view requisitions']
+            'permissions' => ['view requisitions'],
         ],
         [
             'type' => 'item',
@@ -129,7 +130,7 @@ return [
             'route' => 'routings.index',
             'icon' => 'ti ti-route',
             'active' => ['routings*', 'routing*'],
-            'permissions' => ['view routings']
+            'permissions' => ['view routings'],
         ],
         [
             'type' => 'item',
@@ -155,7 +156,7 @@ return [
                     'title' => 'Sub Menu 3',
                     // 'url' => config('app.url').'/roles', // Using direct URL
                     'icon' => 'ti ti-adjustments',
-                ]
+                ],
             ],
         ],
     ],

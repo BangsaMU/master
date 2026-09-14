@@ -2,22 +2,20 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\LibraryClay\Traits\Loggable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-
-use Bangsamu\LibraryClay\Traits\Loggable;
-
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Apps extends Model
 {
     use HasFactory, SoftDeletes;
     use Loggable;
 
-    protected $table = "master_apps";
+    protected $table = 'master_apps';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -26,10 +24,10 @@ class Apps extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->string('app_code', 10)->unique();

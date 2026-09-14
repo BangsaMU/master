@@ -3,41 +3,43 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Imports\Master\LocationImport;
+use Bangsamu\Master\Models\DashboardSettings;
+use Bangsamu\Master\Models\Location;
+use Bangsamu\Master\Models\Setting;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Models\Location;
 use Illuminate\Support\Str;
-use Bangsamu\Master\Models\Setting;
-use Bangsamu\Master\Models\DashboardSettings;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LocationController extends Controller
 {
     protected $readonly = false;
-    protected $sheet_name = 'Master - location'; //nama label untuk FE
-    protected $sheet_slug = 'location'; //nama routing (slug)
-    protected $view_tabel_index = array(
+
+    protected $sheet_name = 'Master - location'; // nama label untuk FE
+
+    protected $sheet_slug = 'location'; // nama routing (slug)
+
+    protected $view_tabel_index = [
         'ml.id AS No',
         // '"action" AS action',
         'ml.loc_code AS loc_code',
         'ml.loc_name AS loc_name',
         'ml.group_type AS group_type',
         'null AS action',
-    );
-    protected $view_tabel = array(
+    ];
+
+    protected $view_tabel = [
         'ml.id AS id',
         'ml.loc_code AS loc_code',
         'ml.loc_name AS loc_name',
         'ml.group_type AS group_type',
         'null AS action',
-    );
+    ];
 
     /**
      * Create a new controller instance.
@@ -49,30 +51,28 @@ class LocationController extends Controller
         // parent::__construct($request);
     }
 
-
-
-
     public function config($id = null, $data = null)
     {
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
 
         $data['module']['folder'] = 'module';
-        $data['ajax']['url_prefix'] = $data['module']['folder'] . '.' . $sheet_slug;
+        $data['ajax']['url_prefix'] = $data['module']['folder'].'.'.$sheet_slug;
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
+        $data['page']['new']['url'] = route('master.'.$sheet_slug.'.create');
 
         $data = configDefAction($id, $data);
 
         $data['page']['id'] = $id;
-        $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
+        $data['modal']['view_path'] = $data['module']['folder'].'.mastermodal';
 
         $data['page']['js_list'][] = 'js.master-data';
 
         return $data;
     }
+
     public function view_form($data)
     {
         $readonly = $this->readonly;
@@ -123,9 +123,9 @@ class LocationController extends Controller
             // 'select2_minimum' => 0, //[1-5]
             // 'select2_tags' => false, //[true.false]
             // 'select2_search' => "project_code", //[field]
-            'select2_search' => [["project_code"], ['|' => "project_name"]], //[field]
+            'select2_search' => [['project_code'], ['|' => 'project_name']], // [field]
             // 'select2_url' => url('api/getmaster_projectbyparams?set[text]=project_code&ap_token=' . api_token($id) . ''),
-            'select2_url' => url('api/getmaster_projectbyparams?set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token=' . $api_token . ''),
+            'select2_url' => url('api/getmaster_projectbyparams?set[field][]=project_code&set[field][]=project_name&set[text]=project_code&set[text][|]=project_code&set[text][]=project_name&ap_token='.$api_token.''),
             // 'multi' => false,
             'col' => 'col-12 col-md-6 mb-2',
             'disabled' => $global_disable || $revisi_disable ? true : false,
@@ -167,7 +167,7 @@ class LocationController extends Controller
         $data['page']['list'] = route('master.location.index');
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_location') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -180,7 +180,7 @@ class LocationController extends Controller
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['create']['url'] = route('master.'.$sheet_slug.'.create');
 
             $data['datatable']['btn']['import']['id'] = 'importitem';
             $data['datatable']['btn']['import']['title'] = 'Import Item';
@@ -195,7 +195,6 @@ class LocationController extends Controller
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
             $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_location']);
         }
-
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.location.import');
@@ -215,11 +214,11 @@ class LocationController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -230,8 +229,8 @@ class LocationController extends Controller
         $user_id = Auth::user()->id ?? 0;
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'ml.created_at';
@@ -244,18 +243,18 @@ class LocationController extends Controller
             ->where('category', 'master_location')
             ->value('value'); // Ambil langsung satu nilai
 
-        //dashboard_settings
-        if(empty($list_location)){
+        // dashboard_settings
+        if (empty($list_location)) {
             $list_location = DashboardSettings::where('key', 'group_type')
-            ->where('group', 'master_location')
-            ->value('value');
+                ->where('group', 'master_location')
+                ->value('value');
         }
 
         // Konversi string ke array, lalu filter elemen kosong
-        $list_location = array_filter(explode(",", $list_location));
+        $list_location = array_filter(explode(',', $list_location));
 
         // Jika array kosong setelah difilter, set ke null
-        $list_location = !empty($list_location) ? $list_location : null;
+        $list_location = ! empty($list_location) ? $list_location : null;
 
         $totalData = DB::table('master_location as ml')
             ->whereNull('ml.deleted_at')
@@ -286,8 +285,7 @@ class LocationController extends Controller
                 ->groupby('ml.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
@@ -311,21 +309,21 @@ class LocationController extends Controller
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
-        if (!empty($data_tabel)) {
+        $data = [];
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -334,8 +332,8 @@ class LocationController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
@@ -343,12 +341,12 @@ class LocationController extends Controller
                 $nestedData['No'] = $DT_RowIndex;
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_location'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_location'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
                 $nestedData['action'] = $btn;
@@ -358,13 +356,14 @@ class LocationController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
 
@@ -376,8 +375,8 @@ class LocationController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
+        $data['page']['list'] = route('master.'.$sheet_slug.'.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
 
@@ -388,18 +387,18 @@ class LocationController extends Controller
         $list_location = Setting::where('name', 'group_type')
             ->where('category', 'master_location')
             ->value('value');
-        //dashboard_settings
-        if(empty($list_location)){
+        // dashboard_settings
+        if (empty($list_location)) {
             $list_location = DashboardSettings::where('key', 'group_type')
-            ->where('group', 'master_location')
-            ->value('value');
+                ->where('group', 'master_location')
+                ->value('value');
         }
 
         // Konversi string ke array dan filter kosong
-        $list_location = array_filter(explode(",", $list_location));
+        $list_location = array_filter(explode(',', $list_location));
 
         // Jika kosong, jadikan null
-        $list_location = !empty($list_location) ? $list_location : null;
+        $list_location = ! empty($list_location) ? $list_location : null;
 
         // Cocokkan hanya yang ada di kedua array
         if ($list_location !== null) {
@@ -410,8 +409,9 @@ class LocationController extends Controller
         }
 
         $param = null;
+
         // dd(1, $list_location, $data['page']['list_group_type'],$param);
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     protected function getLocationSyncConfig(): array
@@ -464,6 +464,7 @@ class LocationController extends Controller
 
             if ($existing) {
                 DB::table($config['table'])->where($match)->update($payload);
+
                 return;
             }
 
@@ -471,6 +472,7 @@ class LocationController extends Controller
         } catch (\Illuminate\Database\QueryException $exception) {
             if ($this->isDuplicateEntryException($exception)) {
                 DB::table($config['table'])->where($match)->update($payload);
+
                 return;
             }
 
@@ -480,7 +482,7 @@ class LocationController extends Controller
 
     protected function syncLocationToMasterMirror($location): void
     {
-        if (!config('MasterCrudConfig.MASTER_DIRECT_EDIT') || LibraryClayController::isMasterDbSameAsDefault()) {
+        if (! config('MasterCrudConfig.MASTER_DIRECT_EDIT') || LibraryClayController::isMasterDbSameAsDefault()) {
             return;
         }
 
@@ -524,7 +526,7 @@ class LocationController extends Controller
         ]);
 
         // 2. Lakukan query manual untuk mencari group apa saja yang sudah memakai loc_code tersebut
-        $existingGroups = DB::table('master_' . $this->sheet_slug)
+        $existingGroups = DB::table('master_'.$this->sheet_slug)
             ->where('loc_code', $request->loc_code)
             ->whereNull('deleted_at')
             ->when($request->id, function ($query) use ($request) {
@@ -541,7 +543,7 @@ class LocationController extends Controller
             $groupList = implode(', ', $existingGroups);
 
             throw ValidationException::withMessages([
-                'loc_code' => ["The loc code has already been taken on group: {$groupList}."]
+                'loc_code' => ["The loc code has already been taken on group: {$groupList}."],
             ]);
         }
 
@@ -560,20 +562,20 @@ class LocationController extends Controller
             }
 
             if ($update && $location->wasChanged()) {
-                /*sync callback*/
-                $id =  $location->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+                /* sync callback */
+                $id = $location->id;
+                $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
                 $sync_row = $location->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                // update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message = $this->sheet_name . ' updated successfully';
+                $message = $this->sheet_name.' updated successfully';
             } else {
-                $message = $this->sheet_name . ' no data changed';
+                $message = $this->sheet_name.' no data changed';
             }
         } else {
             // Create new location
@@ -588,7 +590,7 @@ class LocationController extends Controller
 
             $this->syncLocationToRelatedMaster($location);
             $this->syncLocationToMasterMirror($location);
-            
+
             // DB::table('master_' . $this->sheet_slug)->insert([
             //     'loc_code' => $request->loc_code,
             //     'loc_name' => $request->loc_name,
@@ -596,27 +598,28 @@ class LocationController extends Controller
             //     'created_at' => now(),
             // ]);
 
-            $message = $this->sheet_name . ' created successfully';
+            $message = $this->sheet_name.' created successfully';
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
 
     public function show($id)
     {
         $this->readonly = true;
+
         return self::edit($id);
     }
 
     public function edit($id)
     {
-        $form_row_type = 'multi'; /*single / multi kalo single cek detail kosong redirect*/
+        $form_row_type = 'multi'; /* single / multi kalo single cek detail kosong redirect */
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
 
@@ -628,18 +631,18 @@ class LocationController extends Controller
             ->where('category', 'master_location')
             ->value('value');
 
-        //dashboard_settings
-        if(empty($list_location)){
+        // dashboard_settings
+        if (empty($list_location)) {
             $list_location = DashboardSettings::where('key', 'group_type')
-            ->where('group', 'master_location')
-            ->value('value');
+                ->where('group', 'master_location')
+                ->value('value');
         }
 
         // Konversi string ke array dan filter kosong
-        $list_location = array_filter(explode(",", $list_location));
+        $list_location = array_filter(explode(',', $list_location));
 
         // Jika kosong, jadikan null
-        $list_location = !empty($list_location) ? $list_location : null;
+        $list_location = ! empty($list_location) ? $list_location : null;
 
         // Cocokkan hanya yang ada di kedua array
         if ($list_location !== null) {
@@ -649,19 +652,18 @@ class LocationController extends Controller
             ));
         }
 
-
-        $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
+        $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
 
         /**
          * formdata
          * data harus type multi array
          */
-        $formdata = DB::table('master_' . $this->sheet_slug)->where('id', $id)->get();
+        $formdata = DB::table('master_'.$this->sheet_slug)->where('id', $id)->get();
 
-        /*redirect jika bukan multi insert*/
+        /* redirect jika bukan multi insert */
         if (empty($formdata)) {
             if ($form_row_type == 'single') {
-                return redirect()->route('module.' . $sheet_slug . '.index')->with('error_message', 'Data not found with id ' . $id . ' not found in database.');
+                return redirect()->route('module.'.$sheet_slug.'.index')->with('error_message', 'Data not found with id '.$id.' not found in database.');
             } else {
                 abort(403, 'data not found');
             }
@@ -679,21 +681,21 @@ class LocationController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
-        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+        $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 
         if (class_exists($modelClass)) {
             $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
-        }else{
-            abort(403,'Gagal hapus:: '.$modelClass . class_exists($modelClass));
+        } else {
+            abort(403, 'Gagal hapus:: '.$modelClass.class_exists($modelClass));
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
     }
 
     public function import(Request $request)
@@ -702,7 +704,7 @@ class LocationController extends Controller
         ini_set('memory_limit', '512M');
 
         $request->validate([
-            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv'
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv',
         ]);
 
         if ($request->hasFile('file')) {

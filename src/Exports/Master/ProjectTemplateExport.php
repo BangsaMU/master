@@ -2,29 +2,25 @@
 
 namespace Bangsamu\Master\Exports\Master;
 
-use Bangsamu\Master\Models\MasterCategory;
-use Bangsamu\Master\Models\MasterItemGroup;
-use Bangsamu\Master\Models\MasterPca;
-use Bangsamu\Master\Models\MasterUom;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class ProjectTemplateExport implements WithMultipleSheets
 {
     public function sheets(): array
     {
         return [
-            new ProjectTemplate(),
+            new ProjectTemplate,
         ];
     }
 }
 
-class ProjectTemplate implements ShouldAutoSize, FromCollection, WithHeadings, WithStyles, WithTitle
+class ProjectTemplate implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
 {
     public function title(): string
     {
@@ -34,7 +30,7 @@ class ProjectTemplate implements ShouldAutoSize, FromCollection, WithHeadings, W
     public function styles(Worksheet $sheet)
     {
         return [
-            1    => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true]],
         ];
     }
 

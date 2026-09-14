@@ -16,12 +16,14 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use Throwable;
 
-class ProjectImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class ProjectImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
+
     protected ?Collection $existingProjects = null;
 
     public function getImportTable(): string
@@ -53,7 +55,7 @@ class ProjectImport implements ToCollection, WithHeadingRow, WithEvents, WithChu
                     $exists = $this->existingProjects->get($codeUpper);
 
                     if (! $exists) {
-                        $data = new ModelsMasterProject();
+                        $data = new ModelsMasterProject;
                         $data->project_code = $codeUpper;
                         $data->project_name = $projectName;
                         $data->internal_external = $row['project_type'] ?? null;
@@ -86,6 +88,7 @@ class ProjectImport implements ToCollection, WithHeadingRow, WithEvents, WithChu
             if (is_numeric($date)) {
                 return Carbon::instance(Date::excelToDateTimeObject((int) $date))->format('Y-m-d');
             }
+
             return Carbon::parse((string) $date)->format('Y-m-d');
         } catch (Throwable $e) {
             return null;

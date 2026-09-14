@@ -13,12 +13,14 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class DepartmentImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class DepartmentImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private array $error = [];
+
     private array $success = [];
+
     protected ?Collection $existingDepartments = null;
 
     public function getImportTable(): string

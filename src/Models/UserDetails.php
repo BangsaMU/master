@@ -2,25 +2,22 @@
 
 namespace Bangsamu\Master\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-
 use Bangsamu\LibraryClay\Traits\Loggable;
-
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 
 class UserDetails extends Model
 {
     use HasFactory, Notifiable;
-    use SoftDeletes;
     use Loggable;
+    use SoftDeletes;
 
-    protected $table = "master_user_details";
+    protected $table = 'master_user_details';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -29,10 +26,10 @@ class UserDetails extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (!Schema::hasTable((new static)->getTable())) {
+            if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id(); // BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY
@@ -57,8 +54,8 @@ class UserDetails extends Model
                     // Optional: tambahkan foreign key jika perlu
                     // $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
 
-                        });
-                    }
-                }
+                });
             }
         }
+    }
+}

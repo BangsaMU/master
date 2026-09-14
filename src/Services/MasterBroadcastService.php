@@ -39,9 +39,6 @@ class MasterBroadcastService
 
     /**
      * Execute a callback with broadcasting temporarily suppressed.
-     *
-     * @param callable $callback
-     * @return mixed
      */
     public static function withoutBroadcasting(callable $callback): mixed
     {
@@ -58,8 +55,8 @@ class MasterBroadcastService
     /**
      * Broadcast an item creation or update event to Senada Reverb Hub.
      *
-     * @param Model|array<string, mixed>|object $item
-     * @param string $action 'created'|'updated'|'deleted'
+     * @param  Model|array<string, mixed>|object  $item
+     * @param  string  $action  'created'|'updated'|'deleted'
      * @return array<string, mixed>
      */
     public function broadcastItemChange($item, string $action = 'updated'): array
@@ -70,11 +67,9 @@ class MasterBroadcastService
     /**
      * Broadcast a generic entity change from any master table to Senada Reverb Hub.
      *
-     * @param string $table e.g. 'master_company', 'master_project', 'master_employee'
-     * @param Model|array<string, mixed>|object $model
-     * @param string $action 'created'|'updated'|'deleted'
-     * @param string $channel
-     * @param string $event
+     * @param  string  $table  e.g. 'master_company', 'master_project', 'master_employee'
+     * @param  Model|array<string, mixed>|object  $model
+     * @param  string  $action  'created'|'updated'|'deleted'
      * @return array<string, mixed>
      */
     public function broadcastChange(
@@ -121,9 +116,8 @@ class MasterBroadcastService
     /**
      * Broadcast a table modification event for any of the 15 master tables.
      *
-     * @param string $table
-     * @param Model|array<string, mixed>|object $model
-     * @param string $action 'created'|'updated'|'deleted'
+     * @param  Model|array<string, mixed>|object  $model
+     * @param  string  $action  'created'|'updated'|'deleted'
      * @return array<string, mixed>
      */
     public function broadcastTableChange(string $table, $model, string $action = 'updated'): array
@@ -188,6 +182,7 @@ class MasterBroadcastService
             if (is_object($model)) {
                 return $model->$attr ?? null;
             }
+
             return $model[$attr] ?? null;
         };
 
@@ -222,10 +217,7 @@ class MasterBroadcastService
     /**
      * Send HTTP POST broadcast request to Senada Hub.
      *
-     * @param string $channel
-     * @param string $event
-     * @param array<string, mixed> $payload
-     * @param bool $isPrivate
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     public function dispatchToSenada(
@@ -295,7 +287,7 @@ class MasterBroadcastService
                 'payload' => $payload,
             ];
         } catch (Throwable $e) {
-            Log::warning('[MasterBroadcastService] Broadcast failed: ' . $e->getMessage(), [
+            Log::warning('[MasterBroadcastService] Broadcast failed: '.$e->getMessage(), [
                 'senada_url' => $senadaUrl,
                 'channel' => $channel,
                 'exception' => $e->getMessage(),
@@ -312,10 +304,10 @@ class MasterBroadcastService
     /**
      * Broadcast a single batch summary event to Senada after a bulk operation (like Excel import).
      *
-     * @param string $table e.g. 'master_item_code'
-     * @param int $maxId Highest record ID after import
-     * @param int $batchCount Total records processed/imported
-     * @param string $action e.g. 'created' or 'imported'
+     * @param  string  $table  e.g. 'master_item_code'
+     * @param  int  $maxId  Highest record ID after import
+     * @param  int  $batchCount  Total records processed/imported
+     * @param  string  $action  e.g. 'created' or 'imported'
      * @return array<string, mixed>
      */
     public static function broadcastBatchSummary(
@@ -361,8 +353,7 @@ class MasterBroadcastService
     /**
      * Static helper for quick broadcast dispatching.
      *
-     * @param Model|array<string, mixed>|object $item
-     * @param string $action
+     * @param  Model|array<string, mixed>|object  $item
      * @return array<string, mixed>
      */
     public static function broadcastItem($item, string $action = 'updated'): array
@@ -370,4 +361,3 @@ class MasterBroadcastService
         return app(self::class)->broadcastItemChange($item, $action);
     }
 }
-

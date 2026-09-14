@@ -92,16 +92,34 @@
                 console.log('[MasterBroadcast] WebSocket connected to Senada Hub.');
 
                 if (catchUpApiUrl) {
+                    const now = Date.now();
+                    const lastCatchUp = parseInt(localStorage.getItem('master_broadcast_last_catch_up_time') || '0', 10);
+                    const cooldownMs = {{ (int) (config('MasterConfig.sync.browser_cooldown') ?: 300) }} * 1000;
+
+                    // Prevent thundering herd across multiple tabs or quick page navigation
+                    if (now - lastCatchUp < cooldownMs) {
+                        console.log(`[MasterBroadcast] Catch-up check skipped: System was verified ${Math.round((now - lastCatchUp) / 1000)}s ago (Cooldown: ${cooldownMs / 1000}s).`);
+                        return;
+                    }
+
                     fetch(catchUpApiUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrfToken,
                             'Accept': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({ source: 'browser' })
                     })
                     .then(response => response.json())
                     .then(res => {
+                        localStorage.setItem('master_broadcast_last_catch_up_time', Date.now().toString());
+
+                        if (res.locked) {
+                            console.log(`[MasterBroadcast] Master sync in progress by '${res.holder}'. Postponed.`);
+                            return;
+                        }
+
                         if (res.success && res.synced_count > 0) {
                             console.log(`[MasterBroadcast] Catch-up completed: ${res.synced_count} missed event(s) synced.`);
                             showBroadcastToast('success', 'Sinkronisasi Otomatis', `${res.synced_count} pembaruan master data yang terlewat berhasil disinkronkan.`);
@@ -120,6 +138,7 @@
                     });
                 }
             });
+
 
             // 1. PUBLIC CHANNEL: Master Data Updates (masterdata.items)
             const masterChannel = pusher.subscribe('masterdata.items');

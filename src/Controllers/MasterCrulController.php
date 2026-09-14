@@ -3,43 +3,33 @@
 namespace Bangsamu\Master\Controllers;
 
 // use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
-use Carbon\Carbon;
+use App\Models\Session;
+use App\Models\Telegram;
+use GuzzleHttp\Client;
+use GuzzleHttp\Cookie\CookieJar;
+use GuzzleHttp\Psr7\Request;
+use Illuminate\Encryption\Encrypter;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Validator;
 use Response;
-use Illuminate\Support\Str;
-use App\Models\Telegram;
-
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
-
-
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Session;
-
-use Illuminate\Encryption\Encrypter;
-
-use GuzzleHttp\Client;
-use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\Cookie\CookieJar;
-
+use Validator;
 
 class MasterCrulController
 {
     public $CHAT_ID;
+
     public $param;
 
-    function __construct($CHAT_ID = null, $param = null)
+    public function __construct($CHAT_ID = null, $param = null)
     {
         $this->CHAT_ID = $CHAT_ID ?? config('MasterConfig.main.CHAT_ID', '-1001983435070');
         $this->param = $param;
     }
 
-    function masterCrul($action, $param = null, $token = null)
+    public function masterCrul($action, $param = null, $token = null)
     {
         $base_uri = config('app.url');
 
@@ -83,7 +73,6 @@ class MasterCrulController
 
         // dd(99);
 
-
         // $this->client = new GuzzleClient(['defaults' => [
         //     'verify' => false
         // ]]);
@@ -92,17 +81,17 @@ class MasterCrulController
             // Base URI is used with relative requests
             'base_uri' => $base_uri,
             // You can set any number of default request options.
-            'timeout'  => 2.0,
+            'timeout' => 2.0,
         ]);
 
         $cookieJar = CookieJar::fromArray([
-            'INACTSESSID17db9fa0c5ba1cb5979b54663da2df35' => 'gita.samudra%40demo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671'
+            'INACTSESSID17db9fa0c5ba1cb5979b54663da2df35' => 'gita.samudra%40demo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671',
         ], 'cms.demo.com');
-        $cookie_name='INACTSESSID17db9fa0c5ba1cb5979b54663da2df35';
-        $cookie_value='gita.samudra%40demo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671';
-        $cookie_domain='cms.demo.com';
+        $cookie_name = 'INACTSESSID17db9fa0c5ba1cb5979b54663da2df35';
+        $cookie_value = 'gita.samudra%40demo.com%2390A4REPlskfjsPdsklkdsf1fa659e9c4f8acc24d9ebecd4f82671';
+        $cookie_domain = 'cms.demo.com';
         // $cookie_expiers= time() + (86400 * 30);
-        $cookie_expiers= [];
+        $cookie_expiers = [];
         // setrawcookie($cookie_name, rawurlencode($cookie_value), 0,'/');
         // setcookie($cookie_name, $cookie_value, 0, '/','cms.demo.com',1,1); // 86400 = 1 day
         // $client->request('GET', '/get', ['cookies' => $cookieJar]);
@@ -116,8 +105,8 @@ class MasterCrulController
                 'password' => 'Demo12345',
                 'page' => 'member',
                 'cmd' => 'login',
-                'act' => 'login'
-            ]
+                'act' => 'login',
+            ],
 
         ]);
 
@@ -130,7 +119,8 @@ class MasterCrulController
         echo $body->getContents();
         dd(9);
     }
-    function masterCrulOLD($action, $param = null, $token = null)
+
+    public function masterCrulOLD($action, $param = null, $token = null)
     {
 
         $attr = [
@@ -138,20 +128,19 @@ class MasterCrulController
             'password' => 'Demo12345',
             'page' => 'member',
             'cmd' => 'login',
-            'act' => 'login'
+            'act' => 'login',
         ];
-        define("DOC_ROOT", "c:");
-        //username and password of account
+        define('DOC_ROOT', 'c:');
+        // username and password of account
         // $username = trim($values["email"]);
         // $password = trim($values["password"]);
         extract($attr);
-        //login form action url
-        $url = "https://cms.demo.com/main.php";
-        $postinfo = "username=" . $username . "&password=" . $password . "&page=" . $page . "&cmd=" . $cmd . "&act=" . $act;
-
+        // login form action url
+        $url = 'https://cms.demo.com/main.php';
+        $postinfo = 'username='.$username.'&password='.$password.'&page='.$page.'&cmd='.$cmd.'&act='.$act;
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_COOKIEJAR, "/tmp/cookieFileNameSamu");
+        curl_setopt($ch, CURLOPT_COOKIEJAR, '/tmp/cookieFileNameSamu');
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postinfo);
@@ -166,22 +155,22 @@ class MasterCrulController
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_COOKIEFILE, "/tmp/cookieFileNameSamu");
-        curl_setopt($ch, CURLOPT_URL, "https://cms.demo.com/main.php?page=member");
+        curl_setopt($ch, CURLOPT_COOKIEFILE, '/tmp/cookieFileNameSamu');
+        curl_setopt($ch, CURLOPT_URL, 'https://cms.demo.com/main.php?page=member');
 
         $buf2 = curl_exec($ch);
 
         curl_close($ch);
 
-        echo "<PRE>" . htmlentities($buf2);
+        echo '<PRE>'.htmlentities($buf2);
         dd(9);
 
-        //set the directory for the cookie using defined document root var
-        $path = DOC_ROOT . "/tmp";
-        //build a unique path with every request to store. the info per user with custom func. I used this function to build unique paths based on member ID, that was for my use case. It can be a regular dir.
-        //$path = build_unique_path($path); // this was for my use case
+        // set the directory for the cookie using defined document root var
+        $path = DOC_ROOT.'/tmp';
+        // build a unique path with every request to store. the info per user with custom func. I used this function to build unique paths based on member ID, that was for my use case. It can be a regular dir.
+        // $path = build_unique_path($path); // this was for my use case
 
-        $cookie_file_path = $path . "/cookies/cookiesamu.txt";
+        $cookie_file_path = $path.'/cookies/cookiesamu.txt';
         // dd($path,$cookie_file_path);
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_HEADER, false);
@@ -190,27 +179,27 @@ class MasterCrulController
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 
         curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie_file_path);
-        //set the cookie the site has for certain features, this is optional
-        curl_setopt($ch, CURLOPT_COOKIE, "cookiename=0");
+        // set the cookie the site has for certain features, this is optional
+        curl_setopt($ch, CURLOPT_COOKIE, 'cookiename=0');
         curl_setopt(
             $ch,
             CURLOPT_USERAGENT,
-            "Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7"
+            'Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7'
         );
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_REFERER, $_SERVER['REQUEST_URI']);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
 
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_POST, 1);
         // curl_setopt($ch, CURLOPT_POSTFIELDS, $attr);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postinfo);
         curl_exec($ch);
 
-        //page with the content I want to grab
-        curl_setopt($ch, CURLOPT_URL, "https://cms.demo.com/main.php?page=member");
-        //do stuff with the info with DomDocument() etc
+        // page with the content I want to grab
+        curl_setopt($ch, CURLOPT_URL, 'https://cms.demo.com/main.php?page=member');
+        // do stuff with the info with DomDocument() etc
         $html = curl_exec($ch);
         curl_close($ch);
         echo $html;
@@ -228,11 +217,11 @@ class MasterCrulController
             CURLOPT_URL => 'https://cms.demo.com/main.php',
             //  CURLOPT_USERAGENT => 'login',
             CURLOPT_POST => 1,
-            CURLOPT_POSTFIELDS => $attr
+            CURLOPT_POSTFIELDS => $attr,
         ]);
         $resp = curl_exec($curl);
         curl_close($curl);
-        echo ($resp);
+        echo $resp;
         dd($resp);
         exit();
         $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
@@ -259,7 +248,7 @@ class MasterCrulController
             'password' => 'Demo12345',
             'page' => 'member',
             'cmd' => 'login',
-            'act' => 'login'
+            'act' => 'login',
         ]);
         // curl_setopt(...);
         curl_exec($curl);
@@ -274,24 +263,23 @@ class MasterCrulController
         $page = curl_exec($curl);
         dd($page);
     }
+
     /**
      * Fungsi untuk setup ke url api telgram
      *
      * @param action string berisi parammeter fungsi api dari telegram
      * @param token string berisi token untuk akses auth, jika kosong akan di ambil dari TOKEN di config
-     *
      * @return string berisi return full url untuk akses ke api telegram
      */
-
-    function loginMaster($action, $param = null, $token = null)
+    public function loginMaster($action, $param = null, $token = null)
     {
-        $param_segment = isset($param) ? $param . '/' : '';
+        $param_segment = isset($param) ? $param.'/' : '';
         $api_token = $token ?? config('MasterConfig.main.TOKEN');
-        $uRL = config('MasterConfig.main.URL', url('/')) . $param_segment . $action;
+        $uRL = config('MasterConfig.main.URL', url('/')).$param_segment.$action;
+
         // $uRL = config('MasterConfig.main.URL', url('/')) . $param_segment . $api_token . '/' . $action;
         return $uRL;
     }
-
 
     /**
      * Fungsi awal sebelum melakukan request ke api telgram, mengunakan bawan http call dungsi curl dari laravel
@@ -303,6 +291,7 @@ class MasterCrulController
         $masterSend = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
             'verify' => config('MasterConfig.curl.VERIFY', false),
         ]);
+
         return $masterSend;
     }
 
@@ -310,12 +299,11 @@ class MasterCrulController
      * Fungsi untuk kirim validasi format error
      *
      * @param error array berisi list data yang error
-     *
      * @return json berisi return dari format function setOutput
      */
-    function validateError($error = null)
+    public function validateError($error = null)
     {
-        $data['status'] =  'gagal';
+        $data['status'] = 'gagal';
         $data['code'] = '400';
         $data['data'] = $error;
 
@@ -327,10 +315,9 @@ class MasterCrulController
      *
      * @param respond mix data bisa json maupun object
      * @param type jenis dari respond yang di harapkan [json,body,object]
-     *
      * @return mix respond data dari param type defaultnya json
      */
-    function setOutput($respon = null, $type = 'json')
+    public function setOutput($respon = null, $type = 'json')
     {
         // dd(9,$type,$respon);
         if ($type == 'json') {
@@ -346,6 +333,7 @@ class MasterCrulController
         } else {
             $return = $respon->{$type}();
         }
+
         return $return;
     }
 
@@ -355,7 +343,6 @@ class MasterCrulController
      *
      * @param  \Illuminate\Http\Request  $request
      * @param rules array berisi list data rule yang di harapkan
-     *
      * @return mix akan return boolean true jika sukses jika gagal akan respod json untuk data errornya
      */
     public function validator($request_all, $rules)
@@ -366,10 +353,12 @@ class MasterCrulController
             $return['status'] = 'gagal';
             $return['code'] = 204;
             $return['data'] = $error->getMessages();
-            return  self::setOutput($return);
+
+            return self::setOutput($return);
             // Response::make(self::validateError($error))->send();
             // exit();
         }
+
         return true;
     }
 
@@ -378,7 +367,6 @@ class MasterCrulController
      * jika gagal makan akan dikirim detail respond erro dari telegram
      *
      * @param masterSend retun data object dari http cal ke api telegram
-     *
      * @return json respond data dengan format standart json
      */
     public function masterRespond($masterSend)
@@ -443,7 +431,8 @@ class MasterCrulController
             $telegram_db = Telegram::create($created);
         } else {
             $telegram_db = false;
-        };
+        }
+
         // dd($telegram_db, isset($data->ok), $data);
         return $telegram_db;
     }
@@ -461,24 +450,24 @@ class MasterCrulController
         //     }
         // }
 
-        if (isset($_SERVER['HTTP_CLIENT_IP']))
+        if (isset($_SERVER['HTTP_CLIENT_IP'])) {
             $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
-        else if (isset($_SERVER['HTTP_X_FORWARDED_FOR']))
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        else if (isset($_SERVER['HTTP_X_FORWARDED']))
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED'])) {
             $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
-        else if (isset($_SERVER['HTTP_FORWARDED_FOR']))
+        } elseif (isset($_SERVER['HTTP_FORWARDED_FOR'])) {
             $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
-        else if (isset($_SERVER['HTTP_FORWARDED']))
+        } elseif (isset($_SERVER['HTTP_FORWARDED'])) {
             $ipaddress = $_SERVER['HTTP_FORWARDED'];
-        else if (isset($_SERVER['REMOTE_ADDR']))
+        } elseif (isset($_SERVER['REMOTE_ADDR'])) {
             $ipaddress = $_SERVER['REMOTE_ADDR'];
-        else
+        } else {
             $ipaddress = $request->ip();
+        }
 
         return $ipaddress; // it will return the server IP if the client IP is not found using this method.
     }
-
 
     private function generateRandomString($n)
     {
@@ -500,10 +489,10 @@ class MasterCrulController
     {
         $key = base64_decode(config('MasterConfig.main.KEY'));
         $fromKey = $key;
-        $cipher = "AES-256-CBC"; //or AES-128-CBC if you prefer
+        $cipher = 'AES-256-CBC'; // or AES-128-CBC if you prefer
 
         try {
-            //Create two encrypters using different keys for each
+            // Create two encrypters using different keys for each
             $encrypterFrom = new Encrypter($fromKey, $cipher);
             $token = $request->token ?? $encrypterFrom->encryptString($request->string ?? $credentials['id']);
 
@@ -516,6 +505,7 @@ class MasterCrulController
 
             $return = false;
         }
+
         return $return;
     }
 
@@ -528,20 +518,19 @@ class MasterCrulController
 
         $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
             'verify' => config('MasterConfig.curl.VERIFY', false),
-        ])->post(config('MasterConfig.main.URL', url('/')) . 'forgot_password', $data);
+        ])->post(config('MasterConfig.main.URL', url('/')).'forgot_password', $data);
 
-
-        Log::info('user: sys url: ' . url()->current() . ' message: SSO forgot request :' . json_encode($data));
+        Log::info('user: sys url: '.url()->current().' message: SSO forgot request :'.json_encode($data));
 
         if ($response->ok()) {
             $data = $response->object();
-            $respond =  self::masterRespond($response);
+            $respond = self::masterRespond($response);
         } else {
             $data = $response->object();
             $respond = false;
         }
 
-        Log::info('user: sys url: ' . url()->current() . ' message: SSO forgot respond :' . json_encode($data));
+        Log::info('user: sys url: '.url()->current().' message: SSO forgot respond :'.json_encode($data));
 
         return $respond;
     }
@@ -560,19 +549,19 @@ class MasterCrulController
         // dd($data, config('MasterConfig.main.URL', url('/')) . 'forgot_password');
         $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
             'verify' => config('MasterConfig.curl.VERIFY', false),
-        ])->post(config('MasterConfig.main.URL', url('/')) . 'update_password', $data);
+        ])->post(config('MasterConfig.main.URL', url('/')).'update_password', $data);
 
-        Log::info('user: sys url: ' . url()->current() . ' message: SSO login request :' . json_encode($logData));
+        Log::info('user: sys url: '.url()->current().' message: SSO login request :'.json_encode($logData));
 
         if ($response->ok()) {
             $data = $response->object();
-            $respond =  self::masterRespond($response);
+            $respond = self::masterRespond($response);
         } else {
             $data = $response->object();
             $respond = false;
         }
 
-        Log::info('user: sys url: ' . url()->current() . ' message: SSO login respond :' . json_encode($logData));
+        Log::info('user: sys url: '.url()->current().' message: SSO login respond :'.json_encode($logData));
 
         // dd( $response->body());
         return $respond;
@@ -581,26 +570,25 @@ class MasterCrulController
     // public function auth($email, $password)
     public function auth(Request $request, $credentials = [])
     {
-        /*internal cek DB user by token user id ada bug kalo user_status tidak sync ke master*/
+        /* internal cek DB user by token user id ada bug kalo user_status tidak sync ke master */
         $token = $request->token ? self::sessionSet($request->token) : false;
         // dd($token);
         // $this->auth($request,['email'=>'2','password'=>2]);
         // dd($credentials);
         if (empty($token)) {
 
-            $credentials = !empty($credentials) ? $credentials : $request->all();
+            $credentials = ! empty($credentials) ? $credentials : $request->all();
             extract($credentials);
-            $rules = array(
-                'email' => "required|min:5",
-                'password'  => "required|min:3|max:30",
-            );
+            $rules = [
+                'email' => 'required|min:5',
+                'password' => 'required|min:3|max:30',
+            ];
 
             // $request_all = $request->all();
             $request_all['email'] = @$email;
             $request_all['password'] = @$password;
 
             // self::validator($request_all, $rules);
-
 
             $data['app_code'] = config('MasterConfig.main.APP_CODE', 'APP01');
             $data['email'] = $email;
@@ -610,20 +598,20 @@ class MasterCrulController
             }
             $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
                 'verify' => config('MasterConfig.curl.VERIFY', false),
-            ])->post(config('MasterConfig.main.URL', url('/')) . 'auth_login', $data);
+            ])->post(config('MasterConfig.main.URL', url('/')).'auth_login', $data);
 
             $data['password'] = '******';
-            Log::info('user: sys url: ' . url()->current() . ' message: SSO login request :' . json_encode($data));
+            Log::info('user: sys url: '.url()->current().' message: SSO login request :'.json_encode($data));
 
             if ($response->ok()) {
                 $data = $response->object();
-                $respond =  self::masterRespond($response);
+                $respond = self::masterRespond($response);
             } else {
                 $data = $response->object();
                 $respond = false;
             }
 
-            Log::info('user: sys url: ' . url()->current() . ' message: SSO login respond :' . json_encode($data));
+            Log::info('user: sys url: '.url()->current().' message: SSO login respond :'.json_encode($data));
 
             // dd( $response->body());
             return $respond;
@@ -632,54 +620,54 @@ class MasterCrulController
         }
     }
 
-
     public function cobaCurl()
     {
         $data['email'] = 'bagas.setyonugroho@demo.com';
         $data['password'] = 'bagas.setyonugroho@demo.com';
         $response = Http::timeout(config('MasterConfig.curl.TIMEOUT', 30))->withOptions([
             'verify' => config('MasterConfig.curl.VERIFY', false),
-        ])->post(config('MasterConfig.main.URL', url('/')) . '/auth_login', $data);
+        ])->post(config('MasterConfig.main.URL', url('/')).'/auth_login', $data);
 
         if ($response->ok()) {
             $data = $response->body();
         }
-        Log::info("cobaCurl::" . $data);
+        Log::info('cobaCurl::'.$data);
+
         return $data;
     }
-
-
 
     public function sessionSet($token)
     {
         dd('ada bug karena ganti auto login pakek email, solve cari id by email untuk dapat id');
         try {
-            $user_id =  $token ? Crypt::decryptString($token) : null;
+            $user_id = $token ? Crypt::decryptString($token) : null;
         } catch (\Exception $e) {
-            $data['status'] =   'gagal';
-            $data['code'] =   101;
-            $data['data'] =   $e->getMessage();
+            $data['status'] = 'gagal';
+            $data['code'] = 101;
+            $data['data'] = $e->getMessage();
+
             return self::setOutput($data);
         }
-
 
         $route = 'home';
         if ($user_id) {
             // Manually Logging a user (Here is successfully recieve the user id)
             $loggedInUser = \Auth::loginUsingId($user_id);
 
-            if (!$loggedInUser || $loggedInUser->is_active == 0) {
+            if (! $loggedInUser || $loggedInUser->is_active == 0) {
                 // If User not logged in, then Throw exception
                 // throw new Exception('Single SignOn: User Cannot be Signed In');
                 // dd('Single SignOn: User Cannot be Signed In');
 
-                $data['status'] =   'gagal';
-                $data['code'] =   101;
-                $data['data'] =   'Single SignOn: User Cannot be Signed In';
+                $data['status'] = 'gagal';
+                $data['code'] = 101;
+                $data['data'] = 'Single SignOn: User Cannot be Signed In';
+
                 return self::setOutput($data);
                 // return false;
             }
-            $redirectTo = '/' . $route;
+            $redirectTo = '/'.$route;
+
             // dd($redirectTo,$loggedInUser->toArray(),1,$id);
             return redirect($redirectTo);
             // return $redirectTo;
@@ -692,10 +680,11 @@ class MasterCrulController
     {
         $user = \Auth::check();
         if ($user) {
-            $data['data'] =   \Auth::user()->toArray();
+            $data['data'] = \Auth::user()->toArray();
         } else {
             $data['data'] = [];
         }
+
         return self::setOutput($data);
     }
 
@@ -704,16 +693,17 @@ class MasterCrulController
         dd('ada bug karena ganti auto login pakek email, solve cari id by email untuk dapat id');
         try {
 
-            $request = new Request();
+            $request = new Request;
             $request['token'] = $token;
             $token = self::token($request);
             // dd($request->all(), $token);
             $user_id = $token['decryptedFromString'];
             // $user_id =  $token ? Crypt::decryptString($token) : null;
         } catch (\Exception $e) {
-            $data['status'] =   'gagal';
-            $data['code'] =   101;
-            $data['data'] =   $e->getMessage();
+            $data['status'] = 'gagal';
+            $data['code'] = 101;
+            $data['data'] = $e->getMessage();
+
             return self::setOutput($data);
         }
         // dd($user_id);
@@ -721,10 +711,11 @@ class MasterCrulController
         if (\Auth::id() == $user_id) {
             $route = 'login';
             $session = session::where('user_id', $user_id)->delete();
-            $redirectTo = '/' . $route;
+            $redirectTo = '/'.$route;
         } else {
             $redirectTo = '/';
         }
+
         return redirect($redirectTo);
     }
 }

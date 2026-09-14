@@ -2,29 +2,26 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use App\Http\Controllers\Controller;
+use App\Models\Gallery;
+use App\Models\Requisition;
+use App\Models\Routing;
+use App\Models\User;
+use App\Models\UserDetail;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Session;
+// jika punya routing skema dari spb enl contohnya
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Image;
 use Mpdf\Mpdf;
 use setasign\Fpdi\Tcpdf\Fpdi;
-use App\Http\Controllers\Controller;
-use App\Models\UserDetail;
-use App\Models\User;
-
-use Illuminate\Support\Facades\Auth;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-
-//jika punya routing skema dari spb enl contohnya
-use App\Models\Gallery;
-use App\Models\Routing;
-use App\Models\Requisition;
-use Illuminate\Support\Facades\Schema;
-
 
 class ApiAnnotationController extends Controller
 {
@@ -47,22 +44,21 @@ class ApiAnnotationController extends Controller
 
             if (empty($file)) {
 
-
                 $file_new = DB::table('ma_file_manager')->insert([
                     'file_url' => $file_url,
-                    'file_name' => $file_name
+                    'file_name' => $file_name,
                 ]);
 
                 $data = [
                     'success' => true,
                     'message' => 'Success added data!',
-                    'data' => $file_new
+                    'data' => $file_new,
                 ];
             } else {
                 $data = [
                     'success' => true,
                     'message' => 'Success!',
-                    'data' => $file
+                    'data' => $file,
                 ];
             }
 
@@ -70,16 +66,16 @@ class ApiAnnotationController extends Controller
             $host_url = $parsedUrl['host'] ?? '';
             $sub_folder = str_replace('.', '-', $host_url);
 
-            $path = storage_path('app/public/' . $sub_folder);
+            $path = storage_path('app/public/'.$sub_folder);
 
-            if (!file_exists($path)) {
+            if (! file_exists($path)) {
                 mkdir($path, 0777, true);
             }
 
             $data['data']->sub_folder = $sub_folder;
 
-            $filePath = $sub_folder . '/' . $file_name . '-' . $file->id . '.pdf';
-            if (!Storage::disk('public')->exists($filePath)) {
+            $filePath = $sub_folder.'/'.$file_name.'-'.$file->id.'.pdf';
+            if (! Storage::disk('public')->exists($filePath)) {
                 $response = Http::get($file_url);
 
                 if ($response->successful()) {
@@ -90,14 +86,16 @@ class ApiAnnotationController extends Controller
         } catch (\Throwable $th) {
             $data = [
                 'success' => false,
-                'message' => 'Theres something an error!'
+                'message' => 'Theres something an error!',
             ];
         }
+
         return response()->json($data);
     }
 
-    function normalizeLineBreaks($text) {
-        if (!is_string($text) || trim($text) === '') {
+    public function normalizeLineBreaks($text)
+    {
+        if (! is_string($text) || trim($text) === '') {
             return ''; // jika bukan string atau kosong
         }
 
@@ -129,7 +127,7 @@ class ApiAnnotationController extends Controller
             $currentLine = '';
 
             foreach ($words as $word) {
-                $testLine = trim($currentLine . ' ' . $word);
+                $testLine = trim($currentLine.' '.$word);
 
                 // hitung lebar teks aktual
                 $bbox = imagettfbbox($fontSize, $angle, $fontPath, $testLine);
@@ -160,16 +158,15 @@ class ApiAnnotationController extends Controller
             array_pop($lines);
         }
 
-        $lines = array_filter($lines, fn($v) => trim($v) !== '');
+        $lines = array_filter($lines, fn ($v) => trim($v) !== '');
         $lines = array_values($lines); // reset index ke 0,1,2,...
 
         return $lines;
     }
 
-
     public function loadImageOLD($imagePath)
     {
-        if (!file_exists($imagePath)) {
+        if (! file_exists($imagePath)) {
             throw new \Exception("File tidak ditemukan: $imagePath");
         }
 
@@ -188,16 +185,17 @@ class ApiAnnotationController extends Controller
                 throw new \Exception("Format gambar tidak didukung: $imagePath");
         }
     }
-    function loadImage($imagePath)
+
+    public function loadImage($imagePath)
     {
-        if (!file_exists($imagePath)) {
+        if (! file_exists($imagePath)) {
             throw new \Exception("File tidak ditemukan: $imagePath");
         }
 
         $imageInfo = getimagesize($imagePath);
 
         if ($imageInfo === false) {
-            throw new \Exception("Tidak dapat membaca informasi gambar.");
+            throw new \Exception('Tidak dapat membaca informasi gambar.');
         }
 
         $mime = $imageInfo['mime'];
@@ -206,6 +204,7 @@ class ApiAnnotationController extends Controller
             case 'image/jpeg':
                 // return imagecreatefromjpeg($imagePath);
                 $imagePathPNG = self::convertJPGtoPNGWithTransparency($imagePath);
+
                 return imagecreatefrompng($imagePathPNG);
             case 'image/png':
                 return imagecreatefrompng($imagePath);
@@ -218,21 +217,22 @@ class ApiAnnotationController extends Controller
         }
     }
 
-    function convertJPGtoPNGWithTransparency($inputFile, $outputFile = null)
+    public function convertJPGtoPNGWithTransparency($inputFile, $outputFile = null)
     {
-        if (!file_exists($inputFile)) {
+        if (! file_exists($inputFile)) {
             throw new \Exception("File tidak ditemukan: $inputFile");
         }
         if (empty($pgnfFile)) {
             $pathinfo = pathinfo($inputFile);
-            $outputFile = $pathinfo['dirname'] . '/' . $pathinfo['filename'] . '.png';
+            $outputFile = $pathinfo['dirname'].'/'.$pathinfo['filename'].'.png';
+
             return $outputFile;
             // dd( $outputFile ,pathinfo($inputFile.'.jpg'),$inputFile);
         }
         // Load gambar JPG
         $image = imagecreatefromjpeg($inputFile);
-        if (!$image) {
-            throw new \Exception("Gagal memuat gambar JPG");
+        if (! $image) {
+            throw new \Exception('Gagal memuat gambar JPG');
         }
 
         // Dapatkan ukuran gambar
@@ -271,11 +271,13 @@ class ApiAnnotationController extends Controller
         return $outputFile;
     }
 
-    function getTokenIdOrEmail($token=null) {
+    public function getTokenIdOrEmail($token = null)
+    {
         $user = user::where('api_token', $token)->first() ?? null;
         if ($user === null) {
-            $user = User::whereRaw('MD5(email) = ?', [$token])->first() ?? abort(401);;
+            $user = User::whereRaw('MD5(email) = ?', [$token])->first() ?? abort(401);
         }
+
         return $user;
     }
 
@@ -286,7 +288,7 @@ class ApiAnnotationController extends Controller
         $name = $user->name;
 
         // Cek apakah file tanda tangan ada
-        if (!file_exists($signature_path)) {
+        if (! file_exists($signature_path)) {
             abort(403, 'Signature file not found.');
         }
 
@@ -297,28 +299,27 @@ class ApiAnnotationController extends Controller
         // Konversi Pemisah tanggal dan jam
         $pemisahDate = ' ';
         $annotation_timestamp = LibraryClayController::getSettingByCategory('annotation_timestamp');
-        if($annotation_timestamp){
-            $pemisahDate = $annotation_timestamp['dateSeparator']??' ';
-        };
+        if ($annotation_timestamp) {
+            $pemisahDate = $annotation_timestamp['dateSeparator'] ?? ' ';
+        }
 
         $dateFormat = date('d M Y', $strtotime).$pemisahDate.date('H:i:s', $strtotime);
         // dd($dateFormat);
         // Simpan gambar dengan timestamp
-        $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
-        if($request->input('refresh')==1&&file_exists($outputPath)){
+        $outputPath = '/tmp/ttd_with_timestamp'.basename($signature_path).$dateFormat.'.png';
+        if ($request->input('refresh') == 1 && file_exists($outputPath)) {
             // dd(1,$outputPath,unlink($outputPath));
             $unlink = unlink($outputPath);
             log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
-        }elseif(file_exists($outputPath)&&empty($request->debug==1)) {
+        } elseif (file_exists($outputPath) && empty($request->debug == 1)) {
             return $outputPath;
         }
-
 
         try {
             // Muat gambar tanda tangan asli
             $signatureImage = self::loadImage($signature_path);
         } catch (\Exception $e) {
-            die("Error: " . $e->getMessage());
+            exit('Error: '.$e->getMessage());
         }
 
         // Dapatkan dimensi gambar asli
@@ -330,7 +331,6 @@ class ApiAnnotationController extends Controller
         $canvasWidth = $originalWidth; // Dobel lebar untuk ruang teks
         $canvasHeight = $originalHeight;
         $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
-
 
         // Set background transparan
         imagealphablending($canvas, false);
@@ -344,11 +344,11 @@ class ApiAnnotationController extends Controller
 
         // Konversi tanda tangan ke warna yang diinginkan
         $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
-        if($annotation_sign){
+        if ($annotation_sign) {
             $hex = $annotation_sign['color'] ?? '#000000';
-            list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+            [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
             imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
-        };
+        }
 
         // Tentukan warna teks (hitam)
         $textColor = imagecolorallocate($canvas, 0, 0, 0);
@@ -357,13 +357,12 @@ class ApiAnnotationController extends Controller
         // $fontSize = 5 / 100 * $originalWidth;
         // $fontSize2 = 7 / 100 * $originalWidth;
 
-
         // PERBAIKAN: Font size yang lebih besar dan perhitungan yang benar
         $fontSize = max(12, ($originalWidth * 5) / 100); // Minimal 12px
         $fontSize2 = max(14, ($originalWidth * 7) / 100); // Minimal 14px
 
         // Path font
-        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font', 'arial.ttf'));
 
         // Posisi untuk timestamp (di bagian bawah)
         $timestampX = 10;
@@ -371,7 +370,6 @@ class ApiAnnotationController extends Controller
 
         // Tambahkan timestamp ke canvas
         // imagettftext($canvas, $fontSize, 0, $timestampX, $timestampY, $textColor, $fontPath, $dateFormat);
-
 
         // Wrap text untuk timestamp jika terlalu panjang
         $maxTextWidth = $originalWidth - 20; // Lebar area teks
@@ -384,7 +382,6 @@ class ApiAnnotationController extends Controller
             $lineY = $timestampY + ($i * ($fontSize + 8));
             imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
         }
-
 
         // Posisi untuk nama (di bawah timestamp)
         // $nameY = $originalHeight - 30; // Lebih ke bawah dari timestamp
@@ -406,7 +403,7 @@ class ApiAnnotationController extends Controller
             $lineY = $nameY + ($i * ($fontSize2 + 8));
             // Pastikan teks tidak keluar dari canvas
             // if ($lineY < $canvasHeight - 20) {
-                imagettftext($canvas, $fontSize2, 0, 10, $lineY, $textColor, $fontPath, $line);
+            imagettftext($canvas, $fontSize2, 0, 10, $lineY, $textColor, $fontPath, $line);
             // }
         }
 
@@ -419,151 +416,152 @@ class ApiAnnotationController extends Controller
 
         return $outputPath;
     }
-public function getSignatureWithTimeStampKanan($signature_path, $request)
-{
-    $token = $request->token;
-    $user = $this->getTokenIdOrEmail($token);
-    $name = $user->name;
 
-    // Cek apakah file tanda tangan ada
-    if (!file_exists($signature_path)) {
-        abort(403, 'Signature file not found.');
-    }
+    public function getSignatureWithTimeStampKanan($signature_path, $request)
+    {
+        $token = $request->token;
+        $user = $this->getTokenIdOrEmail($token);
+        $name = $user->name;
 
-    // Ambil waktu saat ini
-    $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
-    $strtotime = strtotime(base64_decode($currentTime));
-    // Konversi Pemisah tanggal dan jam
-    $pemisahDate = ' ';
-    $annotation_timestamp = LibraryClayController::getSettingByCategory('annotation_timestamp');
-    if($annotation_timestamp){
-        $pemisahDate = $annotation_timestamp['dateSeparator']??' ';
-    };
-    $dateFormat = date('d M Y', $strtotime).$pemisahDate.date('H:i:s', $strtotime);
-
-    // Simpan gambar dengan timestamp
-    $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
-    if($request->input('refresh')==1&&file_exists($outputPath)){
-        // dd(1,$outputPath,unlink($outputPath));
-       $unlink = unlink($outputPath);
-       log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
-    }elseif(file_exists($outputPath)&&empty($request->debug==1)) {
-        return $outputPath;
-    }
-
-    try {
-        // Muat gambar tanda tangan asli
-        $signatureImage = self::loadImage($signature_path);
-    } catch (\Exception $e) {
-        die("Error: " . $e->getMessage());
-       log::Error('signatureImage load::'. $e->getMessage());
-    }
-
-    // Dapatkan dimensi gambar asli
-    // dd($signature_path,$signatureImage);
-    $originalWidth = imagesx($signatureImage);
-    $originalHeight = imagesy($signatureImage);
-    // dd(
-    //     $originalWidth,$originalHeight
-    // ,$signature_path,$signatureImage
-    // ,getBoxSize([78.75,444,228.75,566.25]) , getBoxSize([105,301,305,464]) );
-
-    // PERBAIKAN: Buat canvas baru dengan lebar diperluas untuk teks
-    $canvasWidth = $originalWidth * 2; // Dobel lebar untuk ruang teks
-    $canvasHeight = $originalHeight * 1;
-    $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
-
-    // Set background transparan
-    imagealphablending($canvas, false);
-    imagesavealpha($canvas, true);
-    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-    imagefill($canvas, 0, 0, $transparent);
-    imagealphablending($canvas, true);
-
-    // Copy gambar signature ke canvas (posisi kiri)
-    imagecopy($canvas, $signatureImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
-
-    // Konversi tanda tangan ke warna yang diinginkan
-    $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
-    $hex = $annotation_sign['color'] ?? '#000000';
-    list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
-    imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
-
-    // Tentukan warna teks (hitam)
-    $textColor = imagecolorallocate($canvas, 0, 0, 0);
-
-    // PERBAIKAN: Font size yang lebih besar dan perhitungan yang benar
-    $fontSize = max(12, ($originalWidth * 5) / 100); // Minimal 12px
-    $fontSize2 = max(14, ($originalWidth * 7) / 100); // Minimal 14px
-    // dd($fontSize,$fontSize2);
-    // Path font
-    $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
-
-    // Cek apakah font file ada
-    $useBuiltInFont = !file_exists($fontPath);
-
-    // PERBAIKAN: Posisi untuk timestamp dan nama (di sebelah kanan signature)
-    $rightSectionX = $originalWidth + 10; // 10px margin dari signature
-    $maxTextWidth = $originalWidth - 20; // Lebar area teks
-
-    // PERBAIKAN: Posisi timestamp yang tidak terpotong
-    $timestampY = $fontSize + 10; // Sesuaikan dengan ukuran font
-
-    if ($useBuiltInFont) {
-        // dd(1);
-        // Gunakan font built-in GD jika TTF tidak tersedia
-        $fontSizeBuiltIn = 5; // Font size maksimal (1-5)
-        $fontSizeBuiltIn2 = 5;
-
-        // Tambahkan timestamp ke canvas
-        imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
-
-        // Tulis nama di bawah timestamp
-        $nameY = $timestampY + 25;
-        imagestring($canvas, $fontSizeBuiltIn2, $rightSectionX, $nameY, $name, $textColor);
-
-    } else {
-        // dd(2);
-        // Gunakan TTF font
-        // Wrap text untuk timestamp jika terlalu panjang
-        $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
-
-        // Tambahkan timestamp ke canvas per baris
-        foreach ($timestampLines as $i => $line) {
-            $lineY = $timestampY + ($i * ($fontSize + 8));
-            imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+        // Cek apakah file tanda tangan ada
+        if (! file_exists($signature_path)) {
+            abort(403, 'Signature file not found.');
         }
 
-        // Posisi untuk nama (di bawah timestamp)
-        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 8)) + 20;
-        $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
+        // Ambil waktu saat ini
+        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+        $strtotime = strtotime(base64_decode($currentTime));
+        // Konversi Pemisah tanggal dan jam
+        $pemisahDate = ' ';
+        $annotation_timestamp = LibraryClayController::getSettingByCategory('annotation_timestamp');
+        if ($annotation_timestamp) {
+            $pemisahDate = $annotation_timestamp['dateSeparator'] ?? ' ';
+        }
+        $dateFormat = date('d M Y', $strtotime).$pemisahDate.date('H:i:s', $strtotime);
 
-        // Tulis nama per baris
-        foreach ($nameLines as $i => $line) {
-            $lineY = $nameY + ($i * ($fontSize2 + 8));
-            // Pastikan teks tidak keluar dari canvas
-            if ($lineY < $canvasHeight - 20) {
-                imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+        // Simpan gambar dengan timestamp
+        $outputPath = '/tmp/ttd_with_timestamp'.basename($signature_path).$dateFormat.'.png';
+        if ($request->input('refresh') == 1 && file_exists($outputPath)) {
+            // dd(1,$outputPath,unlink($outputPath));
+            $unlink = unlink($outputPath);
+            log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
+        } elseif (file_exists($outputPath) && empty($request->debug == 1)) {
+            return $outputPath;
+        }
+
+        try {
+            // Muat gambar tanda tangan asli
+            $signatureImage = self::loadImage($signature_path);
+        } catch (\Exception $e) {
+            exit('Error: '.$e->getMessage());
+            log::Error('signatureImage load::'.$e->getMessage());
+        }
+
+        // Dapatkan dimensi gambar asli
+        // dd($signature_path,$signatureImage);
+        $originalWidth = imagesx($signatureImage);
+        $originalHeight = imagesy($signatureImage);
+        // dd(
+        //     $originalWidth,$originalHeight
+        // ,$signature_path,$signatureImage
+        // ,getBoxSize([78.75,444,228.75,566.25]) , getBoxSize([105,301,305,464]) );
+
+        // PERBAIKAN: Buat canvas baru dengan lebar diperluas untuk teks
+        $canvasWidth = $originalWidth * 2; // Dobel lebar untuk ruang teks
+        $canvasHeight = $originalHeight * 1;
+        $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
+
+        // Set background transparan
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefill($canvas, 0, 0, $transparent);
+        imagealphablending($canvas, true);
+
+        // Copy gambar signature ke canvas (posisi kiri)
+        imagecopy($canvas, $signatureImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
+
+        // Konversi tanda tangan ke warna yang diinginkan
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000';
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+
+        // Tentukan warna teks (hitam)
+        $textColor = imagecolorallocate($canvas, 0, 0, 0);
+
+        // PERBAIKAN: Font size yang lebih besar dan perhitungan yang benar
+        $fontSize = max(12, ($originalWidth * 5) / 100); // Minimal 12px
+        $fontSize2 = max(14, ($originalWidth * 7) / 100); // Minimal 14px
+        // dd($fontSize,$fontSize2);
+        // Path font
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font', 'arial.ttf'));
+
+        // Cek apakah font file ada
+        $useBuiltInFont = ! file_exists($fontPath);
+
+        // PERBAIKAN: Posisi untuk timestamp dan nama (di sebelah kanan signature)
+        $rightSectionX = $originalWidth + 10; // 10px margin dari signature
+        $maxTextWidth = $originalWidth - 20; // Lebar area teks
+
+        // PERBAIKAN: Posisi timestamp yang tidak terpotong
+        $timestampY = $fontSize + 10; // Sesuaikan dengan ukuran font
+
+        if ($useBuiltInFont) {
+            // dd(1);
+            // Gunakan font built-in GD jika TTF tidak tersedia
+            $fontSizeBuiltIn = 5; // Font size maksimal (1-5)
+            $fontSizeBuiltIn2 = 5;
+
+            // Tambahkan timestamp ke canvas
+            imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
+
+            // Tulis nama di bawah timestamp
+            $nameY = $timestampY + 25;
+            imagestring($canvas, $fontSizeBuiltIn2, $rightSectionX, $nameY, $name, $textColor);
+
+        } else {
+            // dd(2);
+            // Gunakan TTF font
+            // Wrap text untuk timestamp jika terlalu panjang
+            $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
+
+            // Tambahkan timestamp ke canvas per baris
+            foreach ($timestampLines as $i => $line) {
+                $lineY = $timestampY + ($i * ($fontSize + 8));
+                imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+            }
+
+            // Posisi untuk nama (di bawah timestamp)
+            $nameY = $timestampY + (count($timestampLines) * ($fontSize + 8)) + 20;
+            $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
+
+            // Tulis nama per baris
+            foreach ($nameLines as $i => $line) {
+                $lineY = $nameY + ($i * ($fontSize2 + 8));
+                // Pastikan teks tidak keluar dari canvas
+                if ($lineY < $canvasHeight - 20) {
+                    imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+                }
             }
         }
+
+        // Debug: Uncomment untuk melihat area canvas
+        if ($request->debug == 1) {
+            $red = imagecolorallocate($canvas, 255, 0, 0);
+            imagerectangle($canvas, 0, 0, $canvasWidth - 1, $canvasHeight - 1, $red);
+            imagerectangle($canvas, $rightSectionX - 2, $timestampY - $fontSize - 2, $rightSectionX + $maxTextWidth + 2, $canvasHeight - 20, $red);
+        }
+
+        // Simpan hasil ke file
+        imagepng($canvas, $outputPath);
+
+        // Hapus resource gambar dari memori
+        imagedestroy($signatureImage);
+        imagedestroy($canvas);
+
+        return $outputPath;
     }
-
-    // Debug: Uncomment untuk melihat area canvas
-    if($request->debug==1){
-        $red = imagecolorallocate($canvas, 255, 0, 0);
-        imagerectangle($canvas, 0, 0, $canvasWidth-1, $canvasHeight-1, $red);
-        imagerectangle($canvas, $rightSectionX-2, $timestampY-$fontSize-2, $rightSectionX+$maxTextWidth+2, $canvasHeight-20, $red);
-    }
-
-    // Simpan hasil ke file
-    imagepng($canvas, $outputPath);
-
-    // Hapus resource gambar dari memori
-    imagedestroy($signatureImage);
-    imagedestroy($canvas);
-
-    return $outputPath;
-}
 
     public function getSignatureWithTimeStampOLD($signature_path, $request)
     {
@@ -573,7 +571,7 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
         $name = $user->name;
         // dd( $token,$name);
         // Cek apakah file tanda tangan ada
-        if (!file_exists($signature_path)) {
+        if (! file_exists($signature_path)) {
             // Jika file tidak ditemukan
             abort(403, 'Signature file not found.');
         }
@@ -588,7 +586,7 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
         $strtotime = strtotime(base64_decode($currentTime));
         $dateFormat = date('d M Y H:i:s', $strtotime);
         // Simpan gambar dengan timestamp
-        $outputPath = '/tmp/ttd_with_timestamp' . basename($signature_path) . $dateFormat . '.png';
+        $outputPath = '/tmp/ttd_with_timestamp'.basename($signature_path).$dateFormat.'.png';
         if (file_exists($outputPath)) {
             return $outputPath;
         }
@@ -598,13 +596,13 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
         try {
             $image = self::loadImage($imagePath); // Memuat gambar dengan deteksi otomatis
         } catch (\Exception $e) {
-            die("Error: " . $e->getMessage());
+            exit('Error: '.$e->getMessage());
         }
 
         // Konversi tanda tangan ke warna biru
         $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
         $hex = $annotation_sign['color'] ?? '#000000'; // fallback kalau null
-        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
         imagefilter($image, IMG_FILTER_COLORIZE, $r, $g, $b);
 
         // Aktifkan mode alpha untuk transparansi
@@ -619,13 +617,12 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
         $fontSize = 5 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
         $fontSize2 = 7 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
         // Jika ingin menggunakan font custom, contoh:
-        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font', 'arial.ttf'));
 
         // Tentukan posisi teks (x, y)
         $x = 10; // Jarak dari kiri
         $y = 10 + $fontSize; // Jarak dari bawah
         $y2 = imagesy($image) - 100; // Jarak dari bawah
-
 
         // Tambahkan teks timestamp ke gambar
         imagettftext($image, $fontSize, 0, $x, $y, $textColor, $fontPath, $dateFormat);
@@ -652,138 +649,139 @@ public function getSignatureWithTimeStampKanan($signature_path, $request)
         // imagepng($image);
         // Hapus resource gambar dari memori
         imagedestroy($image);
+
         return $outputPath;
         // echo "Gambar tanda tangan dengan timestamp telah disimpan di: $outputPath";
     }
 
-public function getParafWithTimeStampKanan($paraf_path, $request)
-{
-    $token = $request->token;
-    $user = $this->getTokenIdOrEmail($token);
-    $name = $user->name;
+    public function getParafWithTimeStampKanan($paraf_path, $request)
+    {
+        $token = $request->token;
+        $user = $this->getTokenIdOrEmail($token);
+        $name = $user->name;
 
-    // Cek apakah file tanda tangan ada
-    if (!file_exists($paraf_path)) {
-        abort(403, 'Paraf file not found.');
-    }
-
-    // Ambil waktu saat ini
-    $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
-    $strtotime = strtotime(base64_decode($currentTime));
-    $dateFormat = date('d M Y H:i:s', $strtotime);
-
-    // Simpan gambar dengan timestamp
-    $outputPath = '/tmp/ttd_with_timestamp' . basename($paraf_path) . $dateFormat . '.png';
-
-    if (file_exists($outputPath)) {
-        return $outputPath;
-    }
-
-    try {
-        // Muat gambar paraf asli
-        $parafImage = self::loadImage($paraf_path);
-    } catch (\Exception $e) {
-        die("Error: " . $e->getMessage());
-    }
-
-    // Dapatkan dimensi gambar asli
-    $originalWidth = imagesx($parafImage);
-    $originalHeight = imagesy($parafImage);
-
-    // Buat canvas baru dengan lebar diperluas untuk menampung teks
-    $canvasWidth = $originalWidth * 2; // Dobel lebar untuk memberikan ruang teks
-    $canvasHeight = $originalHeight;
-    $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
-
-    // Set background transparan
-    imagealphablending($canvas, false);
-    imagesavealpha($canvas, true);
-    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-    imagefill($canvas, 0, 0, $transparent);
-    imagealphablending($canvas, true);
-
-    // Copy gambar paraf ke canvas (posisi kiri)
-    imagecopy($canvas, $parafImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
-
-    // Konversi paraf ke warna yang diinginkan
-    $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
-    $hex = $annotation_sign['color'] ?? '#000000';
-    list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
-    imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
-
-    // Tentukan warna teks (hitam)
-    $textColor = imagecolorallocate($canvas, 0, 0, 0);
-
-    // Tentukan ukuran font - perbaiki perhitungan
-    $fontSize = max(12, ($originalWidth * 6) / 100); // Minimal 12px, lebih besar
-    $fontSize2 = max(14, ($originalWidth * 6) / 100); // Minimal 14px, lebih besar
-
-    // Path font - cek apakah font ada
-    $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
-
-    // Jika font tidak ada, gunakan font built-in
-    $useBuiltInFont = !file_exists($fontPath);
-
-    // Posisi untuk timestamp dan nama (di sebelah kanan paraf)
-    $rightSectionX = $originalWidth + 10; // 10px margin dari paraf
-    $maxTextWidth = $originalWidth - 20; // Lebar area teks
-
-    // Posisi timestamp - perbaiki agar tidak terpotong
-    $timestampY = $fontSize + 10; // Sesuaikan dengan ukuran font + margin
-
-    if ($useBuiltInFont) {
-        // Gunakan font built-in GD - ukuran 1-5
-        $fontSizeBuiltIn = 5; // Font size maksimal untuk built-in font
-        $fontSizeBuiltIn2 = 5; // Font size maksimal untuk built-in font
-
-        // Tambahkan timestamp ke canvas
-        imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
-
-        // Tulis nama di bawah timestamp
-        $nameY = $timestampY + 25; // Lebih jauh dari timestamp
-        imagestring($canvas, $fontSizeBuiltIn2, $rightSectionX, $nameY, $name, $textColor);
-
-    } else {
-        // Gunakan TTF font
-        // Debug: cek nilai fontSize
-        // error_log("Font sizes: $fontSize, $fontSize2");
-
-        // Wrap text untuk timestamp jika terlalu panjang
-        $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
-
-        // Tambahkan timestamp ke canvas per baris
-        foreach ($timestampLines as $i => $line) {
-            $lineY = $timestampY + ($i * ($fontSize + 8)); // Tambah spacing antar baris
-            imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+        // Cek apakah file tanda tangan ada
+        if (! file_exists($paraf_path)) {
+            abort(403, 'Paraf file not found.');
         }
 
-        // Posisi untuk nama (di bawah timestamp)
-        $nameY = $timestampY + (count($timestampLines) * ($fontSize + 8)) + 20; // Lebih besar gap
-        $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
+        // Ambil waktu saat ini
+        $currentTime = $request->currentTime ?? date('Y-m-d H:i:s');
+        $strtotime = strtotime(base64_decode($currentTime));
+        $dateFormat = date('d M Y H:i:s', $strtotime);
 
-        // Tulis nama per baris
-        foreach ($nameLines as $i => $line) {
-            $lineY = $nameY + ($i * ($fontSize2 + 8)); // Tambah spacing antar baris
-            // Pastikan teks tidak keluar dari canvas
-            if ($lineY < $canvasHeight - 20) { // Beri margin lebih besar dari bawah
-                imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+        // Simpan gambar dengan timestamp
+        $outputPath = '/tmp/ttd_with_timestamp'.basename($paraf_path).$dateFormat.'.png';
+
+        if (file_exists($outputPath)) {
+            return $outputPath;
+        }
+
+        try {
+            // Muat gambar paraf asli
+            $parafImage = self::loadImage($paraf_path);
+        } catch (\Exception $e) {
+            exit('Error: '.$e->getMessage());
+        }
+
+        // Dapatkan dimensi gambar asli
+        $originalWidth = imagesx($parafImage);
+        $originalHeight = imagesy($parafImage);
+
+        // Buat canvas baru dengan lebar diperluas untuk menampung teks
+        $canvasWidth = $originalWidth * 2; // Dobel lebar untuk memberikan ruang teks
+        $canvasHeight = $originalHeight;
+        $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
+
+        // Set background transparan
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefill($canvas, 0, 0, $transparent);
+        imagealphablending($canvas, true);
+
+        // Copy gambar paraf ke canvas (posisi kiri)
+        imagecopy($canvas, $parafImage, 0, 0, 0, 0, $originalWidth, $originalHeight);
+
+        // Konversi paraf ke warna yang diinginkan
+        $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
+        $hex = $annotation_sign['color'] ?? '#000000';
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+        imagefilter($canvas, IMG_FILTER_COLORIZE, $r, $g, $b);
+
+        // Tentukan warna teks (hitam)
+        $textColor = imagecolorallocate($canvas, 0, 0, 0);
+
+        // Tentukan ukuran font - perbaiki perhitungan
+        $fontSize = max(12, ($originalWidth * 6) / 100); // Minimal 12px, lebih besar
+        $fontSize2 = max(14, ($originalWidth * 6) / 100); // Minimal 14px, lebih besar
+
+        // Path font - cek apakah font ada
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font', 'arial.ttf'));
+
+        // Jika font tidak ada, gunakan font built-in
+        $useBuiltInFont = ! file_exists($fontPath);
+
+        // Posisi untuk timestamp dan nama (di sebelah kanan paraf)
+        $rightSectionX = $originalWidth + 10; // 10px margin dari paraf
+        $maxTextWidth = $originalWidth - 20; // Lebar area teks
+
+        // Posisi timestamp - perbaiki agar tidak terpotong
+        $timestampY = $fontSize + 10; // Sesuaikan dengan ukuran font + margin
+
+        if ($useBuiltInFont) {
+            // Gunakan font built-in GD - ukuran 1-5
+            $fontSizeBuiltIn = 5; // Font size maksimal untuk built-in font
+            $fontSizeBuiltIn2 = 5; // Font size maksimal untuk built-in font
+
+            // Tambahkan timestamp ke canvas
+            imagestring($canvas, $fontSizeBuiltIn, $rightSectionX, $timestampY - $fontSize, $dateFormat, $textColor);
+
+            // Tulis nama di bawah timestamp
+            $nameY = $timestampY + 25; // Lebih jauh dari timestamp
+            imagestring($canvas, $fontSizeBuiltIn2, $rightSectionX, $nameY, $name, $textColor);
+
+        } else {
+            // Gunakan TTF font
+            // Debug: cek nilai fontSize
+            // error_log("Font sizes: $fontSize, $fontSize2");
+
+            // Wrap text untuk timestamp jika terlalu panjang
+            $timestampLines = self::wrapText($fontSize, 0, $fontPath, $dateFormat, $maxTextWidth);
+
+            // Tambahkan timestamp ke canvas per baris
+            foreach ($timestampLines as $i => $line) {
+                $lineY = $timestampY + ($i * ($fontSize + 8)); // Tambah spacing antar baris
+                imagettftext($canvas, $fontSize, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+            }
+
+            // Posisi untuk nama (di bawah timestamp)
+            $nameY = $timestampY + (count($timestampLines) * ($fontSize + 8)) + 20; // Lebih besar gap
+            $nameLines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxTextWidth);
+
+            // Tulis nama per baris
+            foreach ($nameLines as $i => $line) {
+                $lineY = $nameY + ($i * ($fontSize2 + 8)); // Tambah spacing antar baris
+                // Pastikan teks tidak keluar dari canvas
+                if ($lineY < $canvasHeight - 20) { // Beri margin lebih besar dari bawah
+                    imagettftext($canvas, $fontSize2, 0, $rightSectionX, $lineY, $textColor, $fontPath, $line);
+                }
             }
         }
+
+        // Debug: Tambahkan border merah untuk melihat area canvas (opsional)
+        // $red = imagecolorallocate($canvas, 255, 0, 0);
+        // imagerectangle($canvas, 0, 0, $canvasWidth-1, $canvasHeight-1, $red);
+
+        // Simpan hasil ke file
+        imagepng($canvas, $outputPath);
+
+        // Hapus resource gambar dari memori
+        imagedestroy($parafImage);
+        imagedestroy($canvas);
+
+        return $outputPath;
     }
-
-    // Debug: Tambahkan border merah untuk melihat area canvas (opsional)
-    // $red = imagecolorallocate($canvas, 255, 0, 0);
-    // imagerectangle($canvas, 0, 0, $canvasWidth-1, $canvasHeight-1, $red);
-
-    // Simpan hasil ke file
-    imagepng($canvas, $outputPath);
-
-    // Hapus resource gambar dari memori
-    imagedestroy($parafImage);
-    imagedestroy($canvas);
-
-    return $outputPath;
-}
 
     public function getParafStampSize($paraf_path, $request)
     {
@@ -791,7 +789,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $user = $this->getTokenIdOrEmail($token);
         $name = $user->name;
 
-        if (!file_exists($paraf_path)) {
+        if (! file_exists($paraf_path)) {
             abort(403, 'Signature file not found.');
         }
 
@@ -800,18 +798,18 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $dateFormat = date('d M Y H:i:s', $strtotime);
 
         // Tambahkan suffix _resized50 agar tidak konflik dengan file asli
-        $outputPath = '/tmp/ttd_resized_'.$request->input('reSize'). basename($paraf_path) . '.png';
+        $outputPath = '/tmp/ttd_resized_'.$request->input('reSize').basename($paraf_path).'.png';
 
-        if($request->input('refresh') == 1 && file_exists($outputPath)){
+        if ($request->input('refresh') == 1 && file_exists($outputPath)) {
             unlink($outputPath);
-        } elseif(file_exists($outputPath) && empty($request->debug == 1)) {
+        } elseif (file_exists($outputPath) && empty($request->debug == 1)) {
             return $outputPath;
         }
 
         try {
             $sourceImage = self::loadImage($paraf_path);
         } catch (\Exception $e) {
-            die("Error: " . $e->getMessage());
+            exit('Error: '.$e->getMessage());
         }
 
         // --- LOGIKA NORMALISASI SCALE ---
@@ -855,20 +853,20 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // Konversi warna paraf (Biru/Custom)
         $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
         $hex = $annotation_sign['color'] ?? '#000000';
-        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
         imagefilter($image, IMG_FILTER_COLORIZE, $r, $g, $b);
 
         imagealphablending($image, true);
         $textColor = imagecolorallocate($image, 0, 0, 0);
-        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font', 'arial.ttf'));
 
         // Ukuran Font relatif terhadap gambar yang sudah di-resize
         $fontSize = 5 / 100 * $newW;
         $fontSize2 = 7 / 100 * $newW;
 
         // --- LOGIKA CENTER TEXT ---
-        if($request->currentTime){
-        // 1. Teks Tanggal (Atas Tengah)
+        if ($request->currentTime) {
+            // 1. Teks Tanggal (Atas Tengah)
             $bboxDate = imagettfbbox($fontSize, 0, $fontPath, $dateFormat);
             $textWidthDate = $bboxDate[2] - $bboxDate[0];
             $xDate = ($newW - $textWidthDate) / 2;
@@ -876,8 +874,8 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             imagettftext($image, $fontSize, 0, $xDate, $yDate, $textColor, $fontPath, $dateFormat);
         }
 
-        if($request->currentName){
-        // 2. Teks Nama (Bawah Tengah)
+        if ($request->currentName) {
+            // 2. Teks Nama (Bawah Tengah)
             $maxWidth = $newW - 20;
             $lines = self::wrapText($fontSize2, 0, $fontPath, $name, $maxWidth);
 
@@ -908,7 +906,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $name = $user->name;
         // dd( $token,$name);
         // Cek apakah file tanda tangan ada
-        if (!file_exists($paraf_path)) {
+        if (! file_exists($paraf_path)) {
             // Jika file tidak ditemukan
             abort(403, 'Signature file not found.');
         }
@@ -923,12 +921,12 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $strtotime = strtotime(base64_decode($currentTime));
         $dateFormat = date('d M Y H:i:s', $strtotime);
         // Simpan gambar dengan timestamp
-        $outputPath = '/tmp/ttd_with_timestamp' . basename($paraf_path) . $dateFormat . '.png';
-        if($request->input('refresh')==1&&file_exists($outputPath)){
+        $outputPath = '/tmp/ttd_with_timestamp'.basename($paraf_path).$dateFormat.'.png';
+        if ($request->input('refresh') == 1 && file_exists($outputPath)) {
             // dd(1,$outputPath,unlink($outputPath));
-        $unlink = unlink($outputPath);
-        log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
-        }elseif(file_exists($outputPath)&&empty($request->debug==1)) {
+            $unlink = unlink($outputPath);
+            log::info('getSignatureWithTimeStampKanan refresh:: unlink('.$outputPath.')'.$unlink);
+        } elseif (file_exists($outputPath) && empty($request->debug == 1)) {
             return $outputPath;
         }
 
@@ -937,12 +935,12 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         try {
             $image = self::loadImage($imagePath); // Memuat gambar dengan deteksi otomatis
         } catch (\Exception $e) {
-            die("Error: " . $e->getMessage());
+            exit('Error: '.$e->getMessage());
         }
         // Konversi paraf ke warna biru
         $annotation_sign = LibraryClayController::getSettingByCategory('annotation_sign');
         $hex = $annotation_sign['color'] ?? '#000000'; // fallback kalau null
-        list($r, $g, $b) = sscanf($hex, "#%02x%02x%02x");
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
         imagefilter($image, IMG_FILTER_COLORIZE, $r, $g, $b);
         // imagefilter($image, IMG_FILTER_COLORIZE, 0, 0, 255);
 
@@ -958,13 +956,12 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $fontSize = 5 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
         $fontSize2 = 7 / 100 * (imagesx($image)); // Font default GD (ukuran kecil)
         // Jika ingin menggunakan font custom, contoh:
-        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font','arial.ttf'));
+        $fontPath = storage_path('/fonts/'.config('AnnotationConfig.main.font', 'arial.ttf'));
 
         // Tentukan posisi teks (x, y)
         $x = 10; // Jarak dari kiri
         $y = 10 + $fontSize; // Jarak dari bawah
         $y2 = imagesy($image) - 100; // Jarak dari bawah
-
 
         // Tambahkan teks timestamp ke gambar
         imagettftext($image, $fontSize, 0, $x, $y, $textColor, $fontPath, $dateFormat);
@@ -992,16 +989,18 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // imagepng($image);
         // Hapus resource gambar dari memori
         imagedestroy($image);
+
         return $outputPath;
         // echo "Gambar tanda tangan dengan timestamp telah disimpan di: $outputPath";
     }
+
     public function getSignatureWithTimeStampKananKekecilan($signature_path, $request)
     {
         $token = $request->token;
         $user = $this->getTokenIdOrEmail($token);
         $name = $user->name;
 
-        if (!file_exists($signature_path)) {
+        if (! file_exists($signature_path)) {
             abort(403, 'Signature file not found.');
         }
 
@@ -1011,7 +1010,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $dateFormat = date('Y.m.d H:i:s', $strtotime);
 
         // Lokasi penyimpanan gambar hasil
-        $outputPath = '/tmp/ttd_with_timestamp_' . basename($signature_path) . $dateFormat . '.png';
+        $outputPath = '/tmp/ttd_with_timestamp_'.basename($signature_path).$dateFormat.'.png';
         if (file_exists($outputPath)) {
             return $outputPath;
         }
@@ -1071,7 +1070,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         return $outputPath;
     }
 
-    //funngsi ambil paraf
+    // funngsi ambil paraf
     public function getParaf(Request $request)
     {
         $token = $request->token;
@@ -1087,19 +1086,20 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             // Cek apakah file paraf ada
             if (Storage::disk('media')->exists($paraf->field_value)) {
                 if ($request->currentTime) {
-                    if($request->position=='right'){
+                    if ($request->position == 'right') {
                         $paraf_path = self::getParafWithTimeStampKanan($paraf_path, $request);
-                    }elseif($request->reSize){
+                    } elseif ($request->reSize) {
                         $paraf_path = self::getParafStampSize($paraf_path, $request);
-                    }else{
+                    } else {
                         $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
                     }
                 }
                 if ($request->reSize) {
                     $paraf_path = self::getParafStampSize($paraf_path, $request);
                 }
+
                 return response()->file($paraf_path, [
-                    'Content-Type' => 'image/png'
+                    'Content-Type' => 'image/png',
                 ]);
             } else {
                 // Jika file tidak ditemukan
@@ -1110,7 +1110,6 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             abort(403, 'No paraf found for the user.');
         }
 
-
         if ($paraf) {
             // $paraf_url = storage_path($paraf->field_value);
             // dd(storage_path($paraf->field_value),$paraf->toArray());
@@ -1119,6 +1118,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         } else {
             $paraf_url = null;
         }
+
         return $paraf_url;
     }
 
@@ -1129,29 +1129,29 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $user_id = $user->id ?? 0;
         $user_email = $user->email ?? 0;
 
-        if (!Schema::hasTable('user_details')) {
+        if (! Schema::hasTable('user_details')) {
             // Handle jika tabel tidak ditemukan (misal: return default atau log error)
             $signature = null;
             $message_error = 'tabel user_details tidak ditemukan';
 
         } else {
-                $signature_query = UserDetail::select('field_value')->where('field_key', 'signature')
-                ->where(function($query) use ($user_id, $user_email) {
+            $signature_query = UserDetail::select('field_value')->where('field_key', 'signature')
+                ->where(function ($query) use ($user_id, $user_email) {
                     $query->where('user_id', $user_id)
                         ->orWhere('user_email', $user_email);
                 })->orderBy('id', 'desc');
-                $signature = $signature_query->first();
-                // ->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
-                // dd($signature->toRawSql(),$user->toArray(),$user_email,$token, $user_id, $signature);
+            $signature = $signature_query->first();
+            // ->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
+            // dd($signature->toRawSql(),$user->toArray(),$user_email,$token, $user_id, $signature);
         }
         Log::info('[ApiAnnotationController.getSignature] ', [
             'request' => $request->all(),
             'signature' => $signature?->toArray() ?? null,
-            'query' =>$signature_query?->toRawSql() ?? null,
+            'query' => $signature_query?->toRawSql() ?? null,
         ]);
-        
+
         if ($signature) {
-            $signature->field_value = str_replace('/media', '', ($signature?->field_value??''));//bug fix karena path nama sudah ada semua storage media
+            $signature->field_value = str_replace('/media', '', ($signature?->field_value ?? '')); // bug fix karena path nama sudah ada semua storage media
             $signature_path = Storage::disk('media')->path($signature->field_value);
             // dd($request->all(),$request->input('refresh'),$signature_path);
             // Cek apakah file tanda tangan ada
@@ -1162,14 +1162,15 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             ]);
             if (Storage::disk('media')->exists($signature->field_value)) {
                 if ($request->currentTime) {
-                    if($request->position=='right'){
+                    if ($request->position == 'right') {
                         $signature_path = self::getSignatureWithTimeStampKanan($signature_path, $request);
-                    }else{
+                    } else {
                         $signature_path = self::getSignatureWithTimeStamp($signature_path, $request);
                     }
                 }
+
                 return response()->file($signature_path, [
-                    'Content-Type' => 'image/png'
+                    'Content-Type' => 'image/png',
                 ]);
             } else {
                 // Jika file tidak ditemukan
@@ -1180,7 +1181,6 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             abort(403, $message_error ?? 'No signature found for the user.');
         }
 
-
         if ($signature) {
             // $signature_url = storage_path($signature->field_value);
             // dd(storage_path($signature->field_value),$signature->toArray());
@@ -1189,6 +1189,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         } else {
             $signature_url = null;
         }
+
         return $signature_url;
     }
 
@@ -1203,12 +1204,13 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 'annotation_id' => $annotation_id,
                 'file_name' => $file_name_input,
             ]);
+
             return response()->json(['error' => 'annotation_id atau file_name kosong'], 400);
         }
 
         // Pastikan nama file berakhiran .pdf (case-insensitive)
-        if (!preg_match('/\.pdf$/i', $file_name_input)) {
-            $filename = $file_name_input . '.pdf';
+        if (! preg_match('/\.pdf$/i', $file_name_input)) {
+            $filename = $file_name_input.'.pdf';
             Log::info('[Webhook Receiver] Menambahkan ekstensi .pdf pada nama file', [
                 'asli' => $file_name_input,
                 'final' => $filename,
@@ -1232,12 +1234,14 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     'filename' => $filename,
                     'annotation_id' => $annotation_id,
                 ]);
+
                 return response()->json(['message' => 'Annotation ID updated', 'updated' => $updated]);
             } else {
                 Log::warning('[Webhook Receiver] File tidak ditemukan untuk update', [
                     'filename' => $filename,
                     'annotation_id' => $annotation_id,
                 ]);
+
                 return response()->json(['message' => 'File tidak ditemukan'], 404);
             }
         } catch (\Throwable $e) {
@@ -1246,6 +1250,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 'annotation_id' => $annotation_id,
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json(['error' => 'Terjadi kesalahan saat update'], 500);
         }
     }
@@ -1253,11 +1258,12 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function getRequisitionId(Request $request)
     {
         $annotation_id = $request->annotation_id;
-        $filename = $request->file_name . '.pdf'; //'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
+        $filename = $request->file_name.'.pdf'; // 'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
         // dd($filename,$request->all());
         $Gallery = Gallery::where('filename', $filename)->first();
+
         // dd($Gallery,$Gallery->object_id);
-        return $Gallery->object_id??null;
+        return $Gallery->object_id ?? null;
     }
 
     public function getRouting(Request $request)
@@ -1273,10 +1279,10 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
         $Requisition = Requisition::find($getRequisitionId);
         // dd($getRequisitionId,$request->all(),$Requisition->toArray(),$file_name,$file_name_array);
-        $version = $Requisition->version??null;
+        $version = $Requisition->version ?? null;
         $requisition_number = @$file_name_array[1];
 
-        $filename = $request->file_name . '.pdf'; //'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
+        $filename = $request->file_name.'.pdf'; // 'Route-Slip_20000-SPB-BTN-GA-0010160.pdf'
         $Routing = Routing::where('object_id', $getRequisitionId)
             // ->where('active', 1)
             // ->where('requisition_number', $requisition_number) ganti by requisition.id
@@ -1292,15 +1298,15 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function getCurrentUser(Request $request)
     {
         $token = $request->token;
-        if(empty($token)){
+        if (empty($token)) {
             abort(401, 'Unauthorized');
         }
         $file_name = $request->file_name;
         $code_number = explode('_', $file_name);
         $permission = false;
-        $signature_url = url("api/getSignature?token=" . $token);
-        $paraf_url = url("api/getParaf?token=" . $token);
-        //cek token id or email
+        $signature_url = url('api/getSignature?token='.$token);
+        $paraf_url = url('api/getParaf?token='.$token);
+        // cek token id or email
         $user = $this->getTokenIdOrEmail($token);
 
         $user_id = $user->id ?? 0;
@@ -1311,25 +1317,23 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             'user_id' => $user_id,
             'email' => $email,
             'name' => $name,
-            'file_name' => $file_name
+            'file_name' => $file_name,
         ]);
 
-        /*ambil mnilai dari env HAVE_ROUTING jika true ada module routing*/
+        /* ambil mnilai dari env HAVE_ROUTING jika true ada module routing */
         if (config('app.HAVE_ROUTING')) {
             $getRouting = self::getRouting($request);
             if ($getRouting) {
                 $permission = $getRouting->active == 1 ? true : false;
-            }else{
+            } else {
                 $permission = false;
             }
-        }else{
+        } else {
             $getRouting = null;
             $permission = true;
         }
 
         // dd($getRouting,config('app.HAVE_ROUTING'));
-
-
 
         $value = true;
         // dd($permission,$code_number,$getRouting,$user);
@@ -1355,10 +1359,10 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     'signature_url' => $signature_url,
                     'paraf_url' => $paraf_url,
                 ],
-                'session'=>[
-                        'logged_in' => auth()->check(),
-                        'user' => auth()->user(),
-                    ]
+                'session' => [
+                    'logged_in' => auth()->check(),
+                    'user' => auth()->user(),
+                ],
                 // 'user' => [
                 //     'id' => 2,
                 //     'user' => "demo2@demo.com",
@@ -1366,7 +1370,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 //     'permission' => '',
                 //     'signature_url' => 'https://w7.pngwing.com/pngs/514/114/png-transparent-file-signature-signature-miscellaneous-angle-text-thumbnail.png'
                 // ],
-                ];
+            ];
         } else {
             $data = [
                 'success' => false,
@@ -1375,9 +1379,9 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
         return response()->json(
             $data, 200, [
-            'Access-Control-Allow-Origin' => config('AnnotationConfig.main.URL'),
-            'Access-Control-Allow-Credentials' => 'true',
-        ]);
+                'Access-Control-Allow-Origin' => config('AnnotationConfig.main.URL'),
+                'Access-Control-Allow-Credentials' => 'true',
+            ]);
     }
 
     public function getUserSignatureStatus(Request $request)
@@ -1415,11 +1419,11 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $data = [
             'success' => true,
             'rout' => [
-                'file' => public_path() . "/document/pdf/7757-21323-SPB-TCC-IT-000001.pdf",
+                'file' => public_path().'/document/pdf/7757-21323-SPB-TCC-IT-000001.pdf',
                 // 'file' => "https://pdfobject.com/pdf/sample.pdf",
-                'file_name' => "7757-21323-SPB-TCC-IT-000001.pdf",
-                'indicate' => "9",
-                'person' => "azizi.haq@demo.com",
+                'file_name' => '7757-21323-SPB-TCC-IT-000001.pdf',
+                'indicate' => '9',
+                'person' => 'azizi.haq@demo.com',
             ],
 
         ];
@@ -1430,8 +1434,8 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function routing(Request $request)
     {
         $data = [
-            0 => "spb_corporate",
-            'type_mod' => "spb_corporate",
+            0 => 'spb_corporate',
+            'type_mod' => 'spb_corporate',
         ];
 
         return response()->json($data);
@@ -1446,7 +1450,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // $path = public_path() . "/document/pdf/7757-21323-SPB-TCC-IT-000001.pdf";
         // DB::table('ma_file_manager')->find($request->file_id)->first();
 
-        $path = "";
+        $path = '';
 
         // return response()->json($data);
         echo file_get_contents($path);
@@ -1504,11 +1508,11 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $countAnnotation = count($annotations_db);
 
         $data = [
-            "success" => true,
-            "totalAnnot" => $countAnnotation,
-            "totalAnnotShow" => $countShowAnnotation,
-            "totalAnnotHidden" => $countHiddenAnnotation,
-            "annotations" => $annotations,
+            'success' => true,
+            'totalAnnot' => $countAnnotation,
+            'totalAnnotShow' => $countShowAnnotation,
+            'totalAnnotHidden' => $countHiddenAnnotation,
+            'annotations' => $annotations,
         ];
 
         return response()->json($data);
@@ -1517,10 +1521,10 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function getUserProfile(Request $request)
     {
         $data = [
-            "success" => true,
-            "user" => [
-                "user" => "demo@demo.com",
-                "name" => "Demo",
+            'success' => true,
+            'user' => [
+                'user' => 'demo@demo.com',
+                'name' => 'Demo',
             ],
         ];
 
@@ -1547,8 +1551,8 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     public function getCommentModificator(Request $request)
     {
         $data = [
-            "commentModificator" => "azizi.haq@demo.com",
-            "modificatorName" => "Azizi KH",
+            'commentModificator' => 'azizi.haq@demo.com',
+            'modificatorName' => 'Azizi KH',
         ];
 
         return response()->json($data);
@@ -1556,7 +1560,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
     public function getUserSignature(Request $request)
     {
-        $path = public_path() . '/img/signature/signature.png';
+        $path = public_path().'/img/signature/signature.png';
         echo file_get_contents($path);
     }
 
@@ -1575,26 +1579,26 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // $hideAnnotations = $_POST['annotations']['hide'];
         // $unhideAnnotations = $_POST['annotations']['unhide'];
 
-        if (!empty($newAnnotations)) {
+        if (! empty($newAnnotations)) {
             $insert = self::insertNewAnnotations($newAnnotations, $fileId, $username, $debugStat);
         }
-        if (!empty($modifiedAnnotations)) {
+        if (! empty($modifiedAnnotations)) {
             $update = self::updateModifiedAnnotations($modifiedAnnotations, $fileId, $username, $debugStat);
         }
-        if (!empty($deletedAnnotations)) {
+        if (! empty($deletedAnnotations)) {
             $delete = self::deleteAnnotations($deletedAnnotations, $fileId, $routing, $username, $debugStat);
         }
         // $hide = hideAnnotations($hideAnnotations,$fileId,$routing,$dbLink,$debugStat);
         // $unhide = unhideAnnotations($unhideAnnotations,$fileId,$routing,$dbLink,$debugStat);
 
         $data = [
-            "success" => true,
-            "notif" => "Saved",
-            "message" => "Annotations Updated & Saved Successfully",
-            "annotations" => [
-                "new" => @$insert ?? [],
-                "modified" => @$update ?? [],
-                "deleted" => @$delete ?? [],
+            'success' => true,
+            'notif' => 'Saved',
+            'message' => 'Annotations Updated & Saved Successfully',
+            'annotations' => [
+                'new' => @$insert ?? [],
+                'modified' => @$update ?? [],
+                'deleted' => @$delete ?? [],
                 // "hide" => [
                 //     "success" => false,
                 //     "message" => "no affected annotation",
@@ -1611,7 +1615,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
     public function insertNewAnnotations($items, $fileId, $username, $debugStat)
     {
-        if (!empty($items)) {
+        if (! empty($items)) {
 
             $data = [];
             foreach ($items as $key => $item) {
@@ -1619,16 +1623,16 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
                 $style = json_encode(@$item['style']);
 
-                if (!$style) {
+                if (! $style) {
                     $style = '';
                 }
 
                 $content = $item['content'];
 
-                if ($item['hide'] == "true") {
-                    $displayStat = "Hidden";
+                if ($item['hide'] == 'true') {
+                    $displayStat = 'Hidden';
                 } else {
-                    $displayStat = "Show";
+                    $displayStat = 'Show';
                 }
 
                 $created_date = date('Y-m-d H:i:s');
@@ -1640,8 +1644,8 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     'annotate_type' => $item['name'],
                     'annotate_title' => $username,
                     'annotate_content' => $content,
-                    'annotate_rect' => '[' . @$rect[0] . ',' . @$rect[1] . ',' . @$rect[2] . ',' . @$rect[3] . ']',
-                    'annotate_rect_real' => '[' . @$rect_real[0] . ',' . @$rect_real[1] . ',' . @$rect_real[2] . ',' . @$rect_real[3] . ']',
+                    'annotate_rect' => '['.@$rect[0].','.@$rect[1].','.@$rect[2].','.@$rect[3].']',
+                    'annotate_rect_real' => '['.@$rect_real[0].','.@$rect_real[1].','.@$rect_real[2].','.@$rect_real[3].']',
                     'annotate_page' => $item['page'],
                     'person_id' => $username,
                     'parent' => $parentAnnt,
@@ -1673,13 +1677,13 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             if ($insertStatus) {
                 return [
                     'success' => true,
-                    'message' => "Saved",
+                    'message' => 'Saved',
                     'debug' => $debugging,
                 ];
             } else {
                 return [
                     'success' => false,
-                    "error" => 3,
+                    'error' => 3,
                     'message' => "Annotation Can't be Saved after Prepare",
                     'debug' => $debugging,
                 ];
@@ -1694,8 +1698,9 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         } else {
             $data = [
                 'success' => true,
-                'message' => "no new annotation saved",
+                'message' => 'no new annotation saved',
             ];
+
             return $data;
         }
     }
@@ -1705,24 +1710,27 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // dd($items, $fileId, $username, $debugStat);
         $affected = 0;
         $data = [];
-        if (!empty($items)) {
+        if (! empty($items)) {
             foreach ($items as $key => $item) {
                 $style = json_encode(@$item['style']);
 
-                if (!$style) $style = '';
+                if (! $style) {
+                    $style = '';
+                }
 
-                if (@$item['hide'] == "true")
-                    $displayStat = "Hidden";
-                else
-                    $displayStat = "Show";
+                if (@$item['hide'] == 'true') {
+                    $displayStat = 'Hidden';
+                } else {
+                    $displayStat = 'Show';
+                }
 
                 $arrres = explode('<div', $item['content']);
 
                 if (count($arrres) > 1) {
                     $arrres = $arrres[1];
-                    $arrres = explode("red;padding:2px;\">", $arrres);
+                    $arrres = explode('red;padding:2px;">', $arrres);
                     if (count($arrres) > 1) {
-                        $arrres = explode("</div", $arrres[1]);
+                        $arrres = explode('</div', $arrres[1]);
                         $item['content'] = $arrres[0];
                     } else {
                         $item['content'] = $arrres[1];
@@ -1734,8 +1742,8 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 // $updateStatus = DB::table('pdf_annotate')->update($data);
 
                 $dataUpdate = [
-                    'annotate_rect' => '[' . @$rect[0] . ',' . @$rect[1] . ',' . @$rect[2] . ',' . @$rect[3] . ']',
-                    'annotate_rect_real' => '[' . @$rect_real[0] . ',' . @$rect_real[1] . ',' . @$rect_real[2] . ',' . @$rect_real[3] . ']',
+                    'annotate_rect' => '['.@$rect[0].','.@$rect[1].','.@$rect[2].','.@$rect[3].']',
+                    'annotate_rect_real' => '['.@$rect_real[0].','.@$rect_real[1].','.@$rect_real[2].','.@$rect_real[3].']',
                     'annotate_content' => $content,
                     'deg' => @$item['deg'] ?? 0,
                     'style' => $style,
@@ -1746,7 +1754,6 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     ->where('file_id', $fileId)
                     ->where('annotate_id', $item['id'])
                     ->update($dataUpdate);
-
 
                 // echo $sql;
                 // $query = $dbLink->prepare($sql);
@@ -1763,28 +1770,29 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             if ($affected > 0) {
                 $data = [
                     'success' => true,
-                    'message' => $affected . " annotations changed",
-                    'debug' => $debugging
+                    'message' => $affected.' annotations changed',
+                    'debug' => $debugging,
                 ];
             } else {
                 $data = [
                     'success' => true,
-                    'message' => "no modified annotation",
+                    'message' => 'no modified annotation',
                 ];
             }
         } else {
             $data = [
                 'success' => true,
-                'message' => "no modified annotation",
+                'message' => 'no modified annotation',
             ];
         }
+
         return $data;
     }
 
     public function deleteAnnotations($items, $fileId, $username, $debugStat)
     {
         $affected = 0;
-        if (!empty($items)) {
+        if (! empty($items)) {
             foreach ($items as $key => $item) {
 
                 $deleteAnnotate = DB::table('pdf_annotate')
@@ -1801,18 +1809,18 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
         $debugging = '';
         if ($affected > 0) {
-            //return true;
-            return (array(
+            // return true;
+            return [
                 'success' => true,
-                'message' => $affected . " annotations deleted",
-                'debug' => $debugging
-            ));
+                'message' => $affected.' annotations deleted',
+                'debug' => $debugging,
+            ];
         } else {
-            //return false;
-            return (array(
+            // return false;
+            return [
                 'success' => false,
-                'message' => "no deleted annotation"
-            ));
+                'message' => 'no deleted annotation',
+            ];
         }
     }
 
@@ -1827,7 +1835,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
         $style = @$annotation['style'] ? json_encode($annotation['style']) : 'null';
         $parentAnnt = @$annotation['parent'] ? $annotation['parent'] : null;
-        $displayStat = $annotation['hide'] == 'true' ? "Hidden" : "Show";
+        $displayStat = $annotation['hide'] == 'true' ? 'Hidden' : 'Show';
 
         $annotation = DB::table('pdf_annotate')
             ->select(
@@ -1837,8 +1845,8 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             ->where('annotate_type', $annotation['name'])
             ->where('annotate_title', $annotation['person'])
             ->where('annotate_content', $content)
-            ->where('annotate_rect', '[' . @$rect[0] . ',' . @$rect[1] . ',' . @$rect[2] . ',' . @$rect[3] . ']')
-            ->where('annotate_rect_real', '[' . @$rect_real[0] . ',' . @$rect_real[1] . ',' . @$rect_real[2] . ',' . @$rect_real[3] . ']')
+            ->where('annotate_rect', '['.@$rect[0].','.@$rect[1].','.@$rect[2].','.@$rect[3].']')
+            ->where('annotate_rect_real', '['.@$rect_real[0].','.@$rect_real[1].','.@$rect_real[2].','.@$rect_real[3].']')
             ->where('annotate_page', $annotation['page'])
             ->where('person_id', $annotation['person'])
             ->where('parent', $parentAnnt)
@@ -1849,13 +1857,13 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
         if ($annotation) {
             $data = [
-                "status" => "success",
-                "ID" => $annotation->annotate_id,
+                'status' => 'success',
+                'ID' => $annotation->annotate_id,
             ];
         } else {
             $data = [
-                "status" => "failed",
-                "error" => "no matched ID found",
+                'status' => 'failed',
+                'error' => 'no matched ID found',
             ];
         }
 
@@ -1872,7 +1880,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
             return $annotation;
         } else {
-            return "Not Found";
+            return 'Not Found';
         }
     }
 
@@ -1899,7 +1907,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $width = imagesx($image);
         $height = imagesy($image);
 
-        return $width . "|||" . $height;
+        return $width.'|||'.$height;
         //     }
         // } else {
         //     return "Oops something went wrong !!!";
@@ -1921,7 +1929,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 ->select('*')
                 ->where('id', $file_id)
                 ->first();
-        } else if ($file_url) {
+        } elseif ($file_url) {
             $file = DB::table('ma_file_manager')
                 ->select('*')
                 ->where('file_url', $file_url)
@@ -1940,10 +1948,10 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $host_url = $parsedUrl['host'] ?? '';
         $sub_folder = str_replace('.', '-', $host_url);
 
-        $path_folder = storage_path('app/public/' . $sub_folder . '/');
+        $path_folder = storage_path('app/public/'.$sub_folder.'/');
 
-        $source_file = $path_folder . $file_name . '-' . $file->id . '.pdf';
-        $source_file_new = $path_folder . $file_name . '-' . $file->id . '-1.4.pdf';
+        $source_file = $path_folder.$file_name.'-'.$file->id.'.pdf';
+        $source_file_new = $path_folder.$file_name.'-'.$file->id.'-1.4.pdf';
 
         // self::checkPdfVersion($source_file, $source_file_new);
 
@@ -1970,7 +1978,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             ->get();
 
         $engine = 'Fpdi';
-        $method = 'annotatedPdf' . $engine;
+        $method = 'annotatedPdf'.$engine;
 
         if (method_exists(__CLASS__, $method)) {
             return self::$method($file, $annotations, $path_folder, $pixel); // Call the method dynamically
@@ -1981,17 +1989,17 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
     public function checkPdfVersion($source_file, $source_file_new)
     {
-        if (!file_exists($source_file)) {
-            abort(403, "checkPdfVersion not found file::" . $source_file);
+        if (! file_exists($source_file)) {
+            abort(403, 'checkPdfVersion not found file::'.$source_file);
         }
 
         // read pdf file first line because pdf first line contains pdf version information
-        $filepdf = fopen($source_file, "r");
+        $filepdf = fopen($source_file, 'r');
         if ($filepdf) {
             $line_first = fgets($filepdf);
             fclose($filepdf);
         } else {
-            echo "error opening the file.";
+            echo 'error opening the file.';
         }
 
         // extract number such as 1.4,1.5 from first read line of pdf file
@@ -2000,17 +2008,17 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // save that number in a variable
         $pdfversion = implode('.', $matches[0]);
         // dd($pdfversion);
-        if ($pdfversion > "1.4") {
-            echo "tidak bisa edit pdf diatas 1.4 pdf yang akan di edit versi:" . $pdfversion;
+        if ($pdfversion > '1.4') {
+            echo 'tidak bisa edit pdf diatas 1.4 pdf yang akan di edit versi:'.$pdfversion;
             // exit();
             // USE GHOSTSCRIPT IF PDF VERSION ABOVE 1.4 AND SAVE ANY PDF TO VERSION 1.4 , SAVE NEW PDF OF 1.4 VERSION TO NEW PATH
             // dd($source_file_new);
-            $run_script = 'gs -dBATCH -dNOPAUSE -dQUIET -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -sOutputFile="' . $source_file . '" "' . $source_file . '"';
+            $run_script = 'gs -dBATCH -dNOPAUSE -dQUIET -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -sOutputFile="'.$source_file.'" "'.$source_file.'"';
 
             // $run_script = 'gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile="' . $source_file . '" "' . $source_file . '" version=1.4';
             $a = shell_exec($run_script);
-            echo "<br>run_script:" . $run_script;
-            echo "<br>convert" . $a;
+            echo '<br>run_script:'.$run_script;
+            echo '<br>convert'.$a;
             // exit();
         }
     }
@@ -2028,7 +2036,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         $host_url = $parsedUrl['host'] ?? '';
         $sub_folder = str_replace('.', '-', $host_url);
 
-        $source_file = storage_path('app/public/' . $sub_folder . '/' . $file_name . '-' . $file->id . '.pdf');
+        $source_file = storage_path('app/public/'.$sub_folder.'/'.$file_name.'-'.$file->id.'.pdf');
 
         // Initialize mPDF
         $mpdf = new Mpdf([
@@ -2068,11 +2076,11 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     {
         $file_name = $file->file_name;
 
-        $source_file = $path_folder . $file_name . '-' . $file->id . '.pdf';
-        $source_file_new = $path_folder . 'final/' . $file_name . '-' . $file->id . '.pdf';
+        $source_file = $path_folder.$file_name.'-'.$file->id.'.pdf';
+        $source_file_new = $path_folder.'final/'.$file_name.'-'.$file->id.'.pdf';
 
         // initiate FPDI
-        $pdf = new Fpdi();
+        $pdf = new Fpdi;
         // remove default header/footer
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
@@ -2083,7 +2091,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         }
 
         $pageCount = $pdf->setSourceFile($source_file);
-        $pdf->SetFont("helvetica", "", 20);
+        $pdf->SetFont('helvetica', '', 20);
         $pdf->SetTextColor(255, 0, 0);
         $pdf->SetFillColor(255, 0, 0);
         $pdf->SetMargins(0, 0, 0, 0);
@@ -2104,7 +2112,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         header('Content-Type: application/pdf');
         header('Content-Disposition: attachment; filename="output.pdf"');
         header('Content-Transfer-Encoding: binary');
-        header('Content-Length: ' . strlen($pdf->Output($source_file_new, 'S')));
+        header('Content-Length: '.strlen($pdf->Output($source_file_new, 'S')));
         // echo $pdf->Output('', 'S');
         $pdf->Output($source_file_new, 'I');
         // $pdf->Output($source_file_new, 'FI');
@@ -2116,7 +2124,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
         // $dpi = 98;
         // $dpi = 150;
         // dd($page_size);
-        $page_width = $page_size['width']; //210 - page width
+        $page_width = $page_size['width']; // 210 - page width
         // $page_width_pixel = $page_width * $dpi / 25.4; // page width pixel
         // $page_width_pixel = $page_pixel['width'] / 2; // page width pixel
         $page_width_pixel = $page_pixel[0];
@@ -2126,7 +2134,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
         // 578 x 882 = 147dpi png
         // 283 x 432 = 72dpi png
-        $page_height = $page_size['height']; //297 - page height
+        $page_height = $page_size['height']; // 297 - page height
         // $page_height_pixel = $page_height * $dpi / 25.4; // page height pixel
         // $page_height_pixel = $page_pixel['height']  / 2; // page height pixel
         // dd($page_width_pixel * 2 + 24, $page_height_pixel * 2 + 36);
@@ -2152,7 +2160,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
                 switch ($annotation->type) {
                     case 'Rectangle':
-                        list($x1, $y1, $x2, $y2) = $rect;
+                        [$x1, $y1, $x2, $y2] = $rect;
 
                         $w = ($x2 - $x1) / $pxl_per_mm_w;
                         $h = ($y2 - $y1) / $pxl_per_mm_h;
@@ -2164,7 +2172,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     case 'Line':
                         $style = json_decode($annotation->style);
 
-                        list($x1, $y1, $x2, $y2) = $rect;
+                        [$x1, $y1, $x2, $y2] = $rect;
                         $x1 = $x1 / $pxl_per_mm_w + 3;
                         $y1 = $y1 / $pxl_per_mm_h + 3;
                         $x2 = $x2 / $pxl_per_mm_w + 3;
@@ -2177,23 +2185,23 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                         }
                         break;
                     case 'Comment':
-                        list($x1, $y1) = $rect;
+                        [$x1, $y1] = $rect;
 
                         $x1 = $x1 / $pxl_per_mm_w;
                         $y1 = $y1 / $pxl_per_mm_h;
 
-                        $pdf->Annotation($x1, $y1 - 2, 0, 0, $annotation->content, array('Subtype' => 'Text', 'Name' => 'Comment', 'T' => $annotation->username, 'Subj' => 'example', 'C' => array(255, 255, 0)));
+                        $pdf->Annotation($x1, $y1 - 2, 0, 0, $annotation->content, ['Subtype' => 'Text', 'Name' => 'Comment', 'T' => $annotation->username, 'Subj' => 'example', 'C' => [255, 255, 0]]);
                         break;
                     case 'Reply':
-                        list($x1, $y1) = $rect;
+                        [$x1, $y1] = $rect;
 
                         $x1 = $x1 / $pxl_per_mm_w;
                         $y1 = $y1 / $pxl_per_mm_h;
 
-                        $pdf->Annotation($x1, $y1, 0, 0, $annotation->content, array('Subtype' => 'Text', 'Name' => 'Comment', 'T' => $annotation->username, 'Subj' => 'example', 'C' => array(255, 255, 0)));
+                        $pdf->Annotation($x1, $y1, 0, 0, $annotation->content, ['Subtype' => 'Text', 'Name' => 'Comment', 'T' => $annotation->username, 'Subj' => 'example', 'C' => [255, 255, 0]]);
                         break;
                     case 'Circle':
-                        list($x1, $y1, $x2, $y2) = $rect;
+                        [$x1, $y1, $x2, $y2] = $rect;
 
                         $xc = ($x1 + (($x2 - $x1) / 2)) / $pxl_per_mm_w + 1;
                         $yc = ($y1 + (($y2 - $y1) / 2)) / $pxl_per_mm_h + 2;
@@ -2204,7 +2212,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                         $pdf->Ellipse($xc, $yc, $rw, $rh);
                         break;
                     case 'Signature':
-                        list($x1, $y1, $x2, $y2) = $rect;
+                        [$x1, $y1, $x2, $y2] = $rect;
 
                         // $img_w = 500;
                         // $img_h = 150;
@@ -2212,7 +2220,6 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                         // $h = $img_h / $pxl_per_mm_h;
                         // $x1 = ($x1 + 2) / $pxl_per_mm_w;
                         // $y1 = ($y1 + 3) / $pxl_per_mm_h;
-
 
                         $w = ($x2 - $x1) / $pxl_per_mm_w;
                         $h = ($y2 - $y1) / $pxl_per_mm_h;
@@ -2226,9 +2233,9 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                         $pdf->Image($path, $x1, $y1, $w, $h);
                         break;
                     case 'Arrow':
-                        list($x1, $y1, $x2, $y2) = $rect;
+                        [$x1, $y1, $x2, $y2] = $rect;
                         // dd($x1, $y1, $x2, $y2);
-                        //[153.5,446,253.5,496]
+                        // [153.5,446,253.5,496]
 
                         $w = ($x2 - $x1) / $pxl_per_mm_w;
                         $h = ($y2 - $y1) / $pxl_per_mm_h;
@@ -2240,7 +2247,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                         // $pdf->Image($path, $x1, $y1, $w, $h);
                         break;
                     case 'Textbox':
-                        list($x1, $y1, $x2, $y2) = $rect;
+                        [$x1, $y1, $x2, $y2] = $rect;
                         $style = json_decode($annotation->style);
 
                         $w = ($x2 - $x1) / $pxl_per_mm_w;
@@ -2263,7 +2270,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                         // Position the text inside the border
                         // $pdf->SetXY(0, 260); // Slightly offset from the border
 
-                        $text = '<div style="' . $style->border . '">' . $annotation->content . '</div>';
+                        $text = '<div style="'.$style->border.'">'.$annotation->content.'</div>';
                         // dd($text);
                         // Add the text annotation
                         $pdf->writeHTMLCell(10, 0, $x, $y, $text, 1, 0, 0, true, 'J', true);
@@ -2271,7 +2278,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
 
                         break;
                     case 'Highlight':
-                        list($x1, $y1, $x2, $y2) = $rect;
+                        [$x1, $y1, $x2, $y2] = $rect;
 
                         $w = ($x2 - $x1) / $pxl_per_mm_w + 1;
                         $h = ($y2 - $y1) / $pxl_per_mm_h + 1;
@@ -2279,7 +2286,7 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                         $y1 = ($y1) / $pxl_per_mm_h + 2;
 
                         $pdf->SetAlpha(0.5);
-                        $pdf->Rect($x1, $y1, $w, $h, 'F', '', array(255, 255, 153));
+                        $pdf->Rect($x1, $y1, $w, $h, 'F', '', [255, 255, 153]);
                         break;
                 }
             }
@@ -2296,17 +2303,17 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
     {
         $file_name = $file->file_name;
 
-        $source_file = $path_folder . $file_name . '-' . $file->id . '.pdf';
-        $source_file_new = $path_folder . 'temp-png/' . $file_name . '-' . $file->id . '.png';
+        $source_file = $path_folder.$file_name.'-'.$file->id.'.pdf';
+        $source_file_new = $path_folder.'temp-png/'.$file_name.'-'.$file->id.'.png';
 
         // if (!file_exists($source_file_new)) {
-        $new_temp_path = $path_folder . 'temp-png/';
+        $new_temp_path = $path_folder.'temp-png/';
 
-        if (!file_exists($new_temp_path)) {
+        if (! file_exists($new_temp_path)) {
             mkdir($new_temp_path, 0777, true);
         }
         // -resize WIDTHxHEIGHT
-        $run_script = 'convert -density 72 ' . $source_file . '[0] ' . $source_file_new;
+        $run_script = 'convert -density 72 '.$source_file.'[0] '.$source_file_new;
         // $run_script = 'magick '. $source_file .'[0] -format "%x x %y" info:';
         // $run_script = 'convert '. $source_file .'[0] -resize ' . $page_size['width'] . 'x' . $page_size['height'] . ' ' . $source_file_new;
         // dd($run_script);
@@ -2343,14 +2350,14 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
             $file_name = $file_data->file_name;
 
             if ($refresh) {
-                $path = storage_path('app/public/' . $sub_folder);
+                $path = storage_path('app/public/'.$sub_folder);
 
-                if (!file_exists($path)) {
+                if (! file_exists($path)) {
                     mkdir($path, 0777, true);
                 }
 
-                $filePath = $sub_folder . '/' . $file_name . '-' . $file_data->id . '.pdf';
-                if (!Storage::disk('public')->exists($filePath)) {
+                $filePath = $sub_folder.'/'.$file_name.'-'.$file_data->id.'.pdf';
+                if (! Storage::disk('public')->exists($filePath)) {
                     $response_get_url = Http::get($file_url);
 
                     if ($response_get_url->successful()) {
@@ -2360,16 +2367,16 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                 }
             }
 
-            $source_file = Storage::disk('public')->get($sub_folder . '/' . $file_name . '-' . $file_data->id . '.pdf');
+            $source_file = Storage::disk('public')->get($sub_folder.'/'.$file_name.'-'.$file_data->id.'.pdf');
 
             $response = $source_file;
         } else {
             $response = Http::timeout(120)->get($file_url);
 
             if ($refresh) {
-                $path = storage_path('app/public/' . $sub_folder);
+                $path = storage_path('app/public/'.$sub_folder);
 
-                if (!file_exists($path)) {
+                if (! file_exists($path)) {
                     mkdir($path, 0777, true);
                 }
 
@@ -2378,8 +2385,8 @@ public function getParafWithTimeStampKanan($paraf_path, $request)
                     ->where('file_url', $file_url)
                     ->first();
 
-                $filePath = $sub_folder . '/' . $file->file_name . '-' . $file->id . '.pdf';
-                if (!Storage::disk('public')->exists($filePath)) {
+                $filePath = $sub_folder.'/'.$file->file_name.'-'.$file->id.'.pdf';
+                if (! Storage::disk('public')->exists($filePath)) {
 
                     if ($response->successful()) {
                         Storage::disk('public')->put($filePath, $response->body());

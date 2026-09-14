@@ -2,10 +2,9 @@
 
 namespace Bangsamu\Master\Controllers;
 
-
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redis;
 
 class RedisInspectorController extends Controller
 {
@@ -21,7 +20,7 @@ class RedisInspectorController extends Controller
 
             $value = null;
 
-            switch ((string)$type) {
+            switch ((string) $type) {
                 case 'string':
                     $value = Redis::get($key);
                     break;
@@ -47,6 +46,7 @@ class RedisInspectorController extends Controller
                 'value' => $value,
             ];
         }
+
         // dd($data, $pattern);
         return view('master::redis.inspector', compact('data', 'pattern'));
     }

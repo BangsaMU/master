@@ -3,25 +3,16 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Telegram;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Validator;
-use Response;
-use Illuminate\Support\Str;
-use App\Models\Telegram;
-
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Response;
 
 class MasterController extends Controller
 {
-
     /**
      * The prefix to use for register/load the package resources.
      *
@@ -29,79 +20,78 @@ class MasterController extends Controller
      */
     protected $pkgPrefix = 'master';
 
-    function __construct($CHAT_ID = null, $param = null)
-    {
-    }
+    public function __construct($CHAT_ID = null, $param = null) {}
 
-    function tabel(Request $request, $tabel, $id = null)
+    public function tabel(Request $request, $tabel, $id = null)
     {
         // Prevent execution timeout on large table syncs
         set_time_limit(300);
 
         $log = [];
-        $sync_insert = []; /*list insert array id*/
-        $sync_update = []; /*list update array id*/
+        $sync_insert = []; /* list insert array id */
+        $sync_update = []; /* list update array id */
         $_token = $request->_token;
         // $token = LibraryClayController::api_token(null);
-        $validate_token = LibraryClayController::validate_token(null,$_token);
+        $validate_token = LibraryClayController::validate_token(null, $_token);
 
-        if($validate_token==false){
+        if ($validate_token == false) {
             $respon['status'] = 'gagal';
             $respon['code'] = 400;
             $respon['data'] = '';
             $respon['message'] = 'Token not valid';
+
             return LibraryClayController::setOutput($respon);
         }
 
-        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
-        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix).'Config.lokal.'.$tabel.'.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix).'Config.master.'.$tabel.'.FIELD');
 
-        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL', Str::studly($tabel));
-        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL', 'Master' . Str::studly($tabel));
+        $tabel_lokal = config(ucfirst($this->pkgPrefix).'Config.lokal.'.$tabel.'.MODEL', Str::studly($tabel));
+        $tabel_master = config(ucfirst($this->pkgPrefix).'Config.master.'.$tabel.'.MODEL', 'Master'.Str::studly($tabel));
 
-        $model_lokal = 'Bangsamu\\Master\\Models\\' . $tabel_lokal;
-        $model_master = 'Bangsamu\\Master\\Models\\' . $tabel_master;
+        $model_lokal = 'Bangsamu\\Master\\Models\\'.$tabel_lokal;
+        $model_master = 'Bangsamu\\Master\\Models\\'.$tabel_master;
 
         // default $withTrashed true agar bisa sync data yang sudah dihapus
         $withTrashed = $request->input('with_trashed', true);
 
         if ($id) {
             // Case 1: Specific ID sync (original logic)
-            $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'),$withTrashed);
+            $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'), $withTrashed);
             extract($getDataSync);
 
             $jml = $data_sync_lokal->count();
             $jml_master = $data_sync_master->count();
 
-            /*cek jumlah data master dan lokal jika beda maka insert*/
+            /* cek jumlah data master dan lokal jika beda maka insert */
             $list_id = $data_sync_lokal->pluck('id')->toArray();
             $list_id_master = $data_sync_master->pluck('id')->toArray();
             if ($jml != $jml_master) {
-                /*cek list id master dan lokal*/
+                /* cek list id master dan lokal */
                 $list_id_diff = array_diff($list_id_master, $list_id);
-                $sync_insert = $list_id_diff;/*list id yang akan di insert*/
-            };
+                $sync_insert = $list_id_diff; /* list id yang akan di insert */
+            }
 
             $list_id_same = array_intersect($list_id_master, $list_id);
-            $sync_update = $list_id_same;/*list id yang akan di update*/
+            $sync_update = $list_id_same; /* list id yang akan di update */
 
             if ($jml_master) {
                 $data_array = $data_sync_lokal->toArray();
                 $master_array = $data_sync_master->toArray();
 
-                /*convert array lokal index ke key dengan id */
-                foreach ($data_array as  $key => $val) {
+                /* convert array lokal index ke key dengan id */
+                foreach ($data_array as $key => $val) {
                     $data_array_map_lokal[$val['id']] = $val;
                 }
 
-                /*convert array master index ke key dengan id */
+                /* convert array master index ke key dengan id */
                 $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
 
                 if ($sync_update) {
                     $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
                 }
 
-                /*cek data master berdasarkan id yang akan di insert*/
+                /* cek data master berdasarkan id yang akan di insert */
                 if ($sync_insert) {
                     $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
                 }
@@ -126,15 +116,15 @@ class MasterController extends Controller
             $data_array_map_master_all = [];
 
             // Process updates in chunks of 1000
-            if (!empty($sync_update)) {
+            if (! empty($sync_update)) {
                 $chunks_update = array_chunk($sync_update, 1000);
                 foreach ($chunks_update as $chunk) {
-                    $data_sync_lokal = $withTrashed 
-                        ? $model_lokal::withTrashed()->whereIn('id', $chunk)->get() 
+                    $data_sync_lokal = $withTrashed
+                        ? $model_lokal::withTrashed()->whereIn('id', $chunk)->get()
                         : $model_lokal::whereIn('id', $chunk)->get();
 
-                    $data_sync_master = $withTrashed 
-                        ? $model_master::withTrashed()->whereIn('id', $chunk)->get() 
+                    $data_sync_master = $withTrashed
+                        ? $model_master::withTrashed()->whereIn('id', $chunk)->get()
                         : $model_master::whereIn('id', $chunk)->get();
 
                     $data_array_map_lokal = [];
@@ -150,7 +140,7 @@ class MasterController extends Controller
                         'tabel_lokal' => $tabel_lokal,
                         'data_array_map_master' => $data_array_map_master,
                         'data_array_map_lokal' => $data_array_map_lokal,
-                        'log' => $log
+                        'log' => $log,
                     ]);
 
                     foreach ($data_array_map_master as $k => $v) {
@@ -160,11 +150,11 @@ class MasterController extends Controller
             }
 
             // Process inserts in chunks of 1000
-            if (!empty($sync_insert)) {
+            if (! empty($sync_insert)) {
                 $chunks_insert = array_chunk($sync_insert, 1000);
                 foreach ($chunks_insert as $chunk) {
-                    $data_sync_master = $withTrashed 
-                        ? $model_master::withTrashed()->whereIn('id', $chunk)->get() 
+                    $data_sync_master = $withTrashed
+                        ? $model_master::withTrashed()->whereIn('id', $chunk)->get()
                         : $model_master::whereIn('id', $chunk)->get();
 
                     $master_array = $data_sync_master->toArray();
@@ -174,7 +164,7 @@ class MasterController extends Controller
                         'sync_insert' => $chunk,
                         'tabel_lokal' => $tabel_lokal,
                         'data_array_map_master' => $data_array_map_master,
-                        'log' => $log
+                        'log' => $log,
                     ]);
 
                     foreach ($data_array_map_master as $k => $v) {
@@ -183,10 +173,10 @@ class MasterController extends Controller
                 }
             }
 
-            if (!empty($list_id_master)) {
+            if (! empty($list_id_master)) {
                 $respon = LibraryClayController::syncLog([
                     'log' => $log,
-                    'data_array_map_master' => $data_array_map_master_all
+                    'data_array_map_master' => $data_array_map_master_all,
                 ]);
             } else {
                 $respon['data']['message'] = 'Data Not Found';
@@ -197,10 +187,10 @@ class MasterController extends Controller
         return LibraryClayController::setOutput($respon);
     }
 
-    function getTabel(Request $request, $tabel, $id = null)
+    public function getTabel(Request $request, $tabel, $id = null)
     {
-        $data_sync_lokal =  DB::table($tabel);
-        $key = md5($id . ':' . config('SsoConfig.main.KEY'));
+        $data_sync_lokal = DB::table($tabel);
+        $key = md5($id.':'.config('SsoConfig.main.KEY'));
         $token = $key == $request->input('api_token');
         // dd($data_sync_lokal,$key);
         if ($token) {
@@ -213,10 +203,10 @@ class MasterController extends Controller
         return LibraryClayController::setOutput($respon);
     }
 
-    function getMaster(Request $request, $tabel, $id = null)
+    public function getMaster(Request $request, $tabel, $id = null)
     {
-        $data_sync_lokal =  'Bangsamu\Master\Models\\' . $tabel;
-        $key = md5($id . ':' . config('SsoConfig.main.KEY'));
+        $data_sync_lokal = 'Bangsamu\Master\Models\\'.$tabel;
+        $key = md5($id.':'.config('SsoConfig.main.KEY'));
         $token = $key == $request->input('api_token');
         // dd($key);
         if ($token) {
@@ -232,29 +222,28 @@ class MasterController extends Controller
     /**
      * fungsi synt baster datat berdasarkan param dari json
      */
-    function syncTabel(Request $request, $tabel, $id = null)
+    public function syncTabel(Request $request, $tabel, $id = null)
     {
         $data = $request->all();
         $tabel = empty($tabel) ? @$data['tabel'] : $tabel;
         $id = empty($id) ? @$data['rows'][0]['id'] : $id;
-        $validate_tabel = @$data['tabel'] ? $data['tabel'] :  $tabel;
+        $validate_tabel = @$data['tabel'] ? $data['tabel'] : $tabel;
         $validate_tabel = @$data['tabel'] == $tabel;
-        $master_tabel = config(ucfirst($this->pkgPrefix) . 'Config.MASTER_TABEL');
+        $master_tabel = config(ucfirst($this->pkgPrefix).'Config.MASTER_TABEL');
         $validate_master = in_array($tabel, $master_tabel);
         $validate_rows = is_array(@$data['rows'][0]);
-        $validate_id = @$data['rows'][0]['id'] == $id || !empty($id) ? true : false;
+        $validate_id = @$data['rows'][0]['id'] == $id || ! empty($id) ? true : false;
         $data_master = @$data['rows'];
         // dd($data, $validate_master, $validate_tabel, $validate_rows, $validate_id);
 
+        if (! $validate_master || ! $validate_tabel || ! $validate_rows || ! $validate_id) {
 
-        if (!$validate_master || !$validate_tabel || !$validate_rows || !$validate_id) {
-
-            if($validate_master==false){
+            if ($validate_master == false) {
                 $message = 'tabel `'.$tabel.'` tidak masuk di list MASTER_TABEL';
             }
             $respond['status'] = 'gagal';
             $respond['code'] = 400;
-            $respond['data'] = 'Data not valid ' . (int)$validate_master . '-' . (int)$validate_tabel . '-' . (int)$validate_rows . '-' . (int)$validate_id;
+            $respond['data'] = 'Data not valid '.(int) $validate_master.'-'.(int) $validate_tabel.'-'.(int) $validate_rows.'-'.(int) $validate_id;
             $respond['message'] = $message;
 
             Response::make(LibraryClayController::setOutput($respond))->send();
@@ -262,44 +251,43 @@ class MasterController extends Controller
         }
 
         $log = [];
-        $sync_insert = []; /*list insert array id*/
-        $sync_update = []; /*list update array id*/
+        $sync_insert = []; /* list insert array id */
+        $sync_update = []; /* list update array id */
 
-        $key_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.FIELD');
-        $key_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.FIELD');
+        $key_lokal = config(ucfirst($this->pkgPrefix).'Config.lokal.'.$tabel.'.FIELD');
+        $key_master = config(ucfirst($this->pkgPrefix).'Config.master.'.$tabel.'.FIELD');
 
-        $tabel_lokal = config(ucfirst($this->pkgPrefix) . 'Config.lokal.' . $tabel . '.MODEL')?? $tabel;
-        $tabel_master = config(ucfirst($this->pkgPrefix) . 'Config.master.' . $tabel . '.MODEL');
+        $tabel_lokal = config(ucfirst($this->pkgPrefix).'Config.lokal.'.$tabel.'.MODEL') ?? $tabel;
+        $tabel_master = config(ucfirst($this->pkgPrefix).'Config.master.'.$tabel.'.MODEL');
 
         $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master', 'data_master'));
         extract($getDataSync);
 
         $jml = $data_sync_lokal->count();
-        $jml_master = count($data_master);/*ambil dari param json data*/
+        $jml_master = count($data_master); /* ambil dari param json data */
 
-        /*cek jumlah data master dan lokal jika beda maka insert*/
+        /* cek jumlah data master dan lokal jika beda maka insert */
         $data_array = $data_sync_lokal->toArray();
-        $master_array = $data_master;/*ambil dari param json data*/
+        $master_array = $data_master; /* ambil dari param json data */
 
-        $list_id  = array_column($data_array, 'id');
-        $list_id_master  = array_column($master_array, 'id');
+        $list_id = array_column($data_array, 'id');
+        $list_id_master = array_column($master_array, 'id');
 
         if ($jml < $jml_master) {
-            /*cek list id master dan lokal*/
+            /* cek list id master dan lokal */
             $list_id_diff = array_diff($list_id_master, $list_id);
-            $sync_insert = $list_id_diff;/*list id yang akan di insert*/
-        };
+            $sync_insert = $list_id_diff; /* list id yang akan di insert */
+        }
 
         $list_id_same = array_intersect($list_id_master, $list_id);
-        $sync_update = $list_id_same;/*list id yang akan di update*/
+        $sync_update = $list_id_same; /* list id yang akan di update */
 
-        /*convert array lokal index ke key dengan id */
-        foreach ($data_array as  $key => $val) {
+        /* convert array lokal index ke key dengan id */
+        foreach ($data_array as $key => $val) {
             $data_array_map_lokal[$val['id']] = $val;
         }
 
-
-        /*convert array master index ke key dengan id */
+        /* convert array master index ke key dengan id */
         $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
         // dd($master_array, $key_master, $key_lokal, 1, $data, $tabel, $validate_master, $validate_tabel, $validate_rows, $validate_id);
 
@@ -307,7 +295,7 @@ class MasterController extends Controller
             $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
         }
 
-        /*cek data master berdasarkan id yang akan di insert*/
+        /* cek data master berdasarkan id yang akan di insert */
         if ($sync_insert) {
             $log = LibraryClayController::sync_insert(compact('sync_insert', 'tabel_lokal', 'data_array_map_master', 'log'));
         }
@@ -351,7 +339,6 @@ class MasterController extends Controller
 
     //     $data_array = $data_sync_lokal->toArray();
     //     $master_array = $data_sync_master->toArray();
-
 
     //     /*convert array lokal index ke key dengan id */
     //     foreach ($data_array as  $key => $val) {
@@ -411,7 +398,6 @@ class MasterController extends Controller
     //     $data_array = $data_sync_lokal->toArray();
     //     $master_array = $data_sync_master->toArray();
 
-
     //     /*convert array lokal index ke key dengan id */
     //     foreach ($data_array as  $key => $val) {
     //         $data_array_map_lokal[$val['id']] = $val;
@@ -450,7 +436,6 @@ class MasterController extends Controller
 
     //     $getDataSync = LibraryClayController::getDataSync(compact('id', 'tabel_lokal', 'tabel_master'));
     //     extract($getDataSync);
-
 
     //     $jml = $data_sync_lokal->count();
     //     $jml_master = $data_sync_master->count();
@@ -531,7 +516,6 @@ class MasterController extends Controller
     //     $data_array = $data_sync_lokal->toArray();
     //     $master_array = $data_sync_master->toArray();
 
-
     //     /*convert array lokal index ke key dengan id */
     //     foreach ($data_array as  $key => $val) {
     //         $data_array_map_lokal[$val['id']] = $val;
@@ -590,7 +574,6 @@ class MasterController extends Controller
     //     $data_array = $data_sync_lokal->toArray();
     //     $master_array = $data_sync_master->toArray();
 
-
     //     /*convert array lokal index ke key dengan id */
     //     foreach ($data_array as  $key => $val) {
     //         $data_array_map_lokal[$val['id']] = $val;
@@ -598,7 +581,6 @@ class MasterController extends Controller
 
     //     /*convert array master index ke key dengan id */
     //     $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
-
 
     //     if ($sync_update) {
     //         $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
@@ -657,7 +639,8 @@ class MasterController extends Controller
             $telegram_db = Telegram::create($created);
         } else {
             $telegram_db = false;
-        };
+        }
+
         // dd($telegram_db, isset($data->ok), $data);
         return $telegram_db;
     }

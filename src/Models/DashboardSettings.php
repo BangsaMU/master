@@ -4,14 +4,15 @@ namespace Bangsamu\Master\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardSettings extends Model
 {
     use HasFactory;
 
     protected $table = 'dashboard_settings';
+
     protected $guarded = [];
 
     protected static $hasCheckedTable = false;
@@ -20,13 +21,13 @@ class DashboardSettings extends Model
     {
         parent::boot();
 
-        if (!self::$hasCheckedTable) {
+        if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
             // FIX: Gunakan string langsung, jangan 'new static'
-            $tableName = 'dashboard_settings'; 
+            $tableName = 'dashboard_settings';
 
-            if (!Schema::hasTable($tableName)) {
+            if (! Schema::hasTable($tableName)) {
                 Schema::create($tableName, function (Blueprint $table) {
                     $table->id();
                     $table->string('key')->unique();

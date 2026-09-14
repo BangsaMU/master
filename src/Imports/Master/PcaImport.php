@@ -13,12 +13,14 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class PcaImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading
+class PcaImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
     use HandlesBatchImportBroadcast;
 
     private $error = [];
+
     private $success = [];
+
     protected ?Collection $existingPcas = null;
 
     public function getImportTable(): string
@@ -32,7 +34,7 @@ class PcaImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkRe
             $this->existingPcas = DB::table('master_pca')
                 ->select('id', 'pca_code', 'pca_name', 'deleted_at')
                 ->get()
-                ->keyBy(fn ($pca) => strtoupper(trim((string) $pca->pca_code)) . '|' . strtoupper(trim((string) $pca->pca_name)));
+                ->keyBy(fn ($pca) => strtoupper(trim((string) $pca->pca_code)).'|'.strtoupper(trim((string) $pca->pca_name)));
         }
 
         foreach ($rows as $key => $row) {
@@ -46,11 +48,11 @@ class PcaImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkRe
                 } elseif (empty($pcaName)) {
                     $this->error[] = "Row {$row_index} PCA Name : field is required.";
                 } else {
-                    $lookupKey = strtoupper($pcaCode) . '|' . strtoupper($pcaName);
+                    $lookupKey = strtoupper($pcaCode).'|'.strtoupper($pcaName);
                     $exists = $this->existingPcas->get($lookupKey);
 
                     if (! $exists) {
-                        $data = new Pca();
+                        $data = new Pca;
                         $data->pca_code = strtoupper($pcaCode);
                         $data->pca_name = $pcaName;
                         $data->save();

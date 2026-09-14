@@ -6,8 +6,8 @@ namespace Bangsamu\Master\Traits;
 
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Events\BeforeImport;
 use Maatwebsite\Excel\Events\AfterImport;
+use Maatwebsite\Excel\Events\BeforeImport;
 use Throwable;
 
 trait HandlesBatchImportBroadcast

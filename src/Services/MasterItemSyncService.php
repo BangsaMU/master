@@ -58,8 +58,8 @@ class MasterItemSyncService
      * - If targetMaxId > localMaxId: Sync all items from (localMaxId + 1) up to targetMaxId in chunks.
      * - If targetMaxId <= localMaxId: Update the specific target item via upsert.
      *
-     * @param int $targetMaxId The maximum ID reported by master-data.
-     * @param int $chunkSize Number of records to process per batch (default 250).
+     * @param  int  $targetMaxId  The maximum ID reported by master-data.
+     * @param  int  $chunkSize  Number of records to process per batch (default 250).
      * @return array<string, mixed> Detailed sync report.
      */
     public function syncToMaxId(int $targetMaxId, int $chunkSize = 250): array
@@ -84,9 +84,8 @@ class MasterItemSyncService
     /**
      * Synchronize a specific ID range from db_master to local database using chunkById.
      *
-     * @param int $fromId Exclusive starting ID (e.g. current local max ID).
-     * @param int $toId Inclusive ending ID (target max ID).
-     * @param int $chunkSize
+     * @param  int  $fromId  Exclusive starting ID (e.g. current local max ID).
+     * @param  int  $toId  Inclusive ending ID (target max ID).
      * @return array<string, mixed>
      */
     public function syncRange(int $fromId, int $toId, int $chunkSize = 250): array
@@ -147,7 +146,7 @@ class MasterItemSyncService
             return $result;
 
         } catch (Throwable $e) {
-            Log::error('[MasterItemSyncService] Range sync failed: ' . $e->getMessage(), [
+            Log::error('[MasterItemSyncService] Range sync failed: '.$e->getMessage(), [
                 'from_id' => $fromId,
                 'to_id' => $toId,
                 'exception' => $e,
@@ -155,7 +154,7 @@ class MasterItemSyncService
 
             return [
                 'success' => false,
-                'message' => 'Failed to synchronize items: ' . $e->getMessage(),
+                'message' => 'Failed to synchronize items: '.$e->getMessage(),
                 'target_max_id' => $toId,
                 'previous_local_max_id' => $fromId,
                 'synced_count' => $syncedCount,
@@ -170,8 +169,8 @@ class MasterItemSyncService
      * 1. If an existing item was updated (or action == updated), that item is ALWAYS updated directly.
      * 2. If new items exist (targetMax > localMax), range sync is executed with chunking.
      *
-     * @param array<string, mixed> $payload Broadcast event data.
-     * @param int $chunkSize Batch size for chunking.
+     * @param  array<string, mixed>  $payload  Broadcast event data.
+     * @param  int  $chunkSize  Batch size for chunking.
      * @return array<string, mixed>
      */
     public function syncFromBroadcast(array $payload, int $chunkSize = 250): array
@@ -226,7 +225,6 @@ class MasterItemSyncService
     /**
      * Synchronize a specific single item by its ID.
      *
-     * @param int $itemId
      * @return array<string, mixed>
      */
     public function syncSingleItem(int $itemId): array
@@ -259,7 +257,7 @@ class MasterItemSyncService
                 'synced_count' => 1,
             ];
         } catch (Throwable $e) {
-            Log::error("[MasterItemSyncService] Single item sync failed for ID {$itemId}: " . $e->getMessage());
+            Log::error("[MasterItemSyncService] Single item sync failed for ID {$itemId}: ".$e->getMessage());
 
             return [
                 'success' => false,
@@ -272,7 +270,7 @@ class MasterItemSyncService
     /**
      * Filter array to keep only allowed columns that exist in the local master_item_code table.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     protected function filterColumns(array $data): array

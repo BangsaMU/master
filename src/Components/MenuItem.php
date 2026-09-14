@@ -1,4 +1,5 @@
 <?php
+
 // app/View/Components/MenuItem.php
 
 namespace Bangsamu\Master\Components;
@@ -24,8 +25,8 @@ class MenuItem extends Component
     /**
      * Create a new component instance.
      *
-     * @param array $item
-     * @param bool $isActive
+     * @param  array  $item
+     * @param  bool  $isActive
      * @return void
      */
     public function __construct($item, $isActive = false)

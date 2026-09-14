@@ -2,25 +2,28 @@
 
 namespace Bangsamu\Master\Controllers;
 
-use Illuminate\Http\Request;
-use Bangsamu\Master\Models\Project;
 use App\Http\Controllers\Controller;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
-use Exception;
+use Bangsamu\Master\Traits\DynamicFilterable;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Traits\DynamicFilterable;
+use Illuminate\Validation\Rule;
 
 class ProjectDetailController extends Controller
 {
     use DynamicFilterable;
+
     protected $readonly = false;
-    protected $sheet_name = 'Project Detail'; //nama label untuk FE
-    protected $sheet_slug = 'project-detail'; //nama routing (slug)
-    protected $view_tabel_index = array(
+
+    protected $sheet_name = 'Project Detail'; // nama label untuk FE
+
+    protected $sheet_slug = 'project-detail'; // nama routing (slug)
+
+    protected $view_tabel_index = [
         'mpd.id AS No',
         'mp.internal_external AS project_type',
         'mp.project_code AS project_code',
@@ -29,13 +32,14 @@ class ProjectDetailController extends Controller
         'mc.company_name AS company_name',
         'mpd.project_code_client AS project_code_client',
         '"action" AS action',
-    );
-    protected $view_tabel = array(
+    ];
+
+    protected $view_tabel = [
         'mpd.id AS id',
         'mpd.loc_code AS location_code',
         'mpd.loc_name AS location_name',
         '"action" AS action',
-    );
+    ];
 
     public function config($id = null, $data = null)
     {
@@ -46,7 +50,7 @@ class ProjectDetailController extends Controller
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('master.' . $this->sheet_slug . '.create');
+        $data['page']['new']['url'] = route('master.'.$this->sheet_slug.'.create');
 
         $data['page']['js_list'][] = 'js.master-data';
 
@@ -70,10 +74,10 @@ class ProjectDetailController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['list'] = route('master.' . $this->sheet_slug . '.index');
+        $data['page']['list'] = route('master.'.$this->sheet_slug.'.index');
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_project_detail') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -86,7 +90,7 @@ class ProjectDetailController extends Controller
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['create']['url'] = route('master.'.$sheet_slug.'.create');
 
             $data['datatable']['btn']['import']['id'] = 'importitem';
             $data['datatable']['btn']['import']['title'] = 'Import Item';
@@ -103,7 +107,6 @@ class ProjectDetailController extends Controller
             // $data['datatable']['btn']['export']['url'] = url('master/getmaster_project_detail/export');
         }
 
-
         $page_var = compact('data');
 
         $page_var['formModal'] = searchConfig($data, $view_tabel_index);
@@ -118,11 +121,11 @@ class ProjectDetailController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -133,8 +136,8 @@ class ProjectDetailController extends Controller
         $user_id = Auth::user()->id ?? 0;
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'mpd.created_at';
@@ -147,7 +150,7 @@ class ProjectDetailController extends Controller
         $category = 'master_project_detail';
         $settings = $this->getSettingsForTable($category);
 
-        $query = DB::table($tableName . ' as mpd')
+        $query = DB::table($tableName.' as mpd')
             ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
             ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
             ->whereNull('mpd.deleted_at');
@@ -159,7 +162,7 @@ class ProjectDetailController extends Controller
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table($tableName . ' as mpd')
+            $data_tabel = DB::table($tableName.' as mpd')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -178,12 +181,11 @@ class ProjectDetailController extends Controller
                 ->groupby('mpd.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table($tableName . ' as mpd')
+            $datatb_request = DB::table($tableName.' as mpd')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
@@ -205,21 +207,21 @@ class ProjectDetailController extends Controller
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
-        if (!empty($data_tabel)) {
+        $data = [];
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -228,8 +230,8 @@ class ProjectDetailController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
@@ -246,12 +248,12 @@ class ProjectDetailController extends Controller
                 }
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_project_detail'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_project_detail'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
                 $nestedData['action'] = @$btn;
@@ -261,13 +263,14 @@ class ProjectDetailController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
 
@@ -284,7 +287,7 @@ class ProjectDetailController extends Controller
         $data['page']['readonly'] = false;
         $param = null;
 
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -316,20 +319,20 @@ class ProjectDetailController extends Controller
             ]);
 
             if ($update && $project_detail->wasChanged()) {
-                /*sync callback*/
-                $id =  $project_detail->id;
+                /* sync callback */
+                $id = $project_detail->id;
                 $sync_tabel = 'master_project_detail';
                 $sync_id = $id;
                 $sync_row = $project_detail->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                // update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message = $this->sheet_name . ' updated successfully';
+                $message = $this->sheet_name.' updated successfully';
             } else {
-                $message = $this->sheet_name . ' no data changed';
+                $message = $this->sheet_name.' no data changed';
             }
         } else {
             // Create new master_project_detail
@@ -342,7 +345,7 @@ class ProjectDetailController extends Controller
                 'company_id' => $request->company_id,
             ]);
 
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new project detail
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_project_detail');
 
@@ -362,15 +365,16 @@ class ProjectDetailController extends Controller
             //     'company_id' => $request->company_id,
             // ]);
 
-            $message = $this->sheet_name . ' created successfully';
+            $message = $this->sheet_name.' created successfully';
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
 
     public function show($id)
     {
         $this->readonly = true;
+
         return self::edit($id);
     }
 
@@ -381,7 +385,7 @@ class ProjectDetailController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $this->sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$this->sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_project_detail as tbl1')
@@ -399,8 +403,9 @@ class ProjectDetailController extends Controller
                 'tbl3.company_name',
             )
             ->first();
+
         // dd($param);
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function insertNew(Request $request, $query, $id = null)
@@ -438,10 +443,11 @@ class ProjectDetailController extends Controller
                 ,mp.project_start_date AS project_start_date
                 ,mp.project_complete_date AS project_complete_date
                 from master_project  as mp
-                where mp.id="' . $project_id . '"
+                where mp.id="'.$project_id.'"
                 limit 1
             ';
         }
+
         return DB::select($query);
         // dd($formdata);
     }
@@ -454,21 +460,21 @@ class ProjectDetailController extends Controller
         $view_tabel_index = $this->view_tabel_index;
         $data = self::config($id);
         $data['page']['slug'] = 'dttable_master';
-        $data['page']['title'] = 'Master ' . $sheet_name;
+        $data['page']['title'] = 'Master '.$sheet_name;
         $data['page']['sheet_name'] = $sheet_name;
-        $data['tab-menu']['title'] = Str::headline('Master ' . $sheet_name);
+        $data['tab-menu']['title'] = Str::headline('Master '.$sheet_name);
 
         // $data['route']['back'] = route($data['ajax']['url_prefix'] . '', []);
 
         $user_id = auth()->user()->id;
-        $form_row_type = 'multi';/*single / multi kalo single cek detail kosong redirect*/
+        $form_row_type = 'multi'; /* single / multi kalo single cek detail kosong redirect */
         $id = $id;
         // $indicator_method_id = 45; dinamic dari tabel hse_indicator_method
         $type = $this->sheet_name;
 
         $data_config = self::config($id);
-        if (!is_numeric($id) && $id !== null && $id !== 'new') {
-            return redirect()->route($data_config['ajax']['url_prefix'] . '.index')->with('error_message', 'Error: Data not found');
+        if (! is_numeric($id) && $id !== null && $id !== 'new') {
+            return redirect()->route($data_config['ajax']['url_prefix'].'.index')->with('error_message', 'Error: Data not found');
         }
         // dd($project_id, $project_id !== 'new');
         $formdata = null;
@@ -560,10 +566,10 @@ class ProjectDetailController extends Controller
 
         $query = '
             select
-                ' . implode(',', $view_tabel) . '
+                '.implode(',', $view_tabel).'
             from master_project_detail as mpd
             left join master_project mp on mp.id=mpd.project_id
-            where mpd.id = "' . $id . '"
+            where mpd.id = "'.$id.'"
         ';
 
         if ($id || $id == 0) {
@@ -572,19 +578,19 @@ class ProjectDetailController extends Controller
             // dd($query,$formdata);
             // redirect jika bukan bulti insert
             if (empty($formdata) && $form_row_type == 'single') {
-                return redirect()->route($data_config['ajax']['url_prefix'] . '.index')->with('error_message', 'Data not found with id ' . $id . ' not found in database.');
+                return redirect()->route($data_config['ajax']['url_prefix'].'.index')->with('error_message', 'Data not found with id '.$id.' not found in database.');
             }
 
-            $data_config = self::config($id, (array)$formdata);
+            $data_config = self::config($id, (array) $formdata);
         }
 
-        /*jika data detail kosong*/
+        /* jika data detail kosong */
         if (empty($formdata)) {
             $insertNew = self::insertNew($request, $query, $id);
             if (empty($insertNew)) {
                 $formdata = [0];
             } else {
-                $formdata =  $insertNew;
+                $formdata = $insertNew;
             }
         }
 
@@ -594,6 +600,7 @@ class ProjectDetailController extends Controller
 
         $data = self::config($id, $data);
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
+
         // dd(1,$page_var);
         return view('master::layouts.request', $page_var);
     }

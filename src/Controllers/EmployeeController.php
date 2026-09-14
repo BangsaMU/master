@@ -3,35 +3,38 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-
 // use App\Imports\Master\ProjectImport;
+use App\Models\User;
+use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\LibraryClay\Models\ActivityLog;
 use Bangsamu\Master\Imports\Master\EmployeeImport;
+use Bangsamu\Master\Models\Employee;
+use Bangsamu\Master\Models\Employee as HrdKaryawan;
+use Bangsamu\Master\Models\JobPosition as HrdJobPosition;
+use Bangsamu\Master\Models\MasterIncrement;
+use Bangsamu\Master\Models\MasterLocation;
+use Bangsamu\Master\Models\MasterStatus;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Traits\DynamicFilterable;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+// use Bangsamu\Master\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
-use Bangsamu\Master\Models\Employee;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Support\Str;
-use Bangsamu\Master\Models\MasterStatus;
-use Carbon\Carbon;
-use Bangsamu\Master\Models\MasterLocation;
-use Bangsamu\Master\Models\MasterIncrement;
-// use Bangsamu\Master\Models\User;
-use App\Models\User;
-use Bangsamu\LibraryClay\Models\ActivityLog;
-use Bangsamu\Master\Models\JobPosition as HrdJobPosition;
-use Bangsamu\Master\Models\Employee as HrdKaryawan;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeController extends Controller
 {
     use DynamicFilterable;
+
     protected $readonly = false;
-    protected $sheet_name = 'Master - Employee'; //nama label untuk FE
-    protected $sheet_slug = 'employee'; //nama routing (slug)
-    protected $view_tabel_index = array(
+
+    protected $sheet_name = 'Master - Employee'; // nama label untuk FE
+
+    protected $sheet_slug = 'employee'; // nama routing (slug)
+
+    protected $view_tabel_index = [
         'm_k.id AS No',
         'null AS action',
         'm_k.no_id_karyawan AS no_id_karyawan',
@@ -64,9 +67,9 @@ class EmployeeController extends Controller
             )) > 0 THEN "external"
         ELSE "-"
         END AS employee_type',
-    );
+    ];
 
-    protected $view_tabel = array(
+    protected $view_tabel = [
         'm_k.id AS No',
         'm_k.no_id_karyawan AS no_id_karyawan',
         'm_k.employee_name AS nama',
@@ -80,7 +83,7 @@ class EmployeeController extends Controller
         'm_k.keterangan AS keterangan',
         'm_k.app_code AS employee_type',
         'null AS action',
-    );
+    ];
 
     /**
      * Create a new controller instance.
@@ -92,30 +95,28 @@ class EmployeeController extends Controller
         // parent::__construct($request);
     }
 
-
-
-
     public function config($id = null, $data = null)
     {
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
 
         $data['module']['folder'] = 'module';
-        $data['ajax']['url_prefix'] = $data['module']['folder'] . '.' . $sheet_slug;
+        $data['ajax']['url_prefix'] = $data['module']['folder'].'.'.$sheet_slug;
         $data['page']['url_prefix'] = $sheet_slug;
         $data['page']['sheet_name'] = $sheet_name;
         $data['page']['new']['active'] = true;
-        $data['page']['new']['url'] = route('master.' . $sheet_slug . '.create');
+        $data['page']['new']['url'] = route('master.'.$sheet_slug.'.create');
 
         $data = configDefAction($id, $data);
 
         $data['page']['id'] = $id;
-        $data['modal']['view_path'] = $data['module']['folder'] . '.mastermodal';
+        $data['modal']['view_path'] = $data['module']['folder'].'.mastermodal';
 
         $data['page']['js_list'][] = 'js.master-data';
 
         return $data;
     }
+
     public function view_form($data)
     {
         $readonly = $this->readonly;
@@ -262,7 +263,6 @@ class EmployeeController extends Controller
             'disabled' => $global_disable || $revisi_disable ? true : false,
         ];
 
-
         $view_form[90] = [
             'field' => 'space',
             'type' => 'space',
@@ -299,7 +299,7 @@ class EmployeeController extends Controller
         $data['page']['list'] = route('master.employee.index');
         $data['page']['title'] = $sheet_name;
 
-        $data['tab-menu']['title'] = 'List ' . $sheet_name;
+        $data['tab-menu']['title'] = 'List '.$sheet_name;
 
         if (checkPermission('is_admin') || checkPermission('read_employee') == true) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -312,7 +312,7 @@ class EmployeeController extends Controller
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
-            $data['datatable']['btn']['create']['url'] = route('master.' . $sheet_slug . '.create');
+            $data['datatable']['btn']['create']['url'] = route('master.'.$sheet_slug.'.create');
 
             if (checkPermission('is_admin')) {
                 $data['datatable']['btn']['import']['id'] = 'importitem';
@@ -330,11 +330,9 @@ class EmployeeController extends Controller
             $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_employee']);
         }
 
-
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.employee.import');
         $data['page']['import']['template'] = url('/template/form_import_hrd.xlsx');
-
 
         $page_var = compact('data');
 
@@ -350,11 +348,11 @@ class EmployeeController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|' . @$request->input('length') . '|') > 0 ? 10 : $request->input('length');
+        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
         $start = $request->input('start') ?? 0;
 
         $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); //0
+        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
 
         $char_nosearch = 0;
         $search = $request->input('search.value');
@@ -373,8 +371,8 @@ class EmployeeController extends Controller
         }
 
         if ($request->input('order.0.column')) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $view_tabel[$request->input('order.0.column')]);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
             $order = $colom_filed[0] ?? 'id';
         } else {
             $order = 'm_k.created_at';
@@ -386,16 +384,15 @@ class EmployeeController extends Controller
         $category = 'master_employee';
         $settings = $this->getSettingsForTable($category);
 
-        $baseQuery = DB::table($tableName . ' as m_k')
-            ->where(function ($query) use ($user_id,$user_location_id) {
-                if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
-                    //bisa liat semua employee
+        $baseQuery = DB::table($tableName.' as m_k')
+            ->where(function ($query) use ($user_location_id) {
+                if (checkPermission('is_admin') || checkPermission('hrd_all_location')) {
+                    // bisa liat semua employee
                 } else {
-                    //hanya app hrd demo
+                    // hanya app hrd demo
                     $query
-                    ->where('m_k.app_code', 'APP11')
-                    ->whereIn('hire_id', explode(',', $user_location_id))
-                    ;
+                        ->where('m_k.app_code', 'APP11')
+                        ->whereIn('hire_id', explode(',', $user_location_id));
                 }
             })->whereNull('m_k.deleted_at');
 
@@ -407,22 +404,21 @@ class EmployeeController extends Controller
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table($tableName . ' as m_k')
+            $data_tabel = DB::table($tableName.' as m_k')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->leftJoin('master_status as m_s', 'm_k.status_id', '=', 'm_s.id')
                 ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
                 ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
-                ->where(function ($query) use ($user_id,$user_location_id) {
-                    if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
-                        //bisa liat semua employee
+                ->where(function ($query) use ($user_location_id) {
+                    if (checkPermission('is_admin') || checkPermission('hrd_all_location')) {
+                        // bisa liat semua employee
                     } else {
-                        //hanya app hrd demo
+                        // hanya app hrd demo
                         $query
-                        ->where('m_k.app_code', 'APP11')
-                        ->whereIn('hire_id', explode(',', $user_location_id))
-                        ;
+                            ->where('m_k.app_code', 'APP11')
+                            ->whereIn('hire_id', explode(',', $user_location_id));
                     }
                 })->whereNull('m_k.deleted_at');
 
@@ -436,27 +432,25 @@ class EmployeeController extends Controller
                 ->groupby('m_k.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
-                ->offset($start)
-            ;
+                ->offset($start);
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table($tableName . ' as m_k')
+            $datatb_request = DB::table($tableName.' as m_k')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
                 ->leftJoin('master_status as m_s', 'm_k.status_id', '=', 'm_s.id')
                 ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
                 ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
-                ->where(function ($query) use ($user_id,$user_location_id) {
-                    if (checkPermission('is_admin')||checkPermission('hrd_all_location')) {
-                        //bisa liat semua employee
+                ->where(function ($query) use ($user_location_id) {
+                    if (checkPermission('is_admin') || checkPermission('hrd_all_location')) {
+                        // bisa liat semua employee
                     } else {
-                        //hanya app hrd demo
+                        // hanya app hrd demo
                         $query
-                        ->where('m_k.app_code', 'APP11')
-                        ->whereIn('hire_id', explode(',', $user_location_id))
-                        ;
+                            ->where('m_k.app_code', 'APP11')
+                            ->whereIn('hire_id', explode(',', $user_location_id));
                     }
                 })->whereNull('m_k.deleted_at');
 
@@ -474,21 +468,21 @@ class EmployeeController extends Controller
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
-            /*remove alias*/
-            $colom_filed = explode(" AS ", $valC);
+            /* remove alias */
+            $colom_filed = explode(' AS ', $valC);
             $c_filed = $colom_filed[1] ?? $colom_filed[0];
             $name = $mapping_json[$keyC] ?? $c_filed;
             $columnsHeader[$keyC] = $c_filed;
             $columns[$keyC] = [
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
-                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, "_id") > 0 ? false : true),
+                'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
             ];
         }
 
-        $data = array();
-        if (!empty($data_tabel)) {
+        $data = [];
+        if (! empty($data_tabel)) {
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -497,8 +491,8 @@ class EmployeeController extends Controller
 
                 foreach ($view_tabel_index as $keyC => $valC) {
 
-                    /*remove alias*/
-                    $colom_filed = explode(" AS ", $valC);
+                    /* remove alias */
+                    $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
                     $nestedData[$c_filed] = @$row->$c_filed;
@@ -506,12 +500,12 @@ class EmployeeController extends Controller
                 $nestedData['No'] = $DT_RowIndex;
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_employee'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.edit', $row->No) . '" class="btn btn-primary btn-sm">Update</a> ';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.show', $row->No) . '" class="btn btn-primary btn-sm">View</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
                 if ((checkPermission('is_admin') || checkPermission('delete_employee'))) {
-                    $btn .= '<a href="' . route('master.' . $sheet_slug . '.destroy', $row->No) . '" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
+                    $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
                 $nestedData['action'] = $btn;
@@ -521,13 +515,14 @@ class EmployeeController extends Controller
             }
         }
 
-        $json_data = array(
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => intval($totalData),
-            "recordsFiltered" => intval($totalFiltered),
-            "data" => $data,
-            "columns" => $columns,
-        );
+        $json_data = [
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => intval($totalData),
+            'recordsFiltered' => intval($totalFiltered),
+            'data' => $data,
+            'columns' => $columns,
+        ];
+
         return response()->json($json_data);
     }
 
@@ -539,266 +534,266 @@ class EmployeeController extends Controller
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
-        $data['page']['list'] = route('master.' . $sheet_slug . '.index');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
+        $data['page']['list'] = route('master.'.$sheet_slug.'.index');
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
-        $param = new \stdClass();
+        $param = new \stdClass;
         $statuses = MasterStatus::select('id', DB::raw('concat(kode, " - ", status) as status'))->get();
         $list_status = $statuses->pluck('status', 'id');
         $param->status = $statuses;
 
         $param->country_code = [
-            ''=>'-',
-            'ABW'=>'Aruba',
-            'AFG'=>'Afghanistan',
-            'AGO'=>'Angola',
-            'AIA'=>'Anguilla',
-            'ALA'=>'Åland Islands',
-            'ALB'=>'Albania',
-            'AND'=>'Andorra',
-            'ARE'=>'United Arab Emirates',
-            'ARG'=>'Argentina',
-            'ARM'=>'Armenia',
-            'ASM'=>'American Samoa',
-            'ATA'=>'Antarctica',
-            'ATF'=>'French Southern Territories',
-            'ATG'=>'Antigua and Barbuda',
-            'AUS'=>'Australia',
-            'AUT'=>'Austria',
-            'AZE'=>'Azerbaijan',
-            'BDI'=>'Burundi',
-            'BEL'=>'Belgium',
-            'BEN'=>'Benin',
-            'BES'=>'Bonaire, Sint Eustatius and Saba',
-            'BFA'=>'Burkina Faso',
-            'BGD'=>'Bangladesh',
-            'BGR'=>'Bulgaria',
-            'BHR'=>'Bahrain',
-            'BHS'=>'Bahamas',
-            'BIH'=>'Bosnia and Herzegovina',
-            'BLM'=>'Saint Barthélemy',
-            'BLR'=>'Belarus',
-            'BLZ'=>'Belize',
-            'BMU'=>'Bermuda',
-            'BOL'=>'Bolivia, Plurinational State of',
-            'BRA'=>'Brazil',
-            'BRB'=>'Barbados',
-            'BRN'=>'Brunei Darussalam',
-            'BTN'=>'Bhutan',
-            'BVT'=>'Bouvet Island',
-            'BWA'=>'Botswana',
-            'CAF'=>'Central African Republic',
-            'CAN'=>'Canada',
-            'CCK'=>'Cocos (Keeling) Islands',
-            'CHE'=>'Switzerland',
-            'CHL'=>'Chile',
-            'CHN'=>'China',
-            'CIV'=>'Côte d`Ivoire',
-            'CMR'=>'Cameroon',
-            'COD'=>'Congo, Democratic Republic of the',
-            'COG'=>'Congo',
-            'COK'=>'Cook Islands',
-            'COL'=>'Colombia',
-            'COM'=>'Comoros',
-            'CPV'=>'Cabo Verde',
-            'CRI'=>'Costa Rica',
-            'CUB'=>'Cuba',
-            'CUW'=>'Curaçao',
-            'CXR'=>'Christmas Island',
-            'CYM'=>'Cayman Islands',
-            'CYP'=>'Cyprus',
-            'CZE'=>'Czechia',
-            'DEU'=>'Germany',
-            'DJI'=>'Djibouti',
-            'DMA'=>'Dominica',
-            'DNK'=>'Denmark',
-            'DOM'=>'Dominican Republic',
-            'DZA'=>'Algeria',
-            'ECU'=>'Ecuador',
-            'EGY'=>'Egypt',
-            'ERI'=>'Eritrea',
-            'ESH'=>'Western Sahara',
-            'ESP'=>'Spain',
-            'EST'=>'Estonia',
-            'ETH'=>'Ethiopia',
-            'FIN'=>'Finland',
-            'FJI'=>'Fiji',
-            'FLK'=>'Falkland Islands (Malvinas)',
-            'FRA'=>'France',
-            'FRO'=>'Faroe Islands',
-            'FSM'=>'Micronesia, Federated States of',
-            'GAB'=>'Gabon',
-            'GBR'=>'United Kingdom of Great Britain and Northern Ireland',
-            'GEO'=>'Georgia',
-            'GGY'=>'Guernsey',
-            'GHA'=>'Ghana',
-            'GIB'=>'Gibraltar',
-            'GIN'=>'Guinea',
-            'GLP'=>'Guadeloupe',
-            'GMB'=>'Gambia',
-            'GNB'=>'Guinea-Bissau',
-            'GNQ'=>'Equatorial Guinea',
-            'GRC'=>'Greece',
-            'GRD'=>'Grenada',
-            'GRL'=>'Greenland',
-            'GTM'=>'Guatemala',
-            'GUF'=>'French Guiana',
-            'GUM'=>'Guam',
-            'GUY'=>'Guyana',
-            'HKG'=>'Hong Kong',
-            'HMD'=>'Heard Island and McDonald Islands',
-            'HND'=>'Honduras',
-            'HRV'=>'Croatia',
-            'HTI'=>'Haiti',
-            'HUN'=>'Hungary',
-            'IDN'=>'Indonesia',
-            'IMN'=>'Isle of Man',
-            'IND'=>'India',
-            'IOT'=>'British Indian Ocean Territory',
-            'IRL'=>'Ireland',
-            'IRN'=>'Iran, Islamic Republic of',
-            'IRQ'=>'Iraq',
-            'ISL'=>'Iceland',
-            'ISR'=>'Israel',
-            'ITA'=>'Italy',
-            'JAM'=>'Jamaica',
-            'JEY'=>'Jersey',
-            'JOR'=>'Jordan',
-            'JPN'=>'Japan',
-            'KAZ'=>'Kazakhstan',
-            'KEN'=>'Kenya',
-            'KGZ'=>'Kyrgyzstan',
-            'KHM'=>'Cambodia',
-            'KIR'=>'Kiribati',
-            'KNA'=>'Saint Kitts and Nevis',
-            'KOR'=>'Korea, Republic of',
-            'KWT'=>'Kuwait',
-            'LAO'=>'Lao People`s Democratic Republic',
-            'LBN'=>'Lebanon',
-            'LBR'=>'Liberia',
-            'LBY'=>'Libya',
-            'LCA'=>'Saint Lucia',
-            'LIE'=>'Liechtenstein',
-            'LKA'=>'Sri Lanka',
-            'LSO'=>'Lesotho',
-            'LTU'=>'Lithuania',
-            'LUX'=>'Luxembourg',
-            'LVA'=>'Latvia',
-            'MAC'=>'Macao',
-            'MAF'=>'Saint Martin (French part)',
-            'MAR'=>'Morocco',
-            'MCO'=>'Monaco',
-            'MDA'=>'Moldova, Republic of',
-            'MDG'=>'Madagascar',
-            'MDV'=>'Maldives',
-            'MEX'=>'Mexico',
-            'MHL'=>'Marshall Islands',
-            'MKD'=>'North Macedonia',
-            'MLI'=>'Mali',
-            'MLT'=>'Malta',
-            'MMR'=>'Myanmar',
-            'MNE'=>'Montenegro',
-            'MNG'=>'Mongolia',
-            'MNP'=>'Northern Mariana Islands',
-            'MOZ'=>'Mozambique',
-            'MRT'=>'Mauritania',
-            'MSR'=>'Montserrat',
-            'MTQ'=>'Martinique',
-            'MUS'=>'Mauritius',
-            'MWI'=>'Malawi',
-            'MYS'=>'Malaysia',
-            'MYT'=>'Mayotte',
-            'NAM'=>'Namibia',
-            'NCL'=>'New Caledonia',
-            'NER'=>'Niger',
-            'NFK'=>'Norfolk Island',
-            'NGA'=>'Nigeria',
-            'NIC'=>'Nicaragua',
-            'NIU'=>'Niue',
-            'NLD'=>'Netherlands, Kingdom of the',
-            'NOR'=>'Norway',
-            'NPL'=>'Nepal',
-            'NRU'=>'Nauru',
-            'NZL'=>'New Zealand',
-            'OMN'=>'Oman',
-            'PAK'=>'Pakistan',
-            'PAN'=>'Panama',
-            'PCN'=>'Pitcairn',
-            'PER'=>'Peru',
-            'PHL'=>'Philippines',
-            'PLW'=>'Palau',
-            'PNG'=>'Papua New Guinea',
-            'POL'=>'Poland',
-            'PRI'=>'Puerto Rico',
-            'PRK'=>'Korea, Democratic People`s Republic of',
-            'PRT'=>'Portugal',
-            'PRY'=>'Paraguay',
-            'PSE'=>'Palestine, State of',
-            'PYF'=>'French Polynesia',
-            'QAT'=>'Qatar',
-            'REU'=>'Réunion',
-            'ROU'=>'Romania',
-            'RUS'=>'Russian Federation',
-            'RWA'=>'Rwanda',
-            'SAU'=>'Saudi Arabia',
-            'SDN'=>'Sudan',
-            'SEN'=>'Senegal',
-            'SGP'=>'Singapore',
-            'SGS'=>'South Georgia and the South Sandwich Islands',
-            'SHN'=>'Saint Helena, Ascension and Tristan da Cunha',
-            'SJM'=>'Svalbard and Jan Mayen',
-            'SLB'=>'Solomon Islands',
-            'SLE'=>'Sierra Leone',
-            'SLV'=>'El Salvador',
-            'SMR'=>'San Marino',
-            'SOM'=>'Somalia',
-            'SPM'=>'Saint Pierre and Miquelon',
-            'SRB'=>'Serbia',
-            'SSD'=>'South Sudan',
-            'STP'=>'Sao Tome and Principe',
-            'SUR'=>'Suriname',
-            'SVK'=>'Slovakia',
-            'SVN'=>'Slovenia',
-            'SWE'=>'Sweden',
-            'SWZ'=>'Eswatini',
-            'SXM'=>'Sint Maarten (Dutch part)',
-            'SYC'=>'Seychelles',
-            'SYR'=>'Syrian Arab Republic',
-            'TCA'=>'Turks and Caicos Islands',
-            'TCD'=>'Chad',
-            'TGO'=>'Togo',
-            'THA'=>'Thailand',
-            'TJK'=>'Tajikistan',
-            'TKL'=>'Tokelau',
-            'TKM'=>'Turkmenistan',
-            'TLS'=>'Timor-Leste',
-            'TON'=>'Tonga',
-            'TTO'=>'Trinidad and Tobago',
-            'TUN'=>'Tunisia',
-            'TUR'=>'Türkiye',
-            'TUV'=>'Tuvalu',
-            'TWN'=>'Taiwan, Province of China',
-            'TZA'=>'Tanzania, United Republic of',
-            'UGA'=>'Uganda',
-            'UKR'=>'Ukraine',
-            'UMI'=>'United States Minor Outlying Islands',
-            'URY'=>'Uruguay',
-            'USA'=>'United States of America',
-            'UZB'=>'Uzbekistan',
-            'VAT'=>'Holy See',
-            'VCT'=>'Saint Vincent and the Grenadines',
-            'VEN'=>'Venezuela, Bolivarian Republic of',
-            'VGB'=>'Virgin Islands (British)',
-            'VIR'=>'Virgin Islands (U.S.)',
-            'VNM'=>'Viet Nam',
-            'VUT'=>'Vanuatu',
-            'WLF'=>'Wallis and Futuna',
-            'WSM'=>'Samoa',
-            'YEM'=>'Yemen',
-            'ZAF'=>'South Africa',
-            'ZMB'=>'Zambia',
-            'ZWE'=>'Zimbabwe',
+            '' => '-',
+            'ABW' => 'Aruba',
+            'AFG' => 'Afghanistan',
+            'AGO' => 'Angola',
+            'AIA' => 'Anguilla',
+            'ALA' => 'Åland Islands',
+            'ALB' => 'Albania',
+            'AND' => 'Andorra',
+            'ARE' => 'United Arab Emirates',
+            'ARG' => 'Argentina',
+            'ARM' => 'Armenia',
+            'ASM' => 'American Samoa',
+            'ATA' => 'Antarctica',
+            'ATF' => 'French Southern Territories',
+            'ATG' => 'Antigua and Barbuda',
+            'AUS' => 'Australia',
+            'AUT' => 'Austria',
+            'AZE' => 'Azerbaijan',
+            'BDI' => 'Burundi',
+            'BEL' => 'Belgium',
+            'BEN' => 'Benin',
+            'BES' => 'Bonaire, Sint Eustatius and Saba',
+            'BFA' => 'Burkina Faso',
+            'BGD' => 'Bangladesh',
+            'BGR' => 'Bulgaria',
+            'BHR' => 'Bahrain',
+            'BHS' => 'Bahamas',
+            'BIH' => 'Bosnia and Herzegovina',
+            'BLM' => 'Saint Barthélemy',
+            'BLR' => 'Belarus',
+            'BLZ' => 'Belize',
+            'BMU' => 'Bermuda',
+            'BOL' => 'Bolivia, Plurinational State of',
+            'BRA' => 'Brazil',
+            'BRB' => 'Barbados',
+            'BRN' => 'Brunei Darussalam',
+            'BTN' => 'Bhutan',
+            'BVT' => 'Bouvet Island',
+            'BWA' => 'Botswana',
+            'CAF' => 'Central African Republic',
+            'CAN' => 'Canada',
+            'CCK' => 'Cocos (Keeling) Islands',
+            'CHE' => 'Switzerland',
+            'CHL' => 'Chile',
+            'CHN' => 'China',
+            'CIV' => 'Côte d`Ivoire',
+            'CMR' => 'Cameroon',
+            'COD' => 'Congo, Democratic Republic of the',
+            'COG' => 'Congo',
+            'COK' => 'Cook Islands',
+            'COL' => 'Colombia',
+            'COM' => 'Comoros',
+            'CPV' => 'Cabo Verde',
+            'CRI' => 'Costa Rica',
+            'CUB' => 'Cuba',
+            'CUW' => 'Curaçao',
+            'CXR' => 'Christmas Island',
+            'CYM' => 'Cayman Islands',
+            'CYP' => 'Cyprus',
+            'CZE' => 'Czechia',
+            'DEU' => 'Germany',
+            'DJI' => 'Djibouti',
+            'DMA' => 'Dominica',
+            'DNK' => 'Denmark',
+            'DOM' => 'Dominican Republic',
+            'DZA' => 'Algeria',
+            'ECU' => 'Ecuador',
+            'EGY' => 'Egypt',
+            'ERI' => 'Eritrea',
+            'ESH' => 'Western Sahara',
+            'ESP' => 'Spain',
+            'EST' => 'Estonia',
+            'ETH' => 'Ethiopia',
+            'FIN' => 'Finland',
+            'FJI' => 'Fiji',
+            'FLK' => 'Falkland Islands (Malvinas)',
+            'FRA' => 'France',
+            'FRO' => 'Faroe Islands',
+            'FSM' => 'Micronesia, Federated States of',
+            'GAB' => 'Gabon',
+            'GBR' => 'United Kingdom of Great Britain and Northern Ireland',
+            'GEO' => 'Georgia',
+            'GGY' => 'Guernsey',
+            'GHA' => 'Ghana',
+            'GIB' => 'Gibraltar',
+            'GIN' => 'Guinea',
+            'GLP' => 'Guadeloupe',
+            'GMB' => 'Gambia',
+            'GNB' => 'Guinea-Bissau',
+            'GNQ' => 'Equatorial Guinea',
+            'GRC' => 'Greece',
+            'GRD' => 'Grenada',
+            'GRL' => 'Greenland',
+            'GTM' => 'Guatemala',
+            'GUF' => 'French Guiana',
+            'GUM' => 'Guam',
+            'GUY' => 'Guyana',
+            'HKG' => 'Hong Kong',
+            'HMD' => 'Heard Island and McDonald Islands',
+            'HND' => 'Honduras',
+            'HRV' => 'Croatia',
+            'HTI' => 'Haiti',
+            'HUN' => 'Hungary',
+            'IDN' => 'Indonesia',
+            'IMN' => 'Isle of Man',
+            'IND' => 'India',
+            'IOT' => 'British Indian Ocean Territory',
+            'IRL' => 'Ireland',
+            'IRN' => 'Iran, Islamic Republic of',
+            'IRQ' => 'Iraq',
+            'ISL' => 'Iceland',
+            'ISR' => 'Israel',
+            'ITA' => 'Italy',
+            'JAM' => 'Jamaica',
+            'JEY' => 'Jersey',
+            'JOR' => 'Jordan',
+            'JPN' => 'Japan',
+            'KAZ' => 'Kazakhstan',
+            'KEN' => 'Kenya',
+            'KGZ' => 'Kyrgyzstan',
+            'KHM' => 'Cambodia',
+            'KIR' => 'Kiribati',
+            'KNA' => 'Saint Kitts and Nevis',
+            'KOR' => 'Korea, Republic of',
+            'KWT' => 'Kuwait',
+            'LAO' => 'Lao People`s Democratic Republic',
+            'LBN' => 'Lebanon',
+            'LBR' => 'Liberia',
+            'LBY' => 'Libya',
+            'LCA' => 'Saint Lucia',
+            'LIE' => 'Liechtenstein',
+            'LKA' => 'Sri Lanka',
+            'LSO' => 'Lesotho',
+            'LTU' => 'Lithuania',
+            'LUX' => 'Luxembourg',
+            'LVA' => 'Latvia',
+            'MAC' => 'Macao',
+            'MAF' => 'Saint Martin (French part)',
+            'MAR' => 'Morocco',
+            'MCO' => 'Monaco',
+            'MDA' => 'Moldova, Republic of',
+            'MDG' => 'Madagascar',
+            'MDV' => 'Maldives',
+            'MEX' => 'Mexico',
+            'MHL' => 'Marshall Islands',
+            'MKD' => 'North Macedonia',
+            'MLI' => 'Mali',
+            'MLT' => 'Malta',
+            'MMR' => 'Myanmar',
+            'MNE' => 'Montenegro',
+            'MNG' => 'Mongolia',
+            'MNP' => 'Northern Mariana Islands',
+            'MOZ' => 'Mozambique',
+            'MRT' => 'Mauritania',
+            'MSR' => 'Montserrat',
+            'MTQ' => 'Martinique',
+            'MUS' => 'Mauritius',
+            'MWI' => 'Malawi',
+            'MYS' => 'Malaysia',
+            'MYT' => 'Mayotte',
+            'NAM' => 'Namibia',
+            'NCL' => 'New Caledonia',
+            'NER' => 'Niger',
+            'NFK' => 'Norfolk Island',
+            'NGA' => 'Nigeria',
+            'NIC' => 'Nicaragua',
+            'NIU' => 'Niue',
+            'NLD' => 'Netherlands, Kingdom of the',
+            'NOR' => 'Norway',
+            'NPL' => 'Nepal',
+            'NRU' => 'Nauru',
+            'NZL' => 'New Zealand',
+            'OMN' => 'Oman',
+            'PAK' => 'Pakistan',
+            'PAN' => 'Panama',
+            'PCN' => 'Pitcairn',
+            'PER' => 'Peru',
+            'PHL' => 'Philippines',
+            'PLW' => 'Palau',
+            'PNG' => 'Papua New Guinea',
+            'POL' => 'Poland',
+            'PRI' => 'Puerto Rico',
+            'PRK' => 'Korea, Democratic People`s Republic of',
+            'PRT' => 'Portugal',
+            'PRY' => 'Paraguay',
+            'PSE' => 'Palestine, State of',
+            'PYF' => 'French Polynesia',
+            'QAT' => 'Qatar',
+            'REU' => 'Réunion',
+            'ROU' => 'Romania',
+            'RUS' => 'Russian Federation',
+            'RWA' => 'Rwanda',
+            'SAU' => 'Saudi Arabia',
+            'SDN' => 'Sudan',
+            'SEN' => 'Senegal',
+            'SGP' => 'Singapore',
+            'SGS' => 'South Georgia and the South Sandwich Islands',
+            'SHN' => 'Saint Helena, Ascension and Tristan da Cunha',
+            'SJM' => 'Svalbard and Jan Mayen',
+            'SLB' => 'Solomon Islands',
+            'SLE' => 'Sierra Leone',
+            'SLV' => 'El Salvador',
+            'SMR' => 'San Marino',
+            'SOM' => 'Somalia',
+            'SPM' => 'Saint Pierre and Miquelon',
+            'SRB' => 'Serbia',
+            'SSD' => 'South Sudan',
+            'STP' => 'Sao Tome and Principe',
+            'SUR' => 'Suriname',
+            'SVK' => 'Slovakia',
+            'SVN' => 'Slovenia',
+            'SWE' => 'Sweden',
+            'SWZ' => 'Eswatini',
+            'SXM' => 'Sint Maarten (Dutch part)',
+            'SYC' => 'Seychelles',
+            'SYR' => 'Syrian Arab Republic',
+            'TCA' => 'Turks and Caicos Islands',
+            'TCD' => 'Chad',
+            'TGO' => 'Togo',
+            'THA' => 'Thailand',
+            'TJK' => 'Tajikistan',
+            'TKL' => 'Tokelau',
+            'TKM' => 'Turkmenistan',
+            'TLS' => 'Timor-Leste',
+            'TON' => 'Tonga',
+            'TTO' => 'Trinidad and Tobago',
+            'TUN' => 'Tunisia',
+            'TUR' => 'Türkiye',
+            'TUV' => 'Tuvalu',
+            'TWN' => 'Taiwan, Province of China',
+            'TZA' => 'Tanzania, United Republic of',
+            'UGA' => 'Uganda',
+            'UKR' => 'Ukraine',
+            'UMI' => 'United States Minor Outlying Islands',
+            'URY' => 'Uruguay',
+            'USA' => 'United States of America',
+            'UZB' => 'Uzbekistan',
+            'VAT' => 'Holy See',
+            'VCT' => 'Saint Vincent and the Grenadines',
+            'VEN' => 'Venezuela, Bolivarian Republic of',
+            'VGB' => 'Virgin Islands (British)',
+            'VIR' => 'Virgin Islands (U.S.)',
+            'VNM' => 'Viet Nam',
+            'VUT' => 'Vanuatu',
+            'WLF' => 'Wallis and Futuna',
+            'WSM' => 'Samoa',
+            'YEM' => 'Yemen',
+            'ZAF' => 'South Africa',
+            'ZMB' => 'Zambia',
+            'ZWE' => 'Zimbabwe',
         ];
 
         // $user_location_id = auth()->user()->details()->location_id;
@@ -813,7 +808,7 @@ class EmployeeController extends Controller
         // dd($list_work_location);
         $param->work_location = null;
 
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function store(Request $request)
@@ -844,31 +839,31 @@ class EmployeeController extends Controller
             // ],
 
             'employee_name' => 'required',
-            'citizenship' => "required",
-            'employee_email' => "nullable|email|max:150",
+            'citizenship' => 'required',
+            'employee_email' => 'nullable|email|max:150',
             // 'no_ktp' => 'required|numeric|digits:16',
             // 'no_ktp' => 'required_if:citizenship,WNI|numeric|digits:16',
             'no_ktp' => [
                 'required',
                 function ($attribute, $value, $fail) use ($request) {
                     if ($request->citizenship === 'WNI') {
-                        if (!is_numeric($value) || strlen($value) !== 16) {
+                        if (! is_numeric($value) || strlen($value) !== 16) {
                             $fail('No KTP harus berupa angka 16 digit untuk WNI.');
                         }
                     }
-                }
+                },
             ],
             'status_id' => 'required',
             'job_position_id' => 'nullable',
             'hire_id' => 'nullable',
-            'tanggal_join'  => $status->kode == 0 ? 'nullable|date' : 'required|date',
+            'tanggal_join' => $status->kode == 0 ? 'nullable|date' : 'required|date',
             // 'tanggal_akhir_kerja' => 'nullable|date|after:tanggal_join',
             // 'tanggal_akhir_kontrak' => 'required|date|after:tanggal_join',
             'tanggal_akhir_kerja' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
             'tanggal_akhir_kontrak' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
-            'corporate_email' => "nullable|email|max:150",
-            'keterangan' => "nullable",
-            'work_location_id' => "nullable",
+            'corporate_email' => 'nullable|email|max:150',
+            'keterangan' => 'nullable',
+            'work_location_id' => 'nullable',
         ]);
 
         // Validasi lanjutan tergantung status_id
@@ -907,7 +902,7 @@ class EmployeeController extends Controller
             $update = $employee->update([
                 'employee_name' => $request->employee_name,
                 'employee_phone' => $request->employee_phone,
-                'employee_job_title' =>  strtoupper($jobPositionData->position_name),
+                'employee_job_title' => strtoupper($jobPositionData->position_name),
                 'employee_email' => $request->employee_email,
                 'employee_phone' => $request->employee_phone,
                 'deleted_at' => $request->deleted_at,
@@ -927,29 +922,29 @@ class EmployeeController extends Controller
             ]);
 
             if ($update && $employee->wasChanged()) {
-                /*sync callback*/
-                $id =  $employee->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+                /* sync callback */
+                $id = $employee->id;
+                $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
                 $sync_row = $employee->toArray();
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                // update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message = $this->sheet_name . ' updated successfully';
+                $message = $this->sheet_name.' updated successfully';
             } else {
-                $message = $this->sheet_name . ' no data changed';
+                $message = $this->sheet_name.' no data changed';
             }
         } else {
             $karyawan_active = Employee::where('no_ktp', $request->no_ktp)
-            ->whereNull('tanggal_akhir_kerja')
-            ->latest()->first();
+                ->whereNull('tanggal_akhir_kerja')
+                ->latest()->first();
 
             if ($karyawan_active) {
-               $message = 'Data dengan NIK ' . $request->no_ktp . ' sudah ada dan masih aktif';
-             } else {
+                $message = 'Data dengan NIK '.$request->no_ktp.' sudah ada dan masih aktif';
+            } else {
                 // Create new employee
                 $employee = Employee::create([
                     'employee_name' => strtoupper($request->employee_name),
@@ -973,11 +968,11 @@ class EmployeeController extends Controller
                     'citizenship' => $request->citizenship,
                     'country_code' => $request->country_code,
                 ]);
-                $message = $this->sheet_name . ' created successfully';
+                $message = $this->sheet_name.' created successfully';
             }
         }
 
-        //hanya generate jika dari app HRD
+        // hanya generate jika dari app HRD
         if ($app_code == 'APP11') {
             $unique_group = self::getUniqueFormat($request->tanggal_join, $request->hire_id, $request->status_id);
             $no_id_karyawan = self::createNIPKaryawan($unique_group, $employee->id);
@@ -989,32 +984,31 @@ class EmployeeController extends Controller
         if ($employee) {
             $sync_row = $employee->toArray();
 
-            if (!empty($sync_row)) {
-                /*sync callback*/
-                $id =  $employee->id;
-                $sync_tabel = 'master_' . $this->sheet_slug;
+            if (! empty($sync_row)) {
+                /* sync callback */
+                $id = $employee->id;
+                $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
                 // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                //update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && !LibraryClayController::isMasterDbSameAsDefault()) {
+                // update ke master DB saja
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                     $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message = $this->sheet_name . ' updated successfully';
+                $message = $this->sheet_name.' updated successfully';
             } else {
-                $message = $this->sheet_name . ' has no data to sync';
+                $message = $this->sheet_name.' has no data to sync';
             }
         } else {
-            $message = $this->sheet_name . ' no data changed';
+            $message = $this->sheet_name.' no data changed';
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success_message', $message);
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
-
 
     public function getUniqueFormat($tanggal_join, $hire_id, $status_id)
     {
-        //check join year lessthan 2000
+        // check join year lessthan 2000
         $date1 = Carbon::createFromFormat('Y-m-d', $tanggal_join);
         $date2 = Carbon::createFromFormat('Y-m-d', '2000-12-12');
         if ($date1->lt($date2)) {
@@ -1024,7 +1018,7 @@ class EmployeeController extends Controller
         }
 
         $hire_loc = MasterLocation::find($hire_id);
-        $unique_group = $status_id . $hire_loc->loc_code . $year;
+        $unique_group = $status_id.$hire_loc->loc_code.$year;
 
         return $unique_group;
     }
@@ -1033,7 +1027,7 @@ class EmployeeController extends Controller
     {
         $increment_data = MasterIncrement::where('unique_group', $unique_group)->max('increment');
 
-        if (!$increment_data) {
+        if (! $increment_data) {
             $increment = MasterIncrement::create([
                 'object_id' => $karyawan_id,
                 'unique_group' => $unique_group,
@@ -1047,48 +1041,47 @@ class EmployeeController extends Controller
             ]);
         }
 
-        $no_urut_karyawan = str_pad($increment->increment, 5, "0", STR_PAD_LEFT);
-        $no_id_karyawan = $unique_group . $no_urut_karyawan;
+        $no_urut_karyawan = str_pad($increment->increment, 5, '0', STR_PAD_LEFT);
+        $no_id_karyawan = $unique_group.$no_urut_karyawan;
 
         return $no_id_karyawan;
     }
 
-
     public function show($id)
     {
         $this->readonly = true;
+
         return self::edit($id);
     }
 
     public function edit($id)
     {
-        $form_row_type = 'single'; /*single / multi kalo single cek detail kosong redirect*/
+        $form_row_type = 'single'; /* single / multi kalo single cek detail kosong redirect */
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $data = self::config();
         $data['page']['type'] = $sheet_slug;
         $data['page']['slug'] = $sheet_slug;
-        $data['page']['store'] = route('master.' . $sheet_slug . '.store');
+        $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         // $param = DB::table('master_' . $this->sheet_slug)->where('id', $id)->first();
 
-        $data['page']['logs'] = ActivityLog::
-            select(
-                'id',
-                'model_type',
-                'model_id',
-                'user_id',
-                'action',
-                DB::raw('SUBSTRING_INDEX(description, action, 1) AS nama_user'),
-                DB::raw('TRIM(SUBSTRING_INDEX(description, action, -1)) AS sort_description'),
-                'description',
-                'properties',
-                'updated_at',
-                DB::raw('DATE_FORMAT(updated_at, "%e %M %Y %H:%i:%s") AS updated_at_formated'),
-                DB::raw('DATE_FORMAT(updated_at, "%e %M %Y") AS updated_at_formated_date'),
-                DB::raw('DATE_FORMAT(updated_at, "%H:%i:%s") AS updated_at_formated_time'),
-            )
+        $data['page']['logs'] = ActivityLog::select(
+            'id',
+            'model_type',
+            'model_id',
+            'user_id',
+            'action',
+            DB::raw('SUBSTRING_INDEX(description, action, 1) AS nama_user'),
+            DB::raw('TRIM(SUBSTRING_INDEX(description, action, -1)) AS sort_description'),
+            'description',
+            'properties',
+            'updated_at',
+            DB::raw('DATE_FORMAT(updated_at, "%e %M %Y %H:%i:%s") AS updated_at_formated'),
+            DB::raw('DATE_FORMAT(updated_at, "%e %M %Y") AS updated_at_formated_date'),
+            DB::raw('DATE_FORMAT(updated_at, "%H:%i:%s") AS updated_at_formated_time'),
+        )
             ->where('model_type', 'Bangsamu\Master\Models\Employee')
             ->where('model_id', $id)
             ->orderBy('created_at', 'desc')
@@ -1099,7 +1092,7 @@ class EmployeeController extends Controller
         //     ->where('master_employee.id', $id)
         //     ->first();
 
-        $param = HrdKaryawan::select('master_employee.*', 'mjp.position_code','md.department_name','ml.loc_name as work_location_name', 'master_employee.job_position_id')
+        $param = HrdKaryawan::select('master_employee.*', 'mjp.position_code', 'md.department_name', 'ml.loc_name as work_location_name', 'master_employee.job_position_id')
             ->leftJoin('master_location as ml', 'ml.id', '=', 'master_employee.work_location_id')
             ->leftJoin('master_job_position as mjp', 'mjp.id', '=', 'master_employee.job_position_id')
             ->leftJoin('master_department as md', 'md.id', '=', 'mjp.department_id')
@@ -1113,256 +1106,256 @@ class EmployeeController extends Controller
         $param->status = $statuses;
 
         $param->country_code = [
-            ''=>'-',
-            'ABW'=>'Aruba',
-            'AFG'=>'Afghanistan',
-            'AGO'=>'Angola',
-            'AIA'=>'Anguilla',
-            'ALA'=>'Åland Islands',
-            'ALB'=>'Albania',
-            'AND'=>'Andorra',
-            'ARE'=>'United Arab Emirates',
-            'ARG'=>'Argentina',
-            'ARM'=>'Armenia',
-            'ASM'=>'American Samoa',
-            'ATA'=>'Antarctica',
-            'ATF'=>'French Southern Territories',
-            'ATG'=>'Antigua and Barbuda',
-            'AUS'=>'Australia',
-            'AUT'=>'Austria',
-            'AZE'=>'Azerbaijan',
-            'BDI'=>'Burundi',
-            'BEL'=>'Belgium',
-            'BEN'=>'Benin',
-            'BES'=>'Bonaire, Sint Eustatius and Saba',
-            'BFA'=>'Burkina Faso',
-            'BGD'=>'Bangladesh',
-            'BGR'=>'Bulgaria',
-            'BHR'=>'Bahrain',
-            'BHS'=>'Bahamas',
-            'BIH'=>'Bosnia and Herzegovina',
-            'BLM'=>'Saint Barthélemy',
-            'BLR'=>'Belarus',
-            'BLZ'=>'Belize',
-            'BMU'=>'Bermuda',
-            'BOL'=>'Bolivia, Plurinational State of',
-            'BRA'=>'Brazil',
-            'BRB'=>'Barbados',
-            'BRN'=>'Brunei Darussalam',
-            'BTN'=>'Bhutan',
-            'BVT'=>'Bouvet Island',
-            'BWA'=>'Botswana',
-            'CAF'=>'Central African Republic',
-            'CAN'=>'Canada',
-            'CCK'=>'Cocos (Keeling) Islands',
-            'CHE'=>'Switzerland',
-            'CHL'=>'Chile',
-            'CHN'=>'China',
-            'CIV'=>'Côte d`Ivoire',
-            'CMR'=>'Cameroon',
-            'COD'=>'Congo, Democratic Republic of the',
-            'COG'=>'Congo',
-            'COK'=>'Cook Islands',
-            'COL'=>'Colombia',
-            'COM'=>'Comoros',
-            'CPV'=>'Cabo Verde',
-            'CRI'=>'Costa Rica',
-            'CUB'=>'Cuba',
-            'CUW'=>'Curaçao',
-            'CXR'=>'Christmas Island',
-            'CYM'=>'Cayman Islands',
-            'CYP'=>'Cyprus',
-            'CZE'=>'Czechia',
-            'DEU'=>'Germany',
-            'DJI'=>'Djibouti',
-            'DMA'=>'Dominica',
-            'DNK'=>'Denmark',
-            'DOM'=>'Dominican Republic',
-            'DZA'=>'Algeria',
-            'ECU'=>'Ecuador',
-            'EGY'=>'Egypt',
-            'ERI'=>'Eritrea',
-            'ESH'=>'Western Sahara',
-            'ESP'=>'Spain',
-            'EST'=>'Estonia',
-            'ETH'=>'Ethiopia',
-            'FIN'=>'Finland',
-            'FJI'=>'Fiji',
-            'FLK'=>'Falkland Islands (Malvinas)',
-            'FRA'=>'France',
-            'FRO'=>'Faroe Islands',
-            'FSM'=>'Micronesia, Federated States of',
-            'GAB'=>'Gabon',
-            'GBR'=>'United Kingdom of Great Britain and Northern Ireland',
-            'GEO'=>'Georgia',
-            'GGY'=>'Guernsey',
-            'GHA'=>'Ghana',
-            'GIB'=>'Gibraltar',
-            'GIN'=>'Guinea',
-            'GLP'=>'Guadeloupe',
-            'GMB'=>'Gambia',
-            'GNB'=>'Guinea-Bissau',
-            'GNQ'=>'Equatorial Guinea',
-            'GRC'=>'Greece',
-            'GRD'=>'Grenada',
-            'GRL'=>'Greenland',
-            'GTM'=>'Guatemala',
-            'GUF'=>'French Guiana',
-            'GUM'=>'Guam',
-            'GUY'=>'Guyana',
-            'HKG'=>'Hong Kong',
-            'HMD'=>'Heard Island and McDonald Islands',
-            'HND'=>'Honduras',
-            'HRV'=>'Croatia',
-            'HTI'=>'Haiti',
-            'HUN'=>'Hungary',
-            'IDN'=>'Indonesia',
-            'IMN'=>'Isle of Man',
-            'IND'=>'India',
-            'IOT'=>'British Indian Ocean Territory',
-            'IRL'=>'Ireland',
-            'IRN'=>'Iran, Islamic Republic of',
-            'IRQ'=>'Iraq',
-            'ISL'=>'Iceland',
-            'ISR'=>'Israel',
-            'ITA'=>'Italy',
-            'JAM'=>'Jamaica',
-            'JEY'=>'Jersey',
-            'JOR'=>'Jordan',
-            'JPN'=>'Japan',
-            'KAZ'=>'Kazakhstan',
-            'KEN'=>'Kenya',
-            'KGZ'=>'Kyrgyzstan',
-            'KHM'=>'Cambodia',
-            'KIR'=>'Kiribati',
-            'KNA'=>'Saint Kitts and Nevis',
-            'KOR'=>'Korea, Republic of',
-            'KWT'=>'Kuwait',
-            'LAO'=>'Lao People`s Democratic Republic',
-            'LBN'=>'Lebanon',
-            'LBR'=>'Liberia',
-            'LBY'=>'Libya',
-            'LCA'=>'Saint Lucia',
-            'LIE'=>'Liechtenstein',
-            'LKA'=>'Sri Lanka',
-            'LSO'=>'Lesotho',
-            'LTU'=>'Lithuania',
-            'LUX'=>'Luxembourg',
-            'LVA'=>'Latvia',
-            'MAC'=>'Macao',
-            'MAF'=>'Saint Martin (French part)',
-            'MAR'=>'Morocco',
-            'MCO'=>'Monaco',
-            'MDA'=>'Moldova, Republic of',
-            'MDG'=>'Madagascar',
-            'MDV'=>'Maldives',
-            'MEX'=>'Mexico',
-            'MHL'=>'Marshall Islands',
-            'MKD'=>'North Macedonia',
-            'MLI'=>'Mali',
-            'MLT'=>'Malta',
-            'MMR'=>'Myanmar',
-            'MNE'=>'Montenegro',
-            'MNG'=>'Mongolia',
-            'MNP'=>'Northern Mariana Islands',
-            'MOZ'=>'Mozambique',
-            'MRT'=>'Mauritania',
-            'MSR'=>'Montserrat',
-            'MTQ'=>'Martinique',
-            'MUS'=>'Mauritius',
-            'MWI'=>'Malawi',
-            'MYS'=>'Malaysia',
-            'MYT'=>'Mayotte',
-            'NAM'=>'Namibia',
-            'NCL'=>'New Caledonia',
-            'NER'=>'Niger',
-            'NFK'=>'Norfolk Island',
-            'NGA'=>'Nigeria',
-            'NIC'=>'Nicaragua',
-            'NIU'=>'Niue',
-            'NLD'=>'Netherlands, Kingdom of the',
-            'NOR'=>'Norway',
-            'NPL'=>'Nepal',
-            'NRU'=>'Nauru',
-            'NZL'=>'New Zealand',
-            'OMN'=>'Oman',
-            'PAK'=>'Pakistan',
-            'PAN'=>'Panama',
-            'PCN'=>'Pitcairn',
-            'PER'=>'Peru',
-            'PHL'=>'Philippines',
-            'PLW'=>'Palau',
-            'PNG'=>'Papua New Guinea',
-            'POL'=>'Poland',
-            'PRI'=>'Puerto Rico',
-            'PRK'=>'Korea, Democratic People`s Republic of',
-            'PRT'=>'Portugal',
-            'PRY'=>'Paraguay',
-            'PSE'=>'Palestine, State of',
-            'PYF'=>'French Polynesia',
-            'QAT'=>'Qatar',
-            'REU'=>'Réunion',
-            'ROU'=>'Romania',
-            'RUS'=>'Russian Federation',
-            'RWA'=>'Rwanda',
-            'SAU'=>'Saudi Arabia',
-            'SDN'=>'Sudan',
-            'SEN'=>'Senegal',
-            'SGP'=>'Singapore',
-            'SGS'=>'South Georgia and the South Sandwich Islands',
-            'SHN'=>'Saint Helena, Ascension and Tristan da Cunha',
-            'SJM'=>'Svalbard and Jan Mayen',
-            'SLB'=>'Solomon Islands',
-            'SLE'=>'Sierra Leone',
-            'SLV'=>'El Salvador',
-            'SMR'=>'San Marino',
-            'SOM'=>'Somalia',
-            'SPM'=>'Saint Pierre and Miquelon',
-            'SRB'=>'Serbia',
-            'SSD'=>'South Sudan',
-            'STP'=>'Sao Tome and Principe',
-            'SUR'=>'Suriname',
-            'SVK'=>'Slovakia',
-            'SVN'=>'Slovenia',
-            'SWE'=>'Sweden',
-            'SWZ'=>'Eswatini',
-            'SXM'=>'Sint Maarten (Dutch part)',
-            'SYC'=>'Seychelles',
-            'SYR'=>'Syrian Arab Republic',
-            'TCA'=>'Turks and Caicos Islands',
-            'TCD'=>'Chad',
-            'TGO'=>'Togo',
-            'THA'=>'Thailand',
-            'TJK'=>'Tajikistan',
-            'TKL'=>'Tokelau',
-            'TKM'=>'Turkmenistan',
-            'TLS'=>'Timor-Leste',
-            'TON'=>'Tonga',
-            'TTO'=>'Trinidad and Tobago',
-            'TUN'=>'Tunisia',
-            'TUR'=>'Türkiye',
-            'TUV'=>'Tuvalu',
-            'TWN'=>'Taiwan, Province of China',
-            'TZA'=>'Tanzania, United Republic of',
-            'UGA'=>'Uganda',
-            'UKR'=>'Ukraine',
-            'UMI'=>'United States Minor Outlying Islands',
-            'URY'=>'Uruguay',
-            'USA'=>'United States of America',
-            'UZB'=>'Uzbekistan',
-            'VAT'=>'Holy See',
-            'VCT'=>'Saint Vincent and the Grenadines',
-            'VEN'=>'Venezuela, Bolivarian Republic of',
-            'VGB'=>'Virgin Islands (British)',
-            'VIR'=>'Virgin Islands (U.S.)',
-            'VNM'=>'Viet Nam',
-            'VUT'=>'Vanuatu',
-            'WLF'=>'Wallis and Futuna',
-            'WSM'=>'Samoa',
-            'YEM'=>'Yemen',
-            'ZAF'=>'South Africa',
-            'ZMB'=>'Zambia',
-            'ZWE'=>'Zimbabwe',
+            '' => '-',
+            'ABW' => 'Aruba',
+            'AFG' => 'Afghanistan',
+            'AGO' => 'Angola',
+            'AIA' => 'Anguilla',
+            'ALA' => 'Åland Islands',
+            'ALB' => 'Albania',
+            'AND' => 'Andorra',
+            'ARE' => 'United Arab Emirates',
+            'ARG' => 'Argentina',
+            'ARM' => 'Armenia',
+            'ASM' => 'American Samoa',
+            'ATA' => 'Antarctica',
+            'ATF' => 'French Southern Territories',
+            'ATG' => 'Antigua and Barbuda',
+            'AUS' => 'Australia',
+            'AUT' => 'Austria',
+            'AZE' => 'Azerbaijan',
+            'BDI' => 'Burundi',
+            'BEL' => 'Belgium',
+            'BEN' => 'Benin',
+            'BES' => 'Bonaire, Sint Eustatius and Saba',
+            'BFA' => 'Burkina Faso',
+            'BGD' => 'Bangladesh',
+            'BGR' => 'Bulgaria',
+            'BHR' => 'Bahrain',
+            'BHS' => 'Bahamas',
+            'BIH' => 'Bosnia and Herzegovina',
+            'BLM' => 'Saint Barthélemy',
+            'BLR' => 'Belarus',
+            'BLZ' => 'Belize',
+            'BMU' => 'Bermuda',
+            'BOL' => 'Bolivia, Plurinational State of',
+            'BRA' => 'Brazil',
+            'BRB' => 'Barbados',
+            'BRN' => 'Brunei Darussalam',
+            'BTN' => 'Bhutan',
+            'BVT' => 'Bouvet Island',
+            'BWA' => 'Botswana',
+            'CAF' => 'Central African Republic',
+            'CAN' => 'Canada',
+            'CCK' => 'Cocos (Keeling) Islands',
+            'CHE' => 'Switzerland',
+            'CHL' => 'Chile',
+            'CHN' => 'China',
+            'CIV' => 'Côte d`Ivoire',
+            'CMR' => 'Cameroon',
+            'COD' => 'Congo, Democratic Republic of the',
+            'COG' => 'Congo',
+            'COK' => 'Cook Islands',
+            'COL' => 'Colombia',
+            'COM' => 'Comoros',
+            'CPV' => 'Cabo Verde',
+            'CRI' => 'Costa Rica',
+            'CUB' => 'Cuba',
+            'CUW' => 'Curaçao',
+            'CXR' => 'Christmas Island',
+            'CYM' => 'Cayman Islands',
+            'CYP' => 'Cyprus',
+            'CZE' => 'Czechia',
+            'DEU' => 'Germany',
+            'DJI' => 'Djibouti',
+            'DMA' => 'Dominica',
+            'DNK' => 'Denmark',
+            'DOM' => 'Dominican Republic',
+            'DZA' => 'Algeria',
+            'ECU' => 'Ecuador',
+            'EGY' => 'Egypt',
+            'ERI' => 'Eritrea',
+            'ESH' => 'Western Sahara',
+            'ESP' => 'Spain',
+            'EST' => 'Estonia',
+            'ETH' => 'Ethiopia',
+            'FIN' => 'Finland',
+            'FJI' => 'Fiji',
+            'FLK' => 'Falkland Islands (Malvinas)',
+            'FRA' => 'France',
+            'FRO' => 'Faroe Islands',
+            'FSM' => 'Micronesia, Federated States of',
+            'GAB' => 'Gabon',
+            'GBR' => 'United Kingdom of Great Britain and Northern Ireland',
+            'GEO' => 'Georgia',
+            'GGY' => 'Guernsey',
+            'GHA' => 'Ghana',
+            'GIB' => 'Gibraltar',
+            'GIN' => 'Guinea',
+            'GLP' => 'Guadeloupe',
+            'GMB' => 'Gambia',
+            'GNB' => 'Guinea-Bissau',
+            'GNQ' => 'Equatorial Guinea',
+            'GRC' => 'Greece',
+            'GRD' => 'Grenada',
+            'GRL' => 'Greenland',
+            'GTM' => 'Guatemala',
+            'GUF' => 'French Guiana',
+            'GUM' => 'Guam',
+            'GUY' => 'Guyana',
+            'HKG' => 'Hong Kong',
+            'HMD' => 'Heard Island and McDonald Islands',
+            'HND' => 'Honduras',
+            'HRV' => 'Croatia',
+            'HTI' => 'Haiti',
+            'HUN' => 'Hungary',
+            'IDN' => 'Indonesia',
+            'IMN' => 'Isle of Man',
+            'IND' => 'India',
+            'IOT' => 'British Indian Ocean Territory',
+            'IRL' => 'Ireland',
+            'IRN' => 'Iran, Islamic Republic of',
+            'IRQ' => 'Iraq',
+            'ISL' => 'Iceland',
+            'ISR' => 'Israel',
+            'ITA' => 'Italy',
+            'JAM' => 'Jamaica',
+            'JEY' => 'Jersey',
+            'JOR' => 'Jordan',
+            'JPN' => 'Japan',
+            'KAZ' => 'Kazakhstan',
+            'KEN' => 'Kenya',
+            'KGZ' => 'Kyrgyzstan',
+            'KHM' => 'Cambodia',
+            'KIR' => 'Kiribati',
+            'KNA' => 'Saint Kitts and Nevis',
+            'KOR' => 'Korea, Republic of',
+            'KWT' => 'Kuwait',
+            'LAO' => 'Lao People`s Democratic Republic',
+            'LBN' => 'Lebanon',
+            'LBR' => 'Liberia',
+            'LBY' => 'Libya',
+            'LCA' => 'Saint Lucia',
+            'LIE' => 'Liechtenstein',
+            'LKA' => 'Sri Lanka',
+            'LSO' => 'Lesotho',
+            'LTU' => 'Lithuania',
+            'LUX' => 'Luxembourg',
+            'LVA' => 'Latvia',
+            'MAC' => 'Macao',
+            'MAF' => 'Saint Martin (French part)',
+            'MAR' => 'Morocco',
+            'MCO' => 'Monaco',
+            'MDA' => 'Moldova, Republic of',
+            'MDG' => 'Madagascar',
+            'MDV' => 'Maldives',
+            'MEX' => 'Mexico',
+            'MHL' => 'Marshall Islands',
+            'MKD' => 'North Macedonia',
+            'MLI' => 'Mali',
+            'MLT' => 'Malta',
+            'MMR' => 'Myanmar',
+            'MNE' => 'Montenegro',
+            'MNG' => 'Mongolia',
+            'MNP' => 'Northern Mariana Islands',
+            'MOZ' => 'Mozambique',
+            'MRT' => 'Mauritania',
+            'MSR' => 'Montserrat',
+            'MTQ' => 'Martinique',
+            'MUS' => 'Mauritius',
+            'MWI' => 'Malawi',
+            'MYS' => 'Malaysia',
+            'MYT' => 'Mayotte',
+            'NAM' => 'Namibia',
+            'NCL' => 'New Caledonia',
+            'NER' => 'Niger',
+            'NFK' => 'Norfolk Island',
+            'NGA' => 'Nigeria',
+            'NIC' => 'Nicaragua',
+            'NIU' => 'Niue',
+            'NLD' => 'Netherlands, Kingdom of the',
+            'NOR' => 'Norway',
+            'NPL' => 'Nepal',
+            'NRU' => 'Nauru',
+            'NZL' => 'New Zealand',
+            'OMN' => 'Oman',
+            'PAK' => 'Pakistan',
+            'PAN' => 'Panama',
+            'PCN' => 'Pitcairn',
+            'PER' => 'Peru',
+            'PHL' => 'Philippines',
+            'PLW' => 'Palau',
+            'PNG' => 'Papua New Guinea',
+            'POL' => 'Poland',
+            'PRI' => 'Puerto Rico',
+            'PRK' => 'Korea, Democratic People`s Republic of',
+            'PRT' => 'Portugal',
+            'PRY' => 'Paraguay',
+            'PSE' => 'Palestine, State of',
+            'PYF' => 'French Polynesia',
+            'QAT' => 'Qatar',
+            'REU' => 'Réunion',
+            'ROU' => 'Romania',
+            'RUS' => 'Russian Federation',
+            'RWA' => 'Rwanda',
+            'SAU' => 'Saudi Arabia',
+            'SDN' => 'Sudan',
+            'SEN' => 'Senegal',
+            'SGP' => 'Singapore',
+            'SGS' => 'South Georgia and the South Sandwich Islands',
+            'SHN' => 'Saint Helena, Ascension and Tristan da Cunha',
+            'SJM' => 'Svalbard and Jan Mayen',
+            'SLB' => 'Solomon Islands',
+            'SLE' => 'Sierra Leone',
+            'SLV' => 'El Salvador',
+            'SMR' => 'San Marino',
+            'SOM' => 'Somalia',
+            'SPM' => 'Saint Pierre and Miquelon',
+            'SRB' => 'Serbia',
+            'SSD' => 'South Sudan',
+            'STP' => 'Sao Tome and Principe',
+            'SUR' => 'Suriname',
+            'SVK' => 'Slovakia',
+            'SVN' => 'Slovenia',
+            'SWE' => 'Sweden',
+            'SWZ' => 'Eswatini',
+            'SXM' => 'Sint Maarten (Dutch part)',
+            'SYC' => 'Seychelles',
+            'SYR' => 'Syrian Arab Republic',
+            'TCA' => 'Turks and Caicos Islands',
+            'TCD' => 'Chad',
+            'TGO' => 'Togo',
+            'THA' => 'Thailand',
+            'TJK' => 'Tajikistan',
+            'TKL' => 'Tokelau',
+            'TKM' => 'Turkmenistan',
+            'TLS' => 'Timor-Leste',
+            'TON' => 'Tonga',
+            'TTO' => 'Trinidad and Tobago',
+            'TUN' => 'Tunisia',
+            'TUR' => 'Türkiye',
+            'TUV' => 'Tuvalu',
+            'TWN' => 'Taiwan, Province of China',
+            'TZA' => 'Tanzania, United Republic of',
+            'UGA' => 'Uganda',
+            'UKR' => 'Ukraine',
+            'UMI' => 'United States Minor Outlying Islands',
+            'URY' => 'Uruguay',
+            'USA' => 'United States of America',
+            'UZB' => 'Uzbekistan',
+            'VAT' => 'Holy See',
+            'VCT' => 'Saint Vincent and the Grenadines',
+            'VEN' => 'Venezuela, Bolivarian Republic of',
+            'VGB' => 'Virgin Islands (British)',
+            'VIR' => 'Virgin Islands (U.S.)',
+            'VNM' => 'Viet Nam',
+            'VUT' => 'Vanuatu',
+            'WLF' => 'Wallis and Futuna',
+            'WSM' => 'Samoa',
+            'YEM' => 'Yemen',
+            'ZAF' => 'South Africa',
+            'ZMB' => 'Zambia',
+            'ZWE' => 'Zimbabwe',
         ];
 
         $list_hire_loc = MasterLocation::where('group_type', 'hrd')->get();
@@ -1376,12 +1369,12 @@ class EmployeeController extends Controller
          * formdata
          * data harus type multi array
          */
-        $formdata = DB::table('master_' . $this->sheet_slug)->where('id', $id)->get();
+        $formdata = DB::table('master_'.$this->sheet_slug)->where('id', $id)->get();
 
-        /*redirect jika bukan multi insert*/
+        /* redirect jika bukan multi insert */
         if (empty($formdata)) {
             if ($form_row_type == 'single') {
-                return redirect()->route('master.' . $sheet_slug . '.index')->with('error_message', 'Data not found with id ' . $id . ' not found in database.');
+                return redirect()->route('master.'.$sheet_slug.'.index')->with('error_message', 'Data not found with id '.$id.' not found in database.');
             } else {
                 abort(403, 'data not found');
             }
@@ -1399,21 +1392,21 @@ class EmployeeController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        return view('master::master'.config('app.themes').'.' . $this->sheet_slug . '.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
-        $modelClass = 'Bangsamu\\Master\\Models\\Master' . Str::studly($this->sheet_slug);
+        $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 
         if (class_exists($modelClass)) {
             $modelClass::findOrFail($id)->delete(); // akan melakukan soft delete
         } else {
-            abort(403, 'Gagal hapus:: ' . $modelClass . class_exists($modelClass));
+            abort(403, 'Gagal hapus:: '.$modelClass.class_exists($modelClass));
         }
 
-        return redirect()->route('master.' . $this->sheet_slug . '.index')->with('success', $this->sheet_slug . ' deleted successfully');
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
     }
 
     public function import(Request $request)
@@ -1422,7 +1415,7 @@ class EmployeeController extends Controller
         ini_set('memory_limit', '512M');
 
         $request->validate([
-            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv'
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv',
         ]);
 
         if ($request->hasFile('file')) {

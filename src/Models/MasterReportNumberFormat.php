@@ -11,6 +11,7 @@ class ReportNumberFormat extends Model
     use HasFactory;
 
     protected $connection = 'db_master';
+
     // protected $guarded = [];
     protected $table = 'report_number_format';
 
