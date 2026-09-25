@@ -1076,50 +1076,59 @@ class ApiAnnotationController extends Controller
         $token = $request->token;
         $user = $this->getTokenIdOrEmail($token);
         $user_id = $user->id ?? 0;
-        $paraf = UserDetail::select('field_value')->where('field_key', 'paraf')->where('user_id', $user_id)->first();
-        // dd($token, $user_id, $paraf->toArray());
-        if ($paraf) {
+        $user_email = $user->email ?? null;
 
-            // dd(Storage::disk('media')->exists($paraf->field_value), Storage::disk('media')->path($paraf->field_value), Storage::disk('media')->url('nama-file.jpg') );
-            $paraf_path = Storage::disk('media')->path($paraf->field_value);
-
-            // Cek apakah file paraf ada
-            if (Storage::disk('media')->exists($paraf->field_value)) {
-                if ($request->currentTime) {
-                    if ($request->position == 'right') {
-                        $paraf_path = self::getParafWithTimeStampKanan($paraf_path, $request);
-                    } elseif ($request->reSize) {
-                        $paraf_path = self::getParafStampSize($paraf_path, $request);
-                    } else {
-                        $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
+        if (! Schema::hasTable('user_details')) {
+            $paraf = null;
+        } else {
+            $paraf_query = UserDetail::select('field_value')->where('field_key', 'paraf')
+                ->where(function ($query) use ($user_id, $user_email) {
+                    $query->where('user_id', $user_id);
+                    if ($user_email) {
+                        $query->orWhere('user_email', $user_email);
                     }
-                }
-                if ($request->reSize) {
-                    $paraf_path = self::getParafStampSize($paraf_path, $request);
-                }
+                })->orderBy('id', 'desc');
+            $paraf = $paraf_query->first();
+        }
 
-                return response()->file($paraf_path, [
-                    'Content-Type' => 'image/png',
-                ]);
+        Log::info('[ApiAnnotationController.getParaf] ', [
+            'request' => $request->all(),
+            'paraf' => $paraf?->toArray() ?? null,
+        ]);
+
+        if ($paraf) {
+            // Bug fix: path di DB sudah ada /media, disk media root-nya sudah di storage/media
+            $cleaned_path = str_replace('/media', '', ($paraf?->field_value ?? ''));
+
+            if (Storage::disk('media')->exists($cleaned_path)) {
+                $paraf_path = Storage::disk('media')->path($cleaned_path);
+            } elseif (file_exists(storage_path($paraf->field_value))) {
+                $paraf_path = storage_path($paraf->field_value);
+            } elseif (Storage::disk('media')->exists($paraf->field_value)) {
+                $paraf_path = Storage::disk('media')->path($paraf->field_value);
             } else {
-                // Jika file tidak ditemukan
                 abort(403, 'Paraf file not found.');
             }
+
+            if ($request->currentTime) {
+                if ($request->position == 'right') {
+                    $paraf_path = self::getParafWithTimeStampKanan($paraf_path, $request);
+                } elseif ($request->reSize) {
+                    $paraf_path = self::getParafStampSize($paraf_path, $request);
+                } else {
+                    $paraf_path = self::getParafWithTimeStamp($paraf_path, $request);
+                }
+            }
+            if ($request->reSize) {
+                $paraf_path = self::getParafStampSize($paraf_path, $request);
+            }
+
+            return response()->file($paraf_path, [
+                'Content-Type' => 'image/png',
+            ]);
         } else {
-            // Jika paraf tidak ditemukan
             abort(403, 'No paraf found for the user.');
         }
-
-        if ($paraf) {
-            // $paraf_url = storage_path($paraf->field_value);
-            // dd(storage_path($paraf->field_value),$paraf->toArray());
-            $paraf_url = file_get_contents($paraf_path);
-            // $file_paraf = storage_path($user->paraf ?? 'no-image.png');
-        } else {
-            $paraf_url = null;
-        }
-
-        return $paraf_url;
     }
 
     public function getSignature(Request $request)
