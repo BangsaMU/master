@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Bangsamu\Master\Services;
 
-use Bangsamu\Master\Models\User;
+use App\Models\User;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
