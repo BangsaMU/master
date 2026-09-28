@@ -178,7 +178,24 @@ Route::prefix('api')
         Route::get('get{tabel}byparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getTabelByParams'])
             ->name('get{tabel}byparams');
 
+        /* user status sync from master-data UserStatusSyncService */
+        Route::match(['get', 'post'], 'user/status', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
+            ->name('api.user.sync_status');
+        Route::match(['get', 'post'], 'user/set-status', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
+            ->name('api.user.set_status');
+        Route::match(['get', 'post'], 'setUser.php', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
+            ->name('api.user.set_user_legacy');
+
+        /* local user resource */
+        Route::get('users', [\Bangsamu\Master\Controllers\UserController::class, 'index'])
+            ->name('api.user.index');
+        Route::get('users/{id}', [\Bangsamu\Master\Controllers\UserController::class, 'show'])
+            ->name('api.user.show');
+
     });
+
+Route::match(['get', 'post'], 'setUser.php', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
+    ->name('user.set_user_root_legacy');
 
 Route::prefix('api')->group(function () {
     /* annotation untuk paraf dan signature */
