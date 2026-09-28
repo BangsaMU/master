@@ -7,7 +7,9 @@ namespace Bangsamu\Master\Requests;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class SyncUserStatusRequest extends FormRequest
 {
@@ -79,16 +81,40 @@ class SyncUserStatusRequest extends FormRequest
     }
 
     /**
-     * Handle a failed validation attempt.
+     * Handle a failed validation attempt with detailed logging.
      */
     protected function failedValidation(Validator $validator): void
     {
+        $ip = request()->ip() ?? 'UNKNOWN';
+        $email = $this->input('email_id') ?? $this->input('email') ?? '-';
+        $errors = $validator->errors()->toArray();
+
+        $logData = [
+            'ip' => $ip,
+            'method' => request()->method(),
+            'url' => request()->fullUrl(),
+            'email_id' => $email,
+            'errors' => $errors,
+        ];
+
+        try {
+            Log::channel('user_sync')->warning("[UserStatusSync] Validation failed for '{$email}' from IP: {$ip}", $logData);
+        } catch (Throwable) {
+            // fallback if channel not defined
+        }
+
+        try {
+            Log::warning("[UserStatusSync] Validation failed for '{$email}' from IP: {$ip}", $logData);
+        } catch (Throwable) {
+            // ignore
+        }
+
         throw new HttpResponseException(
             response()->json([
                 'status' => false,
                 'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'message' => $validator->errors()->first(),
-                'errors' => $validator->errors()->toArray(),
+                'errors' => $errors,
             ], Response::HTTP_UNPROCESSABLE_ENTITY)
         );
     }

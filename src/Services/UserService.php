@@ -13,6 +13,26 @@ use Throwable;
 class UserService
 {
     /**
+     * Write log entry to both dedicated user_sync channel and default application log.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    protected function logTrace(string $level, string $message, array $context = []): void
+    {
+        try {
+            Log::channel('user_sync')->$level($message, $context);
+        } catch (Throwable) {
+            // fallback if user_sync channel is unavailable
+        }
+
+        try {
+            Log::$level($message, $context);
+        } catch (Throwable) {
+            // ignore fallback error
+        }
+    }
+
+    /**
      * Validate the provided token against SSO configuration HMAC / MD5 / static token.
      */
     public function validateToken(string $data, string $token, ?int $status = null): bool
@@ -29,7 +49,7 @@ class UserService
 
         $key = (string) config('SsoConfig.main.KEY', '');
         if ($key === '') {
-            Log::warning('[UserService] SsoConfig.main.KEY is empty, cannot validate HMAC token.');
+            $this->logTrace('warning', '[UserStatusSync] SsoConfig.main.KEY is empty, cannot validate HMAC token.');
 
             return false;
         }
@@ -92,10 +112,27 @@ class UserService
     {
         $email = trim($email);
         $normalizedStatus = $this->normalizeStatus($status);
+        $clientIp = request()->ip() ?? 'UNKNOWN';
+        $tokenPreview = strlen($token) > 10 ? substr($token, 0, 6).'...'.substr($token, -4) : '***';
+
+        // Log incoming hit trace
+        $this->logTrace('info', "[UserStatusSync] Incoming sync request for '{$email}' from IP: {$clientIp}", [
+            'ip' => $clientIp,
+            'method' => request()->method(),
+            'url' => request()->fullUrl(),
+            'email' => $email,
+            'status_input' => $status,
+            'token_preview' => $tokenPreview,
+        ]);
 
         // 1. Verify Token
         if (! $this->validateToken($email, $token, $normalizedStatus)) {
-            Log::warning("[UserService] Unauthorized sync attempt for '{$email}'. Invalid token.");
+            $this->logTrace('warning', "[UserStatusSync] FAILED (401 Unauthorized): Invalid token for '{$email}' from IP: {$clientIp}", [
+                'ip' => $clientIp,
+                'email' => $email,
+                'provided_token' => $tokenPreview,
+                'reason' => 'Token mismatch with HMAC-SHA256 / MD5 / Static token.',
+            ]);
 
             return [
                 'status' => false,
@@ -106,6 +143,13 @@ class UserService
 
         // 2. Validate normalized status
         if ($normalizedStatus === null) {
+            $this->logTrace('warning', "[UserStatusSync] FAILED (422 Unprocessable): Invalid status value '{$status}' for '{$email}' from IP: {$clientIp}", [
+                'ip' => $clientIp,
+                'email' => $email,
+                'status_input' => $status,
+                'reason' => 'Value must be 1 (active) or 0 (inactive).',
+            ]);
+
             return [
                 'status' => false,
                 'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
@@ -119,7 +163,12 @@ class UserService
             ->first();
 
         if (! $user) {
-            Log::notice("[UserService] User not found for email '{$email}' in local database.");
+            $this->logTrace('notice', "[UserStatusSync] FAILED (404 Not Found): User not found for email '{$email}' in local DB (master_user) from IP: {$clientIp}", [
+                'ip' => $clientIp,
+                'email' => $email,
+                'table' => 'master_user',
+                'connection' => config('database.default'),
+            ]);
 
             return [
                 'status' => false,
@@ -128,23 +177,36 @@ class UserService
             ];
         }
 
-        // 4. Update status flag
+        // 4. Update status flag with error handling
         $prevStatus = (int) ($user->is_active ?? 0);
-        $user->is_active = $normalizedStatus;
-        $user->save();
-
         $statusLabel = ($normalizedStatus === 1) ? 'active' : 'inactive';
         $prevStatusLabel = ($prevStatus === 1) ? 'active' : 'inactive';
 
         try {
-            Log::info("[UserService] User '{$user->email}' status updated: {$prevStatusLabel} -> {$statusLabel}", [
+            $user->is_active = $normalizedStatus;
+            $user->save();
+
+            $this->logTrace('info', "[UserStatusSync] SUCCESS (200 OK): User '{$user->email}' (ID: {$user->id}) status updated: {$prevStatusLabel} -> {$statusLabel} from IP: {$clientIp}", [
+                'ip' => $clientIp,
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'previous_status' => $prevStatus,
                 'current_status' => $normalizedStatus,
+                'previous_label' => $prevStatusLabel,
+                'current_label' => $statusLabel,
             ]);
-        } catch (Throwable) {
-            // Ignore logging failures
+        } catch (Throwable $e) {
+            $this->logTrace('error', "[UserStatusSync] ERROR (500 Internal): Failed saving status for '{$email}': {$e->getMessage()}", [
+                'ip' => $clientIp,
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'status' => false,
+                'code' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'message' => 'Failed updating user status due to database error.',
+            ];
         }
 
         return [
