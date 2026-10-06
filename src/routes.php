@@ -161,6 +161,15 @@ Route::prefix('api')
             ->name('getprojectbyparams');
         Route::get('getdepartmentbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getDepartmentByParams'])
             ->name('getdepartmentbyparams');
+        Route::get('getjobpositionbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getJobPositionByParams'])
+            ->name('getjobpositionbyparams');
+        Route::get('jobposition/getbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getJobPositionByParams'])
+            ->name('jobposition.getbyparams');
+        Route::get('getjobPositionlistbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getJobPositionListByParams'])
+            ->name('getjobPositionlistbyparams');
+        Route::get('jobpositionList/getbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getJobPositionListByParams'])
+            ->name('jobpositionList.getbyparams');
+
         Route::get('getlocationbyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getLocationByParams'])
             ->name('getlocationbyparams');
         Route::get('getemployeebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getEmployeeByParams'])

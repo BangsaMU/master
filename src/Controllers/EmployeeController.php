@@ -539,11 +539,12 @@ class EmployeeController extends Controller
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = new \stdClass;
-        $statuses = MasterStatus::select('id', DB::raw('concat(kode, " - ", status) as status'))->get();
+        $statuses = MasterStatus::select('id', 'kode', 'status', DB::raw('concat(kode, " - ", status) as status_label'))->get();
         $list_status = $statuses->pluck('status', 'id');
         $param->status = $statuses;
+        $param->country_code = old('country_code', 'IDN');
 
-        $param->country_code = [
+        $param->list_country_code = [
             '' => '-',
             'ABW' => 'Aruba',
             'AFG' => 'Afghanistan',
@@ -802,50 +803,45 @@ class EmployeeController extends Controller
         // } else {
         $list_hire_loc = MasterLocation::where('group_type', 'hrd')->get();
         $param->hire_loc = $list_hire_loc;
-        // }
-
-        // $list_work_location = MasterLocation::all();
-        // dd($list_work_location);
+        $param->gender = ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
         $param->work_location = null;
+        $param->company_id = 1;
+        $param->company_name = 'PT Meindo Elang Indah';
 
-        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
+        $user_id = Auth::user()->id ?? 0;
+        if (method_exists(User::class, 'detailsLocation')) {
+            $details = User::detailsLocation($user_id);
+            $location_id = $details->location_id ?? '';
+        } elseif (method_exists(User::class, 'staticDetails')) {
+            $location_id = User::staticDetails($user_id)->location_id ?? '';
+        } else {
+            $location_id = auth()->user()?->details()?->location_id ?? '';
+        }
+        $param->location_id = $location_id;
+        $title = 'Create';
+
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param', 'title', 'location_id'));
     }
 
     public function store(Request $request)
     {
-        // add form citizenship
-
-        $status_id = $request->status_id;
-        $status = MasterStatus::when($request->status_id !== null, function ($query) use ($request) {
-            return $query->where('id', $request->status_id);
-        }, function ($query) {
-            return $query->where('kode', 0);
-        })->first();
-
-        $app_code = config('SsoConfig.main.APP_CODE');
+        $company_id = $request->input('company_id', 1);
 
         $request->validate([
-            // 'no_ktp' => 'required|numeric|digits:16|unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
-            // 'no_ktp' => [
-            //     'required',
-            //     'numeric',
-            //     'digits:16',
-            //     'unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
-            //     function ($attribute, $value, $fail) {
-            //         if (!LibraryClayController::isValidNIK($value)) {
-            //             $fail('Format NIK tidak valid atau tidak sesuai kode wilayah/tanggal.');
-            //         }
-            //     },
-            // ],
-
-            'employee_name' => 'required',
-            'citizenship' => 'required',
+            'employee_name' => 'required|max:150',
             'employee_email' => 'nullable|email|max:150',
-            // 'no_ktp' => 'required|numeric|digits:16',
-            // 'no_ktp' => 'required_if:citizenship,WNI|numeric|digits:16',
+            'citizenship' => 'required',
             'no_ktp' => [
                 'required',
                 function ($attribute, $value, $fail) use ($request) {
+                    $id = $request->id;
+                    $karyawan = Employee::where('no_ktp', $value)
+                        ->when($id, fn ($q) => $q->where('id', '!=', $id))
+                        ->first();
+                    if ($karyawan) {
+                        $fail("Nomor KTP sudah terdaftar atas nama `{$karyawan->employee_name}`.");
+                    }
+
                     if ($request->citizenship === 'WNI') {
                         if (! is_numeric($value) || strlen($value) !== 16) {
                             $fail('No KTP harus berupa angka 16 digit untuk WNI.');
@@ -856,83 +852,111 @@ class EmployeeController extends Controller
             'status_id' => 'required',
             'job_position_id' => 'nullable',
             'hire_id' => 'nullable',
-            'tanggal_join' => $status->kode == 0 ? 'nullable|date' : 'required|date',
-            // 'tanggal_akhir_kerja' => 'nullable|date|after:tanggal_join',
-            // 'tanggal_akhir_kontrak' => 'required|date|after:tanggal_join',
+            'gender' => 'nullable|required_if:citizenship,WNA',
+            'employee_dob' => 'nullable|required_if:citizenship,WNA|date',
+            'tanggal_join' => 'nullable|date',
             'tanggal_akhir_kerja' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
-            'tanggal_akhir_kontrak' => $request->tanggal_join ? 'nullable|date|after:tanggal_join' : 'nullable|date',
+            'tanggal_akhir_kontrak' => [
+                'nullable',
+                'date',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->status_id != 1) {
+                        if (empty($value)) {
+                            $fail('Tanggal akhir kontrak wajib diisi jika status bukan permanen.');
+                        } elseif ($request->tanggal_join && strtotime($value) <= strtotime($request->tanggal_join)) {
+                            $fail('Tanggal akhir kontrak harus setelah tanggal join.');
+                        }
+                    }
+                },
+            ],
             'corporate_email' => 'nullable|email|max:150',
+            'employee_phone' => 'nullable',
+            'emergency_phone' => 'nullable',
             'keterangan' => 'nullable',
             'work_location_id' => 'nullable',
+            'employee_blood_type' => 'nullable',
+            'job_list' => 'nullable',
         ]);
 
-        // Validasi lanjutan tergantung status_id
-        if ((int) $request->status_id !== 0) {
-            $request->validate([
-                'job_position_id' => 'required',
-                'hire_id' => 'required',
-                'tanggal_join' => 'required|date',
-                'tanggal_akhir_kontrak' => 'required|date|after:tanggal_join',
-            ]);
+        if (empty($request->employee_dob)) {
+            $extractDataKTP = LibraryClayController::extractDataKTP($request->no_ktp);
+            $employee_dob = $extractDataKTP['tanggalLahir'] ?? null;
+        } else {
+            $employee_dob = $request->employee_dob;
         }
 
-        // Validasi lanjutan tergantung status_id bukan EXSPATRIAT ga bisa harus pakek filed bantu cityzen blm ada
-        // if ((int) $request->status_id !== 3) {
-        //     $request->validate([
-        //             'no_ktp' => [
-        //             'required',
-        //             'numeric',
-        //             'digits:16',
-        //             'unique:master_' . $this->sheet_slug . ',no_ktp' . ($request->id ? ',' . $request->id : ''),
-        //             function ($attribute, $value, $fail) {
-        //                 if (!LibraryClayController::isValidNIK($value)) {
-        //                     $fail('Format NIK tidak valid atau tidak sesuai kode wilayah/tanggal.');
-        //                 }
-        //             },
-        //         ],
-        //     ]);
-        // }
+        if ($request->citizenship == 'WNI' && empty($request->country_code)) {
+            $request->merge([
+                'country_code' => 'IDN',
+            ]);
+        }
+        $country_code = $request->country_code ?: ($request->citizenship == 'WNI' ? 'IDN' : null);
+
+        $app_code = config('SsoConfig.main.APP_CODE');
+
+        $job_list = $request->job_list ? (is_array($request->job_list) ? implode(',', $request->job_list) : $request->job_list) : null;
+
+        $jobPositionData = $request->job_position_id ? HrdJobPosition::find($request->job_position_id) : null;
+        $jobTitle = $jobPositionData ? strtoupper($jobPositionData->position_name) : strtoupper($request->employee_job_title ?? '');
+        $jobDepartment = $jobPositionData ? ($jobPositionData->department->department_name ?? null) : null;
 
         if ($request->id) {
             // Update existing employee
             $employee = Employee::findOrFail($request->id);
 
-            $jobPositionData = HrdJobPosition::find($request->job_position_id);
+            if ($request->no_ktp != $employee->no_ktp) {
+                $karyawan_active = Employee::where('no_ktp', $request->no_ktp)
+                    ->where('id', '!=', $request->id)
+                    ->whereNull('tanggal_akhir_kerja')
+                    ->latest()->first();
+                if ($karyawan_active) {
+                    return redirect()->back()->with('error', 'Data dengan NIK '.$request->no_ktp.' sudah ada dan masih aktif');
+                }
+            }
 
-            $update = $employee->update([
-                'employee_name' => $request->employee_name,
-                'employee_phone' => $request->employee_phone,
-                'employee_job_title' => strtoupper($jobPositionData->position_name),
+            $updateData = [
+                'citizenship' => strtoupper($request->citizenship),
+                'country_code' => strtoupper($country_code),
+                'employee_name' => strtoupper($request->employee_name),
                 'employee_email' => $request->employee_email,
-                'employee_phone' => $request->employee_phone,
-                'deleted_at' => $request->deleted_at,
                 'corporate_email' => $request->corporate_email,
                 'no_ktp' => $request->no_ktp,
-                'no_id_karyawan' => $request->no_id_karyawan,
-                'status_id' => $request->status_id,
-                'hire_id' => $request->hire_id,
-                'tanggal_join' => $request->tanggal_join,
-                'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
+                'job_position_id' => $request->job_position_id,
+                'job_list' => $job_list,
+                'employee_job_title' => $jobTitle,
+                'employee_department' => $jobDepartment,
                 'tanggal_akhir_kontrak' => $request->tanggal_akhir_kontrak,
+                'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
                 'keterangan' => $request->keterangan,
                 'work_location_id' => $request->work_location_id,
                 'employee_blood_type' => $request->employee_blood_type,
-                'citizenship' => $request->citizenship,
-                'country_code' => $request->country_code,
-            ]);
+                'employee_dob' => $employee_dob,
+                'gender' => $request->gender,
+                'employee_phone' => $request->employee_phone,
+                'emergency_phone' => $request->emergency_phone,
+                'company_id' => $company_id,
+            ];
+
+            if (checkPermission('admin') || checkPermission('is_admin')) {
+                $updateData['status_id'] = $request->status_id;
+                $updateData['hire_id'] = $request->hire_id;
+                $updateData['tanggal_join'] = $request->tanggal_join;
+
+                if (
+                    $employee->status_id != $request->status_id ||
+                    $employee->hire_id != $request->hire_id ||
+                    $employee->tanggal_join != $request->tanggal_join
+                ) {
+                    if ($request->tanggal_join && $request->hire_id && $request->status_id) {
+                        $unique_group = self::getUniqueFormat($request->tanggal_join, $request->hire_id, $request->status_id);
+                        $updateData['no_id_karyawan'] = self::createNIPKaryawan($unique_group, $employee->id);
+                    }
+                }
+            }
+
+            $update = $employee->update($updateData);
 
             if ($update && $employee->wasChanged()) {
-                /* sync callback */
-                $id = $employee->id;
-                $sync_tabel = 'master_'.$this->sheet_slug;
-                $sync_id = $id;
-                $sync_row = $employee->toArray();
-                // $sync_row['deleted_at'] = null;
-                $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                // update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
-                }
                 $message = $this->sheet_name.' updated successfully';
             } else {
                 $message = $this->sheet_name.' no data changed';
@@ -943,64 +967,58 @@ class EmployeeController extends Controller
                 ->latest()->first();
 
             if ($karyawan_active) {
-                $message = 'Data dengan NIK '.$request->no_ktp.' sudah ada dan masih aktif';
-            } else {
-                // Create new employee
-                $employee = Employee::create([
-                    'employee_name' => strtoupper($request->employee_name),
-                    'employee_phone' => $request->employee_phone,
-                    'employee_job_title' => strtoupper($request->employee_job_title),
-                    'employee_email' => $request->employee_email,
-                    'employee_phone' => $request->employee_phone ?? '-',
-                    'deleted_at' => $request->deleted_at,
-                    'corporate_email' => $request->corporate_email,
-                    'no_ktp' => $request->no_ktp,
-                    'no_id_karyawan' => $request->no_id_karyawan,
-                    'status_id' => $request->status_id,
-                    'hire_id' => $request->hire_id,
-                    'tanggal_join' => $request->tanggal_join,
-                    'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
-                    'tanggal_akhir_kontrak' => $request->tanggal_akhir_kontrak,
-                    'keterangan' => $request->keterangan,
-                    'work_location_id' => $request->work_location_id,
-                    'employee_blood_type' => $request->employee_blood_type,
-                    'app_code' => $app_code,
-                    'citizenship' => $request->citizenship,
-                    'country_code' => $request->country_code,
-                ]);
-                $message = $this->sheet_name.' created successfully';
+                return redirect()->back()->with('error', 'Data dengan NIK '.$request->no_ktp.' sudah ada dan masih aktif');
             }
-        }
 
-        // hanya generate jika dari app HRD
-        if ($app_code == 'APP11') {
-            $unique_group = self::getUniqueFormat($request->tanggal_join, $request->hire_id, $request->status_id);
-            $no_id_karyawan = self::createNIPKaryawan($unique_group, $employee->id);
+            $employee = Employee::create([
+                'citizenship' => strtoupper($request->citizenship),
+                'country_code' => strtoupper($country_code),
+                'employee_name' => strtoupper($request->employee_name),
+                'employee_email' => $request->employee_email,
+                'corporate_email' => $request->corporate_email,
+                'no_ktp' => $request->no_ktp,
+                'status_id' => $request->status_id,
+                'job_position_id' => $request->job_position_id,
+                'job_list' => $job_list,
+                'employee_job_title' => $jobTitle,
+                'employee_department' => $jobDepartment,
+                'hire_id' => $request->hire_id,
+                'tanggal_join' => $request->tanggal_join,
+                'tanggal_akhir_kerja' => $request->tanggal_akhir_kerja,
+                'tanggal_akhir_kontrak' => $request->tanggal_akhir_kontrak,
+                'keterangan' => $request->keterangan,
+                'work_location_id' => $request->work_location_id,
+                'employee_blood_type' => $request->employee_blood_type,
+                'employee_dob' => $employee_dob,
+                'gender' => $request->gender,
+                'employee_phone' => $request->employee_phone,
+                'emergency_phone' => $request->emergency_phone,
+                'company_id' => $company_id,
+                'app_code' => $app_code,
+            ]);
 
-            $employee->no_id_karyawan = $no_id_karyawan;
-            $employee->update();
+            if ($app_code == 'APP11' && $request->tanggal_join && $request->hire_id && $request->status_id) {
+                $unique_group = self::getUniqueFormat($request->tanggal_join, $request->hire_id, $request->status_id);
+                $no_id_karyawan = self::createNIPKaryawan($unique_group, $employee->id);
+                $employee->no_id_karyawan = $no_id_karyawan;
+                $employee->update();
+            }
+
+            $message = $this->sheet_name.' created successfully';
         }
 
         if ($employee) {
             $sync_row = $employee->toArray();
 
             if (! empty($sync_row)) {
-                /* sync callback */
                 $id = $employee->id;
                 $sync_tabel = 'master_'.$this->sheet_slug;
                 $sync_id = $id;
-                // $sync_row['deleted_at'] = null;
                 $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                // update ke master DB saja
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
+                    LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
                 }
-                $message = $this->sheet_name.' updated successfully';
-            } else {
-                $message = $this->sheet_name.' has no data to sync';
             }
-        } else {
-            $message = $this->sheet_name.' no data changed';
         }
 
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
@@ -1092,7 +1110,16 @@ class EmployeeController extends Controller
         //     ->where('master_employee.id', $id)
         //     ->first();
 
-        $param = HrdKaryawan::select('master_employee.*', 'mjp.position_code', 'md.department_name', 'ml.loc_name as work_location_name', 'master_employee.job_position_id')
+        $param = HrdKaryawan::select(
+            'master_employee.*',
+            'mjp.position_code',
+            'md.department_name',
+            'ml.loc_name as work_location_name',
+            'master_employee.job_position_id',
+            'mv.vendor_description as company_name',
+            'mv.vendor_description as vendor_name'
+        )
+            ->leftJoin('master_vendor as mv', 'mv.id', '=', 'master_employee.company_id')
             ->leftJoin('master_location as ml', 'ml.id', '=', 'master_employee.work_location_id')
             ->leftJoin('master_job_position as mjp', 'mjp.id', '=', 'master_employee.job_position_id')
             ->leftJoin('master_department as md', 'md.id', '=', 'mjp.department_id')
@@ -1101,11 +1128,12 @@ class EmployeeController extends Controller
 
         $param->work_location_id = session()->getOldInput('work_location_id') ?? $param->work_location_id;
 
-        $statuses = MasterStatus::select('id', DB::raw('concat(kode, " - ", status) as status'))->get();
+        $statuses = MasterStatus::select('id', 'kode', 'status', DB::raw('concat(kode, " - ", status) as status_label'))->get();
         $list_status = $statuses->pluck('status', 'id');
         $param->status = $statuses;
 
-        $param->country_code = [
+        $selected_country_code = $param->country_code;
+        $param->list_country_code = [
             '' => '-',
             'ABW' => 'Aruba',
             'AFG' => 'Afghanistan',
@@ -1357,13 +1385,35 @@ class EmployeeController extends Controller
             'ZMB' => 'Zambia',
             'ZWE' => 'Zimbabwe',
         ];
+        $param->country_code = $selected_country_code;
 
         $list_hire_loc = MasterLocation::where('group_type', 'hrd')->get();
         $param->hire_loc = $list_hire_loc;
+        $param->gender = ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
 
         $list_work_location = MasterLocation::select('id', 'loc_code', 'loc_name')->where('id', $param->work_location_id)->limit(10)->get();
-        // dd($list_work_location,$param->work_location_id);
         $param->work_location = $list_work_location;
+
+        $user_id = Auth::user()->id ?? 0;
+        if (method_exists(User::class, 'detailsLocation')) {
+            $details = User::detailsLocation($user_id);
+            $location_id = $details->location_id ?? '';
+        } elseif (method_exists(User::class, 'staticDetails')) {
+            $location_id = User::staticDetails($user_id)->location_id ?? '';
+        } else {
+            $location_id = auth()->user()?->details()?->location_id ?? '';
+        }
+        $param->location_id = $location_id;
+
+        $title = 'Create';
+        if ($param) {
+            $title = 'View';
+            if (checkPermission('list_karyawan_update') || checkPermission('admin') || checkPermission('is_admin')) {
+                if (! $param->tanggal_akhir_kerja || checkPermission('admin') || checkPermission('is_admin')) {
+                    $title = 'Update';
+                }
+            }
+        }
 
         /**
          * formdata
@@ -1391,8 +1441,7 @@ class EmployeeController extends Controller
 
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
-        // return view('master::layouts.dashboard.request', $page_var);
-        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param', 'title', 'location_id'));
     }
 
     public function destroy($id)

@@ -37,21 +37,8 @@
                                 @enderror
                             </div>
                             <div class="col">
-                                <label for="employee_phone">Employee phone</label>
-                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
-                                    class="form-control @error('employee_phone') is-invalid @enderror" id="employee_phone"
-                                    placeholder="Email" name="employee_phone"
-                                    value="{{ isset($param->employee_phone) ? $param->employee_phone : old('employee_phone') }}">
-                                @error('employee_phone')
-                                    <span class="text-danger">{{ $message }}</span>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <div class="col">
                                 <label for="employee_email">Email</label>
-                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="employee_email"
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="email"
                                     class="form-control @error('employee_email') is-invalid @enderror" id="employee_email"
                                     placeholder="Email" name="employee_email"
                                     value="{{ isset($param->employee_email) ? $param->employee_email : old('employee_email') }}">
@@ -61,7 +48,7 @@
                             </div>
                             <div class="col">
                                 <label for="corporate_email">Email Corporate</label>
-                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="corporate_email"
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="email"
                                     class="form-control @error('corporate_email') is-invalid @enderror" id="corporate_email"
                                     placeholder="Email Corporate" name="corporate_email"
                                     value="{{ isset($param->corporate_email) ? $param->corporate_email : old('corporate_email') }}">
@@ -69,14 +56,16 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
+                        </div>
 
-                            <div class="col">
-                                <label for="citizenship">citizenship</label>
+                        <div class="form-group row">
+                            <div class="col-2">
+                                <label for="citizenship">Citizenship</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('citizenship') is-invalid @enderror"
                                     id="citizenship" placeholder="Posisi" name="citizenship">
-                                        <option value=""  {{ @$param->citizenship==""||old('citizenship')==''? 'selected': '' }} >-</option>
-                                        <option value="WNI" {{ @$param->citizenship=="WNI"||old('citizenship')=='WNI'? 'selected': '' }} >WNI</option>
-                                        <option value="WNA" {{ @$param->citizenship=="WNA"||old('citizenship')=='WNA'? 'selected': '' }} >WNA</option>
+                                        <option value="" {{ @$param->citizenship==""||old('citizenship')==''? 'selected': '' }}>-</option>
+                                        <option value="WNI" {{ @$param->citizenship=="WNI"||old('citizenship')=='WNI'? 'selected': '' }}>WNI</option>
+                                        <option value="WNA" {{ @$param->citizenship=="WNA"||old('citizenship')=='WNA'? 'selected': '' }}>WNA</option>
                                 </select>
                                 @error('citizenship')
                                     <span class="text-danger">{{ $message }}</span>
@@ -85,13 +74,18 @@
 
                             <div class="col">
                                 <label for="country_code">Country code</label>
+                                @php
+                                    $countryList = $param->list_country_code ?? (is_array($param->country_code) ? $param->country_code : []);
+                                    $selectedCountry = old('country_code', is_string(@$param->country_code) ? $param->country_code : (@$param->country_code_selected ?? ''));
+                                @endphp
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('country_code') is-invalid @enderror"
                                     id="country_code" placeholder="Posisi" name="country_code">
-
-                                    @if (is_array($param->country_code))
-                                        @foreach (@$param->country_code as $key_code=>$val_code)
-                                            <option value="{{$key_code}}" {{ @$param->country_code==$key_code||old('country_code')? 'selected': '' }} >{{$val_code}}</option>
+                                    @if (!empty($countryList))
+                                        @foreach ($countryList as $key_code=>$val_code)
+                                            <option value="{{$key_code}}" {{ ($selectedCountry == $key_code) ? 'selected' : '' }} >{{$val_code}}</option>
                                         @endforeach
+                                    @else
+                                        <option value="" selected>-</option>
                                     @endif
                                 </select>
                                 @error('country_code')
@@ -109,11 +103,49 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
+
+                            <div class="col">
+                                <label for="gender">Gender</label>
+                                <select autocomplete="off" class="form-control @error('gender') is-invalid @enderror"
+                                    id="gender" name="gender" {{ $data['page']['readonly'] ? 'disabled' : '' }}>
+                                    <option value="">-- Pilih Gender --</option>
+                                    @php
+                                        $genderList = isset($param->gender) && is_array($param->gender)
+                                            ? $param->gender
+                                            : ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
+                                    @endphp
+                                    @foreach ($genderList as $key_g => $val_g)
+                                        <option value="{{ $key_g }}" {{ (old('gender', @$param->gender_selected ?? @$param->gender) == $key_g) ? 'selected' : '' }}>
+                                            {{ $val_g }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('gender')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+
+                            <div class="col-2">
+                                <label for="input_employee_blood_type">Golongan Darah</label>
+                                @php
+                                    $currentBlood = old('employee_blood_type', @$param->employee_blood_type ?? '-');
+                                @endphp
+                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off"
+                                    class="form-control @error('employee_blood_type') is-invalid @enderror" name="employee_blood_type"
+                                    id="input_employee_blood_type">
+                                    @foreach (['-', 'A', 'A+', 'A-', 'B', 'B+', 'B-', 'O', 'O+', 'O-', 'AB', 'AB+', 'AB-'] as $bType)
+                                        <option value="{{ $bType }}" {{ $currentBlood == $bType ? 'selected' : '' }}>{{ $bType }}</option>
+                                    @endforeach
+                                </select>
+                                @error('employee_blood_type')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
                         </div>
 
                         <div class="form-group row">
 
-                            <div class="col">
+                            <div class="col" id="col_status">
                                 <label for="status_id">Status</label>
 
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="status_id"
@@ -125,9 +157,16 @@
                                     <option value="" selected>Pilih Status</option>
                                     @isset($param->status)
                                         @foreach ($param->status as $st)
-                                            <option value="{{ $st->id }}"
-                                                @if ((old('status_id') !== null ? old('status_id') : @$param->status_id) == $st->id) selected @endif>
-                                                {{ $st->status }}</option>
+                                            @php
+                                                $stVal = is_object($st) ? $st->id : ($st['id'] ?? $st);
+                                                $stKode = is_object($st) ? ($st->kode ?? '') : ($st['kode'] ?? '');
+                                                $stText = is_object($st)
+                                                    ? (isset($st->kode) ? $st->kode . ' - ' . $st->status : ($st->status_label ?? $st->status))
+                                                    : ($st['status'] ?? $st);
+                                                $isSelected = (old('status_id') !== null ? old('status_id') : @$param->status_id) == $stVal;
+                                            @endphp
+                                            <option value="{{ $stVal }}" data-kode="{{ $stKode }}" {{ $isSelected ? 'selected' : '' }}>
+                                                {{ $stText }}</option>
                                         @endforeach
                                     @endisset
 
@@ -136,7 +175,7 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
-                            <div class="col">
+                            <div class="col" id="col_job_position">
 
                                 <label for="job_position_id">(Dep.) - Posisi Jabatan</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('job_position_id') is-invalid @enderror"
@@ -149,6 +188,28 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
 
+                            </div>
+
+                            <div class="col" id="col_job_list" style="display: none;">
+                                <label for="job_list">Job List</label>
+                                <select name="job_list[]" id="job_list" class="form-control job_list_select2-tags" multiple="multiple" style="width: 100%;">
+                                    @php
+                                        $jobListValues = [];
+                                        $rawJobList = old('job_list', @$param->job_list);
+                                        if (!empty($rawJobList)) {
+                                            $jobListValues = is_array($rawJobList) ? $rawJobList : explode(',', $rawJobList);
+                                        }
+                                    @endphp
+                                    @foreach ($jobListValues as $jlItem)
+                                        @php $jlItem = trim($jlItem); @endphp
+                                        @if ($jlItem !== '')
+                                            <option value="{{ $jlItem }}" selected>{{ $jlItem }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                @error('job_list')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
                             </div>
                         </div>
 
@@ -182,21 +243,76 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
+
                             <div class="col">
-                                <label for="tanggal_join">Tanggal Join</label>
-                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
-                                    class="form-control @error('tanggal_join') is-invalid @enderror" id="tanggal_join"
-                                    placeholder="Tanggal Join" name="tanggal_join"
-                                    value="{{ isset($param->tanggal_join) ? $param->tanggal_join : old('tanggal_join') }}"
-                                    {{-- @isset($param->tanggal_join) readonly @endisset --}}
-                                >
-                                @error('tanggal_join')
+                                <label for="inputWorkLocation">Lokasi Kerja</label>
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden"
+                                    name="work_location_id"
+                                    value="{{ isset($param->work_location_id) ? $param->work_location_id : old('work_location_id') }}">
+                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }}
+                                    class="form-control @error('work_location_id') is-invalid @enderror"
+                                    name="work_location_id" id="inputWorkLocation">
+                                    @if (isset($param->work_location))
+                                        @foreach ($param->work_location as $loc)
+                                            <option value="{{ $loc->id }}"
+                                                @if ((isset($param->work_location_id) ? $param->work_location_id : old('work_location_id')) == $loc->id) selected @endif>
+                                                {{ $loc->loc_code . ' - ' . $loc->loc_name }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                @error('work_location_id')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+
+                            <div class="col">
+                                <label for="inputCompany">Company</label>
+                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }}
+                                    class="form-control @error('company_id') is-invalid @enderror"
+                                    name="company_id" id="inputCompany">
+                                    <option value="{{ old('company_id', @$param->company_id ?? 1) }}" selected>
+                                        {{ @$param->company_name ?? 'PT Meindo Elang Indah' }}
+                                    </option>
+                                </select>
+                                @error('company_id')
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
                         </div>
 
                         <div class="form-group row">
+                            <div class="col">
+                                <label for="employee_dob">Tanggal Lahir</label>
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
+                                    class="form-control @error('employee_dob') is-invalid @enderror"
+                                    id="employee_dob" name="employee_dob"
+                                    value="{{ old('employee_dob', @$param->employee_dob) }}"
+                                    {{ isset($param->id) ? 'readonly' : '' }}>
+                                @error('employee_dob')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                            <div class="col">
+                                <label for="tanggal_join">Tanggal Join</label>
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
+                                    class="form-control @error('tanggal_join') is-invalid @enderror" id="tanggal_join"
+                                    placeholder="Tanggal Join" name="tanggal_join"
+                                    value="{{ isset($param->tanggal_join) ? $param->tanggal_join : old('tanggal_join') }}"
+                                    {{ isset($param->id) ? 'readonly' : '' }}>
+                                @error('tanggal_join')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                            <div class="col">
+                                <label for="tanggal_akhir_kontrak">Tanggal Akhir Kontrak</label>
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
+                                    class="form-control @error('tanggal_akhir_kontrak') is-invalid @enderror" id="tanggal_akhir_kontrak"
+                                    placeholder="Tanggal Akhir Kontrak" name="tanggal_akhir_kontrak"
+                                    value="{{ isset($param->tanggal_akhir_kontrak) ? $param->tanggal_akhir_kontrak : old('tanggal_akhir_kontrak') }}">
+                                @error('tanggal_akhir_kontrak')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
                             <div class="col">
                                 <label for="tanggal_akhir_kerja">Tanggal Akhir Kerja</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
@@ -207,94 +323,54 @@
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
+                        </div>
+
+                        <div class="form-group row">
                             <div class="col">
-                                <label for="tanggal_akhir_kontrak">Tanggal Akhir Kontrak</label>
-                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
-                                    class="form-control @error('tanggal_akhir_kontrak') is-invalid @enderror" id="tanggal_akhir_kontrak"
-                                    placeholder="Tanggal AKhir Kontrak" name="tanggal_akhir_kontrak"
-                                    value="{{ isset($param->tanggal_akhir_kontrak) ? $param->tanggal_akhir_kontrak : old('tanggal_akhir_kontrak') }}">
-                                @error('tanggal_akhir_kontrak')
+                                <label for="employee_phone">Employee Phone</label>
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
+                                    class="form-control @error('employee_phone') is-invalid @enderror" id="employee_phone"
+                                    placeholder="Employee Phone" name="employee_phone"
+                                    value="{{ isset($param->employee_phone) ? $param->employee_phone : old('employee_phone') }}"
+                                    style="text-transform:uppercase" oninput="this.value = this.value.toUpperCase()">
+                                @error('employee_phone')
+                                    <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                            <div class="col">
+                                <label for="emergency_phone">Emergency Phone</label>
+                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
+                                    class="form-control @error('emergency_phone') is-invalid @enderror" id="emergency_phone"
+                                    placeholder="Emergency Phone" name="emergency_phone"
+                                    value="{{ isset($param->emergency_phone) ? $param->emergency_phone : old('emergency_phone') }}"
+                                    style="text-transform:uppercase" oninput="this.value = this.value.toUpperCase()">
+                                @error('emergency_phone')
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
                         </div>
 
                         <div class="form-group row">
-                            <div class="col-6">
-                                <label for="inputWorkLocation">Lokasi Kerja</label>
-                                <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden"
-                                    name="work_location_id"
-                                    value="{{ isset($param->work_location_id) ? $param->work_location_id : old('work_location_id') }}">
-                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }}
-                                    class="form-control @error('work_location_id') is-invalid @enderror"
-                                    name="work_location_id" id="inputWorkLocation">
-
-
-                                    @if (isset($param->work_location))
-                                        @foreach ($param->work_location as $loc)
-                                            <option value="{{ $loc->id }}"
-                                                @if ((isset($param->work_location_id) ? $param->work_location_id : old('work_location_id')) == $loc->id)   selected @endif>
-                                                {{ $loc->loc_code . ' - ' . $loc->loc_name }}</option>
-                                        @endforeach
-                                    @endif
-
-
-                                </select>
-                                @error('role')
-                                    <span class="text-danger">{{ $message }}</span>
-                                @enderror
-                            </div>
-
-                            <div class="col-6">
+                            <div class="col">
                                 <label for="keterangan">Keterangan</label>
                                 <textarea {{ $data['page']['readonly'] ? 'disabled' : '' }}
                                     class="form-control @error('keterangan') is-invalid @enderror" id="keterangan" placeholder="Keterangan"
-                                    name="keterangan">{{ isset($param->keterangan) ? $param->keterangan : old('keterangan') }} </textarea>
+                                    name="keterangan">{{ isset($param->keterangan) ? $param->keterangan : old('keterangan') }}</textarea>
                                 @error('keterangan')
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
                             </div>
-
-                            <div class="col-6">
-                                <label for="employee_blood_type">Golongan Darah</label>
-                                <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off"
-                                    class="form-control " name="employee_blood_type" data-id=""
-                                    id="input_employee_blood_type">
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == '-') selected="" @endif value="-"> - </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'A') selected="" @endif value="A"> A </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'A+') selected="" @endif value="A+"> A+ </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'A-') selected="" @endif value="A-"> A- </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'B') selected="" @endif value="B"> B </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'B+') selected="" @endif value="B+"> B+ </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'B-') selected="" @endif value="B-"> B- </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'O') selected="" @endif value="O"> O </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'O+') selected="" @endif value="O+"> O+ </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'O-') selected="" @endif value="O-"> O- </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'AB') selected="" @endif value="AB"> AB </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'AB+') selected="" @endif value="AB+"> AB+ </option>
-                                    <option @if ((@$param->employee_blood_type ? $param->employee_blood_type : '-') == 'AB-') selected="" @endif value="AB-"> AB- </option>
-                                </select>
-                                @error('employee_blood_type')
-                                    <span class="text-danger">{{ $message }}</span>
-                                @enderror
-                            </div>
-
-
-
-
-
                         </div>
 
                         <div class="form-group row">
-                            @if (@$param)
+                            @if (@$param && @$param->id)
                                 <div class="col-6">
                                     <label for="no_id_karyawan">No ID Karyawan</label>
                                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                                         class="form-control @error('no_id_karyawan') is-invalid @enderror"
-                                        id="no_id_karyawan" placeholder="No KTP" name="no_id_karyawan"
+                                        id="no_id_karyawan" placeholder="No ID Karyawan" name="no_id_karyawan"
                                         value="{{ isset($param->no_id_karyawan) ? $param->no_id_karyawan : old('no_id_karyawan') }}"
-                                        {{-- readonly --}}
-                                    >
+                                        readonly>
                                     @error('no_id_karyawan')
                                         <span class="text-danger">{{ $message }}</span>
                                     @enderror
@@ -324,6 +400,27 @@
 </div>
 
 @stop
+
+@push('css')
+    <style>
+        .select2-container--default .select2-selection--multiple {
+            min-height: 38px;
+            height: auto !important;
+            padding-bottom: 5px !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            white-space: normal !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+@endpush
 
 @push('js')
     @if (isset($data['page']['js']))
@@ -432,8 +529,86 @@
 
             $('.select2-status').select2();
             $('.select2-hire').select2();
+            $('#country_code').select2();
+
+            $('#inputCompany').select2({
+                width: '100%',
+                placeholder: 'Please select Company',
+                ajax: {
+                    url: "{!! url('api/getmaster_vendorbyparams?id=1&set[field][]=vendor_code&set[text]=vendor_description&_token=' . Bangsamu\LibraryClay\Controllers\LibraryClayController::api_token(null)) !!}",
+                    type: "get",
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            "search[vendor_code][|]": params.term,
+                            "search[vendor_description][|]": params.term,
+                        };
+                    },
+                    processResults: function(response) {
+                        return { results: response };
+                    },
+                    cache: true
+                }
+            });
+
+            // Otomatisasi WNI -> IDN country code
+            $('#citizenship').on('change', function() {
+                if ($(this).val() === 'WNI') {
+                    if ($('#country_code option[value="IDN"]').length > 0) {
+                        $('#country_code').val('IDN').trigger('change');
+                    }
+                }
+            });
+
+            var $jobList = $('.job_list_select2-tags');
+            $jobList.select2({
+                tags: true,
+                tokenSeparators: [',', ';'],
+                placeholder: 'Cari atau ketik job position (tekan enter / pisahkan koma)',
+                ajax: {
+                    url: "{{ route('getjobPositionlistbyparams') }}",
+                    type: "GET",
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            search: params.term,
+                            q: params.term,
+                            _token: CSRF_TOKEN
+                        };
+                    },
+                    processResults: function(response) {
+                        return {
+                            results: response
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            function toggleJobList() {
+                var selectedOpt = $('#status_id option:selected');
+                var statusKode = selectedOpt.data('kode');
+                var statusVal = $('#status_id').val();
+                var statusText = selectedOpt.text().trim().toUpperCase();
+
+                var isHire = (statusKode === '0' || statusKode === 0 || statusVal === '0' || statusText.indexOf('0 - HIRE') !== -1 || statusText.indexOf('HIRE') !== -1);
+
+                if (isHire) {
+                    $('#col_job_list').show();
+                } else {
+                    $('#col_job_list').hide();
+                }
+            }
+
+            $('#status_id').on('change', function() {
+                toggleJobList();
+            });
+
+            toggleJobList();
 
         });
     </script>
-
 @endpush
+

@@ -11,6 +11,7 @@ use Bangsamu\Master\Models\Department;
 use Bangsamu\Master\Models\Employee;
 use Bangsamu\Master\Models\ItemCode;
 use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Models\JobPosition;
 use Bangsamu\Master\Models\Location;
 use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\Project;
@@ -816,4 +817,63 @@ class ApiController extends Controller
 
         return response()->json($response);
     }
+
+    public function getJobPositionByParams(Request $request)
+    {
+        $search = $request->input('search');
+
+        $positions = JobPosition::select(
+            'master_job_position.id',
+            'master_department.department_name',
+            'master_job_position.position_code',
+            'master_job_position.position_name'
+        )
+            ->leftJoin('master_department', 'master_department.id', '=', 'master_job_position.department_id')
+            ->when($search, function ($query, $searchTerm) {
+                return $query->where(function ($q) use ($searchTerm) {
+                    $q->where('master_job_position.position_name', 'like', "%{$searchTerm}%")
+                        ->orWhere('master_job_position.position_code', 'like', "%{$searchTerm}%");
+                });
+            })
+            ->orderBy('master_job_position.position_name', 'asc')
+            ->limit(20)
+            ->get();
+
+        $response = $positions->map(fn ($position) => [
+            'id' => $position->id,
+            'text' => "({$position->department_name}) {$position->position_code} - {$position->position_name}",
+        ]);
+
+        return response()->json($response);
+    }
+
+    public function getJobPositionListByParams(Request $request)
+    {
+        $search = $request->input('search') ?? $request->input('q');
+
+        $positions = JobPosition::select(
+            'master_job_position.id',
+            'master_department.department_name',
+            'master_job_position.position_code',
+            'master_job_position.position_name'
+        )
+            ->leftJoin('master_department', 'master_department.id', '=', 'master_job_position.department_id')
+            ->when($search, function ($query, $searchTerm) {
+                return $query->where(function ($q) use ($searchTerm) {
+                    $q->where('master_job_position.position_name', 'like', "%{$searchTerm}%")
+                        ->orWhere('master_job_position.position_code', 'like', "%{$searchTerm}%");
+                });
+            })
+            ->orderBy('master_job_position.position_name', 'asc')
+            ->limit(20)
+            ->get();
+
+        $response = $positions->map(fn ($position) => [
+            'id' => $position->position_name,
+            'text' => $position->position_name,
+        ]);
+
+        return response()->json($response);
+    }
 }
+
