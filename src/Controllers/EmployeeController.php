@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 // use Bangsamu\Master\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -363,12 +364,7 @@ class EmployeeController extends Controller
         $user_id = Auth::user()->id ?? 0;
         $user = User::find($user_id);
 
-        if (method_exists(User::class, 'detailsLocation')) {
-            $details = User::detailsLocation($user_id);
-            $user_location_id = $details->location_id;
-        } else {
-            $user_location_id = '';
-        }
+        $user_location_id = $this->getUserLocationId();
 
         if ($request->input('order.0.column')) {
             /* remove alias */
@@ -808,15 +804,7 @@ class EmployeeController extends Controller
         $param->company_id = 1;
         $param->company_name = 'PT Meindo Elang Indah';
 
-        $user_id = Auth::user()->id ?? 0;
-        if (method_exists(User::class, 'detailsLocation')) {
-            $details = User::detailsLocation($user_id);
-            $location_id = $details->location_id ?? '';
-        } elseif (method_exists(User::class, 'staticDetails')) {
-            $location_id = User::staticDetails($user_id)->location_id ?? '';
-        } else {
-            $location_id = auth()->user()?->details()?->location_id ?? '';
-        }
+        $location_id = $this->getUserLocationId();
         $param->location_id = $location_id;
         $title = 'Create';
 
@@ -1394,15 +1382,7 @@ class EmployeeController extends Controller
         $list_work_location = MasterLocation::select('id', 'loc_code', 'loc_name')->where('id', $param->work_location_id)->limit(10)->get();
         $param->work_location = $list_work_location;
 
-        $user_id = Auth::user()->id ?? 0;
-        if (method_exists(User::class, 'detailsLocation')) {
-            $details = User::detailsLocation($user_id);
-            $location_id = $details->location_id ?? '';
-        } elseif (method_exists(User::class, 'staticDetails')) {
-            $location_id = User::staticDetails($user_id)->location_id ?? '';
-        } else {
-            $location_id = auth()->user()?->details()?->location_id ?? '';
-        }
+        $location_id = $this->getUserLocationId();
         $param->location_id = $location_id;
 
         $title = 'Create';
@@ -1484,5 +1464,94 @@ class EmployeeController extends Controller
 
             return redirect()->route('master.employee.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    /**
+     * Safely resolve the current user's location ID across various app implementations.
+     */
+    protected function getUserLocationId(): string
+    {
+        $authUser = Auth::user();
+        $userId = $authUser->id ?? 0;
+
+        // 1. Check if User model has detailsLocation static method
+        if (method_exists(User::class, 'detailsLocation')) {
+            try {
+                $details = User::detailsLocation($userId);
+                if (! empty($details?->location_id)) {
+                    return (string) $details->location_id;
+                }
+            } catch (\Throwable $e) {
+                // Ignore and proceed to next fallback
+            }
+        }
+
+        // 2. Check if User model has staticDetails static method
+        if (method_exists(User::class, 'staticDetails')) {
+            try {
+                $details = User::staticDetails($userId);
+                if (! empty($details?->location_id)) {
+                    return (string) $details->location_id;
+                }
+            } catch (\Throwable $e) {
+                // Ignore and proceed to next fallback
+            }
+        }
+
+        // 3. Check if User instance has details method
+        if ($authUser && method_exists($authUser, 'details')) {
+            try {
+                $details = $authUser->details();
+                if ($details instanceof \Illuminate\Database\Eloquent\Relations\Relation) {
+                    $detailRow = $details->where('field_key', 'location_id')->first();
+                    if (! empty($detailRow?->field_value)) {
+                        return (string) $detailRow->field_value;
+                    }
+                } elseif (is_object($details) && isset($details->location_id) && ! empty($details->location_id)) {
+                    return (string) $details->location_id;
+                }
+            } catch (\Throwable $e) {
+                // Ignore and proceed to next fallback
+            }
+        }
+
+        // 4. Fallback to package MasterUser::detailsLocation
+        if (class_exists(\Bangsamu\Master\Models\MasterUser::class) && method_exists(\Bangsamu\Master\Models\MasterUser::class, 'detailsLocation')) {
+            try {
+                $details = \Bangsamu\Master\Models\MasterUser::detailsLocation($userId);
+                if (! empty($details?->location_id)) {
+                    return (string) $details->location_id;
+                }
+            } catch (\Throwable $e) {
+                // Ignore and proceed to next fallback
+            }
+        }
+
+        // 5. Fallback to querying master_user_details or user_details table directly
+        try {
+            if ($userId) {
+                if (Schema::hasTable('master_user_details')) {
+                    $locationId = DB::table('master_user_details')
+                        ->where('user_id', $userId)
+                        ->where('field_key', 'location_id')
+                        ->value('field_value');
+                    if (! empty($locationId)) {
+                        return (string) $locationId;
+                    }
+                } elseif (Schema::hasTable('user_details')) {
+                    $locationId = DB::table('user_details')
+                        ->where('user_id', $userId)
+                        ->where('field_key', 'location_id')
+                        ->value('field_value');
+                    if (! empty($locationId)) {
+                        return (string) $locationId;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore DB errors
+        }
+
+        return '';
     }
 }

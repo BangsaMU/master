@@ -23,8 +23,11 @@ class MasterUser extends Model
 
     public static function detailsLocation($id = null)
     {
+        $user_id = $id ?? (auth()->user()->id ?? 0);
 
-        $user_id = $id ?? auth()->user()->id;
+        if (! $user_id) {
+            return null;
+        }
 
         $user = DB::table('master_user as tbl1')
             ->select(
@@ -53,11 +56,11 @@ class MasterUser extends Model
                                 group_concat(case when (field_key='location_id') then field_value else NULL end) as 'location_id'
                             from master_user_details
                             where
-                                user_id = ".$user_id.'
+                                user_id = " . (int) $user_id . "
                             group by user_id
                             order by user_id
                             ) `ud`
-                        '),
+                        "),
                 'tbl1.id',
                 '=',
                 'ud.user_id'
@@ -65,10 +68,19 @@ class MasterUser extends Model
             ->where('tbl1.id', $user_id)
             ->first();
 
-        $list_location_id = $user->location_id;
-        $hrdhire = MasterLocation::select('id', DB::raw('concat(loc_code, " - ", loc_name) as location'))->whereRaw('FIND_IN_SET(id, ?)', [$list_location_id])->get();
-        $list_location = $hrdhire->pluck('location', 'id');
-        $location_label = $hrdhire->pluck('location')->toArray();
+        if (! $user) {
+            return null;
+        }
+
+        $list_location_id = $user->location_id ?? '';
+        $list_location = collect();
+        $location_label = [];
+
+        if (! empty($list_location_id)) {
+            $hrdhire = MasterLocation::select('id', DB::raw('concat(loc_code, " - ", loc_name) as location'))->whereRaw('FIND_IN_SET(id, ?)', [$list_location_id])->get();
+            $list_location = $hrdhire->pluck('location', 'id');
+            $location_label = $hrdhire->pluck('location')->toArray();
+        }
 
         $user->location_detail = $list_location;
         $user->location_detail_label = count($location_label) > 2 ? 'Multi Location' : implode(', ', $location_label);

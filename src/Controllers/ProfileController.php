@@ -107,7 +107,9 @@ class ProfileController extends Controller
                 $filename = $directory.'/'.$user->id.'_'.$fieldKey.'_'.uniqid().'.png';
                 Storage::disk('media')->put($filename, $decodedImage);
 
-                $oldImageDetail = $user->details()->where('field_key', $fieldKey)->first();
+                $oldImageDetail = method_exists($user, 'details')
+                    ? $user->details()->where('field_key', $fieldKey)->first()
+                    : UserDetail::where('user_id', $user->id)->where('field_key', $fieldKey)->first();
                 if ($oldImageDetail && $oldImageDetail->field_value) {
                     Storage::disk('media')->delete($oldImageDetail->field_value);
                 }
@@ -132,7 +134,9 @@ class ProfileController extends Controller
         } elseif ($request->exists($fieldKey)) { // Handle deletion if input is empty string
 
             dd(2);
-            $imageDetail = $user->details()->where('field_key', $fieldKey)->first();
+            $imageDetail = method_exists($user, 'details')
+                ? $user->details()->where('field_key', $fieldKey)->first()
+                : UserDetail::where('user_id', $user->id)->where('field_key', $fieldKey)->first();
             if ($imageDetail) {
                 Storage::disk('media')->delete($imageDetail->field_value);
                 $imageDetail->delete();
