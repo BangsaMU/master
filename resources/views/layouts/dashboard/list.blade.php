@@ -282,6 +282,35 @@
     </form>
 
     <script>
+        if (window.jQuery && $.fn && $.fn.dataTable) {
+            $.fn.dataTable.ext.errMode = 'none';
+        }
+
+        window.handleSessionExpired = window.handleSessionExpired || function() {
+            if (window.isSessionExpiredHandling) return;
+            window.isSessionExpiredHandling = true;
+
+            var loginUrl = "{{ route('login') }}";
+
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesi Telah Berakhir',
+                    text: 'Sesi Anda telah habis. Halaman akan dialihkan ke halaman login.',
+                    confirmButtonText: 'Login Kembali',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                }).then(function() {
+                    window.location.href = loginUrl;
+                });
+            } else {
+                alert('Sesi Anda telah habis. Silakan login kembali.');
+                window.location.href = loginUrl;
+            }
+        };
+
         var data,
             tableName = '#{{ $data['page']['slug'] }}_tabel',
             headerName = '#{{ $data['page']['slug'] }}_header',
@@ -347,6 +376,11 @@
                             serverSide: "true",
                             id: {{ $data['page']['id'] }},
                         },
+                        "error": function(xhr, error, thrown) {
+                            if (xhr && (xhr.status === 401 || xhr.status === 419)) {
+                                window.handleSessionExpired();
+                            }
+                        }
                     },
                     "data": data.data,
                     "columns": data.columns,
@@ -368,6 +402,10 @@
                 });
             })
             .fail(function(jqXHR, exception) {
+                if (jqXHR && (jqXHR.status === 401 || jqXHR.status === 419)) {
+                    window.handleSessionExpired();
+                    return;
+                }
                 var msg = '';
                 if (jqXHR.status === 0) {
                     msg = 'Not connect.\n Verify Network.';

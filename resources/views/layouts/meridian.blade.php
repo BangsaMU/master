@@ -219,6 +219,53 @@
             window.Swal = window.Sweetalert2;
         }
 
+        window.handleSessionExpired = window.handleSessionExpired || function() {
+            if (window.isSessionExpiredHandling) return;
+            window.isSessionExpiredHandling = true;
+
+            var loginUrl = "{{ route('login') }}";
+
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesi Telah Berakhir',
+                    text: 'Sesi Anda telah habis. Halaman akan dialihkan ke halaman login.',
+                    confirmButtonText: 'Login Kembali',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                }).then(function() {
+                    window.location.href = loginUrl;
+                });
+            } else {
+                alert('Sesi Anda telah habis. Silakan login kembali.');
+                window.location.href = loginUrl;
+            }
+        };
+
+        if (window.jQuery) {
+            if ($.fn && $.fn.dataTable) {
+                $.fn.dataTable.ext.errMode = 'none';
+            }
+
+            $(document).on('error.dt', function(e, settings, techNote, message) {
+                console.warn('DataTables error intercepted:', message);
+                if (settings && settings.jqXHR) {
+                    var status = settings.jqXHR.status;
+                    if (status === 401 || status === 419) {
+                        window.handleSessionExpired();
+                    }
+                }
+            });
+
+            $(document).ajaxError(function(event, jqXHR, settings, thrownError) {
+                if (jqXHR && (jqXHR.status === 401 || jqXHR.status === 419)) {
+                    window.handleSessionExpired();
+                }
+            });
+        }
+
         if (typeof $.LoadingOverlay === 'undefined') {
             $.LoadingOverlay = function(action) {
                 console.log('LoadingOverlay:', action);

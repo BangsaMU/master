@@ -129,7 +129,7 @@
             $toastMessage = session('error');
             $toastType = 'error';
             $toastTitle = 'Error';
-        } elseif ($errors->any()) {
+        } elseif (isset($errors) && $errors->any()) {
             $errorList = '<ul>';
             foreach ($errors->all() as $error) {
                 $errorList .= '<li>' . e($error) . '</li>';
@@ -218,6 +218,31 @@
     <script src="{{ asset('datatables/dataTables.js') }}"></script>
     <script src="{{ asset('datatables/dataTables.bootstrap5.js') }}"></script>
     <script>
+        window.handleSessionExpired = window.handleSessionExpired || function() {
+            if (window.isSessionExpiredHandling) return;
+            window.isSessionExpiredHandling = true;
+
+            var loginUrl = "{{ route('login') }}";
+
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesi Telah Berakhir',
+                    text: 'Sesi Anda telah habis. Halaman akan dialihkan ke halaman login.',
+                    confirmButtonText: 'Login Kembali',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                }).then(function() {
+                    window.location.href = loginUrl;
+                });
+            } else {
+                alert('Sesi Anda telah habis. Silakan login kembali.');
+                window.location.href = loginUrl;
+            }
+        };
+
         if ($.fn.dataTable) {
             $.fn.dataTable.ext.errMode = 'none';
             $(document).on('error.dt', function(e, settings, techNote, message) {
@@ -225,7 +250,7 @@
                 if (settings && settings.jqXHR) {
                     const status = settings.jqXHR.status;
                     if (status === 401 || status === 419) {
-                        window.location.href = "{{ route('login') }}";
+                        window.handleSessionExpired();
                         return;
                     }
                 }
@@ -403,8 +428,8 @@
             };
 
             $(document).ajaxError(function(event, jqxhr, settings, thrownError) {
-                if (jqxhr.status === 401 || jqxhr.status === 419) {
-                    window.location.href = "{{ route('login') }}";
+                if (jqxhr && (jqxhr.status === 401 || jqxhr.status === 419)) {
+                    window.handleSessionExpired();
                 }
             });
 

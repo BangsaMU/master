@@ -233,3 +233,105 @@ Untuk mencegah **Broadcast Storm** (di mana pengunggahan 10.000 data memicu 10.0
 4. **Trait `HandlesBatchImportBroadcast`**:
    Semua class Import (Item Code, Category, Department, Employee, Item Group, Location, PCA, Project, UoM, Vendor) mengimplementasikan trait `HandlesBatchImportBroadcast` serta `WithChunkReading` (chunk 1.000) dan koleksi lookup in-memory (memoized) untuk menghindari N+1 kueri ke database master.
 
+---
+
+## 6. API Sinkronisasi Status User (Active / Inactive) Lokal
+
+API ini disediakan untuk menerima webhook/cURL dari aplikasi master (`master-data` via `App\Services\UserStatusSyncService`) guna mengubah status user (`is_active`) menjadi aktif (`1`) atau inaktif (`0`) pada **database default lokal** (tabel `master_user`), **bukan** pada koneksi `db_master`.
+
+### Endpoints
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `GET` / `POST` | `/api/user/status` | **Endpoint Utama** Sinkronisasi status user |
+| `GET` / `POST` | `/api/user/set-status` | Endpoint alias |
+| `GET` / `POST` | `/api/setUser.php` | Kompatibilitas URL legacy API |
+| `GET` / `POST` | `/setUser.php` | Kompatibilitas URL legacy root |
+| `GET` | `/api/users` | Daftar user lokal (Cursor Paginated) |
+| `GET` | `/api/users/{id}` | Detail user lokal |
+
+### Parameter Request
+| Parameter | Tipe | Wajib | Keterangan |
+|---|---|---|---|
+| `email_id` | `string` | **Ya** | Alamat email user yang akan disinkronkan. Menerima juga alias: `email`, `person_id`, `person_email`. |
+| `status` | `int`/`string` | **Ya** | `1` / `active` / `true` untuk **Aktif**, `0` / `inactive` / `false` untuk **Inaktif**. Menerima juga alias: `active`. |
+| `token` | `string` | **Ya** | Token keamanan HMAC SHA-256 (atau fallback MD5) yang dihasilkan dari `api_token($email_id)` menggunakan `SsoConfig.main.KEY`, atau static token. Dapat juga dikirim via header `Authorization: Bearer <token>`. |
+
+### Contoh Request (cURL)
+
+#### A. GET Request (Sesuai cURL `UserStatusSyncService` di `master-data`):
+```bash
+curl -X GET "http://clay-domain/api/user/status?email_id=user@example.com&status=1&token=45be95886cd458871369dba552ee3fd9c82bb578ff9863131ab4d2bbe40b52e7"
+```
+
+#### B. POST Request dengan JSON Body:
+```bash
+curl -X POST "http://clay-domain/api/user/status" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email_id": "user@example.com",
+       "status": 0,
+       "token": "45be95886cd458871369dba552ee3fd9c82bb578ff9863131ab4d2bbe40b52e7"
+     }'
+```
+
+### Format Response
+
+#### Sukses (HTTP 200 OK)
+```json
+{
+  "status": true,
+  "code": 200,
+  "message": "User 'user@example.com' status successfully set to active.",
+  "data": {
+    "id": 12,
+    "name": "Bagas Alwi",
+    "email": "user@example.com",
+    "previous_status": 0,
+    "current_status": 1,
+    "status_label": "active"
+  }
+}
+```
+
+#### Token Tidak Valid (HTTP 401 Unauthorized)
+```json
+{
+  "status": false,
+  "code": 401,
+  "message": "Unauthorized: Invalid or missing token."
+}
+```
+
+#### User Tidak Ditemukan di DB Lokal (HTTP 404 Not Found)
+```json
+{
+  "status": false,
+  "code": 404,
+  "message": "User not found for 'unknown@example.com'."
+}
+```
+
+#### Validasi Gagal (HTTP 422 Unprocessable Entity)
+```json
+{
+  "status": false,
+  "code": 422,
+  "message": "User identifier (email_id) is required.",
+  "errors": {
+    "email_id": [
+      "User identifier (email_id) is required."
+    ]
+  }
+}
+```
+
+### Logging & Tracing Aktivitas
+Semua aktivitas request hit, penolakan token, validasi gagal, user not found, dan update status berhasil dicatat secara spesifik ke file log harian khusus:
+
+- **Lokasi File:** `storage/logs/user-sync-YYYY-MM-DD.log` (dan terduplikasi di `storage/logs/laravel-YYYY-MM-DD.log`).
+- **Live Trace Command:**
+  ```bash
+  tail -f storage/logs/user-sync-$(date +%Y-%m-%d).log
+  ```
+
+
