@@ -103,6 +103,35 @@
 
 
             </div>
+            @if (method_exists($logs, 'hasPages') && $logs->hasPages())
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div>
+                        @if ($logs->previousPageUrl())
+                            <a href="{{ $logs->previousPageUrl() }}" class="btn btn-default btn-sm">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </a>
+                        @else
+                            <button class="btn btn-default btn-sm" disabled>
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                        @endif
+                    </div>
+                    <div>
+                        <span class="text-muted small">Menampilkan {{ $logs->count() }} aktivitas</span>
+                    </div>
+                    <div>
+                        @if ($logs->nextPageUrl())
+                            <a href="{{ $logs->nextPageUrl() }}" class="btn btn-default btn-sm">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </a>
+                        @else
+                            <button class="btn btn-default btn-sm" disabled>
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </div>

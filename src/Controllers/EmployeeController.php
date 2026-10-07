@@ -1171,8 +1171,9 @@ class EmployeeController extends Controller
         )
             ->where('model_type', 'Bangsamu\Master\Models\Employee')
             ->where('model_id', $id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('id', 'desc')
+            ->cursorPaginate(10)
+            ->withQueryString();
         // dd($data['page']['logs']);
         // $param = DB::table('master_' . $this->sheet_slug)->select('master_employee.*', 'm_l.loc_name as work_location_name')
         //     ->leftJoin('master_location as m_l', 'm_l.id', '=', 'master_employee.work_location_id')

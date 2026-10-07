@@ -524,6 +524,14 @@
                 </div>
             </div>
         </form>
+
+        {{-- Log Karyawan --}}
+        @if (@$data['page']['logs'])
+            @include('master::master_tabler.logs_view.list', [
+                'title' => 'Log Karyawan',
+                'logs' => $data['page']['logs'],
+            ])
+        @endif
     </div>
 @stop
 
