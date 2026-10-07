@@ -379,15 +379,16 @@ class EmployeeController extends Controller
         $tableName = 'master_employee';
         $category = 'master_employee';
         $settings = $this->getSettingsForTable($category);
+        $effectiveAppCode = $this->getEffectiveAppCode();
 
         $baseQuery = DB::table($tableName.' as m_k')
-            ->where(function ($query) use ($user_location_id) {
+            ->where(function ($query) use ($user_location_id, $effectiveAppCode) {
                 if (checkPermission('is_admin') || checkPermission('hrd_all_location')) {
                     // bisa liat semua employee
                 } else {
                     // hanya app hrd demo
                     $query
-                        ->where('m_k.app_code', 'APP11')
+                        ->where('m_k.app_code', $effectiveAppCode)
                         ->whereIn('hire_id', explode(',', $user_location_id));
                 }
             })->whereNull('m_k.deleted_at');
@@ -407,13 +408,13 @@ class EmployeeController extends Controller
                 ->leftJoin('master_status as m_s', 'm_k.status_id', '=', 'm_s.id')
                 ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
                 ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
-                ->where(function ($query) use ($user_location_id) {
+                ->where(function ($query) use ($user_location_id, $effectiveAppCode) {
                     if (checkPermission('is_admin') || checkPermission('hrd_all_location')) {
                         // bisa liat semua employee
                     } else {
                         // hanya app hrd demo
                         $query
-                            ->where('m_k.app_code', 'APP11')
+                            ->where('m_k.app_code', $effectiveAppCode)
                             ->whereIn('hire_id', explode(',', $user_location_id));
                     }
                 })->whereNull('m_k.deleted_at');
@@ -439,13 +440,13 @@ class EmployeeController extends Controller
                 ->leftJoin('master_status as m_s', 'm_k.status_id', '=', 'm_s.id')
                 ->leftJoin('master_location as m_l', 'm_l.id', '=', 'm_k.work_location_id')
                 ->leftJoin('master_location as m_l2', 'm_l2.id', '=', 'm_k.hire_id')
-                ->where(function ($query) use ($user_location_id) {
+                ->where(function ($query) use ($user_location_id, $effectiveAppCode) {
                     if (checkPermission('is_admin') || checkPermission('hrd_all_location')) {
                         // bisa liat semua employee
                     } else {
                         // hanya app hrd demo
                         $query
-                            ->where('m_k.app_code', 'APP11')
+                            ->where('m_k.app_code', $effectiveAppCode)
                             ->whereIn('hire_id', explode(',', $user_location_id));
                     }
                 })->whereNull('m_k.deleted_at');
@@ -522,6 +523,50 @@ class EmployeeController extends Controller
         return response()->json($json_data);
     }
 
+    public function getEffectiveAppCode(?string $overrideAppCode = null): string
+    {
+        if (! empty($overrideAppCode)) {
+            return $overrideAppCode;
+        }
+
+        $isSsoActive = filter_var(config('SsoConfig.main.ACTIVE', env('SSO_ACTIVE', false)), FILTER_VALIDATE_BOOLEAN);
+
+        if ($isSsoActive) {
+            return 'APP11';
+        }
+
+        return (string) (config('SsoConfig.main.APP_CODE') ?: 'APP11');
+    }
+
+    public function getStatusOptions(?string $targetAppCode = null, ?int $currentStatusId = null)
+    {
+        $appCode = $this->getEffectiveAppCode($targetAppCode);
+
+        $statuses = MasterStatus::select('id', 'kode', 'status', DB::raw('concat(kode, " - ", status) as status_label'))
+            ->where('app_code', $appCode)
+            ->get();
+
+        // Fallback ke APP11 jika tidak ada status untuk app_code tersebut
+        if ($statuses->isEmpty() && $appCode !== 'APP11') {
+            $statuses = MasterStatus::select('id', 'kode', 'status', DB::raw('concat(kode, " - ", status) as status_label'))
+                ->where('app_code', 'APP11')
+                ->get();
+        }
+
+        // Safety Guard: Jika sedang edit dan currentStatusId ada tapi tidak ada di collection, sertakan
+        if ($currentStatusId !== null && ! $statuses->contains('id', $currentStatusId)) {
+            $currentStatus = MasterStatus::select('id', 'kode', 'status', DB::raw('concat(kode, " - ", status) as status_label'))
+                ->where('id', $currentStatusId)
+                ->first();
+
+            if ($currentStatus) {
+                $statuses->push($currentStatus);
+            }
+        }
+
+        return $statuses;
+    }
+
     public function create()
     {
         $sheet_name = $this->sheet_name;
@@ -535,7 +580,7 @@ class EmployeeController extends Controller
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = new \stdClass;
-        $statuses = MasterStatus::select('id', 'kode', 'status', DB::raw('concat(kode, " - ", status) as status_label'))->get();
+        $statuses = $this->getStatusOptions();
         $list_status = $statuses->pluck('status', 'id');
         $param->status = $statuses;
         $param->country_code = old('country_code', 'IDN');
@@ -880,7 +925,7 @@ class EmployeeController extends Controller
         }
         $country_code = $request->country_code ?: ($request->citizenship == 'WNI' ? 'IDN' : null);
 
-        $app_code = config('SsoConfig.main.APP_CODE');
+        $app_code = $this->getEffectiveAppCode($request->app_code ?? null);
 
         $job_list = $request->job_list ? (is_array($request->job_list) ? implode(',', $request->job_list) : $request->job_list) : null;
 
@@ -1116,7 +1161,7 @@ class EmployeeController extends Controller
 
         $param->work_location_id = session()->getOldInput('work_location_id') ?? $param->work_location_id;
 
-        $statuses = MasterStatus::select('id', 'kode', 'status', DB::raw('concat(kode, " - ", status) as status_label'))->get();
+        $statuses = $this->getStatusOptions($param->app_code ?? null, $param->status_id ?? null);
         $list_status = $statuses->pluck('status', 'id');
         $param->status = $statuses;
 
