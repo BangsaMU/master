@@ -845,6 +845,14 @@ class EmployeeController extends Controller
         $list_hire_loc = MasterLocation::where('group_type', 'hrd')->get();
         $param->hire_loc = $list_hire_loc;
         $param->gender = ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
+        $param->list_gender = ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
+        $param->gender_selected = old('gender');
+        if ((empty($param->gender_selected) || $param->gender_selected === '-') && old('citizenship') === 'WNI' && old('no_ktp')) {
+            $extracted = LibraryClayController::extractDataKTP(old('no_ktp'));
+            if (! empty($extracted['jenisKelamin'])) {
+                $param->gender_selected = strtolower($extracted['jenisKelamin']);
+            }
+        }
         $param->work_location = null;
         $param->company_id = 1;
         $param->company_name = 'PT Meindo Elang Indah';
@@ -925,6 +933,34 @@ class EmployeeController extends Controller
         }
         $country_code = $request->country_code ?: ($request->citizenship == 'WNI' ? 'IDN' : null);
 
+        $gender = $request->gender;
+        if ($gender === '-') {
+            $gender = null;
+        }
+
+        if (strtoupper($request->citizenship ?? '') === 'WNI') {
+            if ($request->id) {
+                if (empty($gender)) {
+                    $existingEmployee = Employee::find($request->id);
+                    if ($existingEmployee && ! empty($existingEmployee->gender) && $existingEmployee->gender !== '-') {
+                        $gender = $existingEmployee->gender;
+                    } elseif (! empty($request->no_ktp)) {
+                        $extractDataKTP = LibraryClayController::extractDataKTP($request->no_ktp);
+                        if (! empty($extractDataKTP['jenisKelamin'])) {
+                            $gender = strtolower($extractDataKTP['jenisKelamin']);
+                        }
+                    }
+                }
+            } else {
+                if (empty($gender) && ! empty($request->no_ktp)) {
+                    $extractDataKTP = LibraryClayController::extractDataKTP($request->no_ktp);
+                    if (! empty($extractDataKTP['jenisKelamin'])) {
+                        $gender = strtolower($extractDataKTP['jenisKelamin']);
+                    }
+                }
+            }
+        }
+
         $app_code = $this->getEffectiveAppCode($request->app_code ?? null);
 
         $job_list = $request->job_list ? (is_array($request->job_list) ? implode(',', $request->job_list) : $request->job_list) : null;
@@ -964,7 +1000,7 @@ class EmployeeController extends Controller
                 'work_location_id' => $request->work_location_id,
                 'employee_blood_type' => $request->employee_blood_type,
                 'employee_dob' => $employee_dob,
-                'gender' => $request->gender,
+                'gender' => $gender,
                 'employee_phone' => $request->employee_phone,
                 'emergency_phone' => $request->emergency_phone,
                 'company_id' => $company_id,
@@ -1023,7 +1059,7 @@ class EmployeeController extends Controller
                 'work_location_id' => $request->work_location_id,
                 'employee_blood_type' => $request->employee_blood_type,
                 'employee_dob' => $employee_dob,
-                'gender' => $request->gender,
+                'gender' => $gender,
                 'employee_phone' => $request->employee_phone,
                 'emergency_phone' => $request->emergency_phone,
                 'company_id' => $company_id,
@@ -1422,7 +1458,17 @@ class EmployeeController extends Controller
 
         $list_hire_loc = MasterLocation::where('group_type', 'hrd')->get();
         $param->hire_loc = $list_hire_loc;
-        $param->gender = ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
+
+        $selected_gender = $param->gender;
+        if ((empty($selected_gender) || $selected_gender === '-') && strtoupper($param->citizenship ?? '') === 'WNI' && ! empty($param->no_ktp)) {
+            $extractDataKTP = LibraryClayController::extractDataKTP($param->no_ktp);
+            if (! empty($extractDataKTP['jenisKelamin'])) {
+                $selected_gender = strtolower($extractDataKTP['jenisKelamin']);
+            }
+        }
+        $param->gender = $selected_gender;
+        $param->gender_selected = $selected_gender;
+        $param->list_gender = ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
 
         $list_work_location = MasterLocation::select('id', 'loc_code', 'loc_name')->where('id', $param->work_location_id)->limit(10)->get();
         $param->work_location = $list_work_location;
@@ -1598,5 +1644,13 @@ class EmployeeController extends Controller
         }
 
         return '';
+    }
+
+    public function extractKtp(Request $request)
+    {
+        $ktp = $request->input('no_ktp') ?? $request->input('ktp');
+        $data = LibraryClayController::extractDataKTP($ktp);
+
+        return response()->json($data);
     }
 }

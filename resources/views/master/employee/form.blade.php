@@ -110,12 +110,15 @@
                                     id="gender" name="gender" {{ $data['page']['readonly'] ? 'disabled' : '' }}>
                                     <option value="">-- Pilih Gender --</option>
                                     @php
-                                        $genderList = isset($param->gender) && is_array($param->gender)
-                                            ? $param->gender
-                                            : ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan'];
+                                        $genderList = isset($param->list_gender) && is_array($param->list_gender)
+                                            ? $param->list_gender
+                                            : (isset($param->gender) && is_array($param->gender)
+                                                ? $param->gender
+                                                : ['' => '-', 'laki-laki' => 'Laki-Laki', 'perempuan' => 'Perempuan']);
+                                        $selectedGender = old('gender', @$param->gender_selected ?? (!is_array(@$param->gender) ? @$param->gender : ''));
                                     @endphp
                                     @foreach ($genderList as $key_g => $val_g)
-                                        <option value="{{ $key_g }}" {{ (old('gender', @$param->gender_selected ?? @$param->gender) == $key_g) ? 'selected' : '' }}>
+                                        <option value="{{ $key_g }}" {{ ($selectedGender == $key_g) ? 'selected' : '' }}>
                                             {{ $val_g }}
                                         </option>
                                     @endforeach
@@ -607,6 +610,50 @@
             });
 
             toggleJobList();
+
+            function autoExtractKtp() {
+                var citizenship = $('#citizenship').val();
+                var noKtp = ($('#no_ktp').val() || '').trim();
+                var currentGender = $('#gender').val();
+
+                if (citizenship === 'WNI' && noKtp.length === 16) {
+                    if (!currentGender || currentGender === '' || currentGender === '-') {
+                        $.ajax({
+                            url: "{{ route('master.employee.extract_ktp') }}",
+                            type: "POST",
+                            data: {
+                                _token: CSRF_TOKEN,
+                                no_ktp: noKtp
+                            },
+                            success: function(res) {
+                                if (res && res.jenisKelamin) {
+                                    var gVal = res.jenisKelamin.toLowerCase();
+                                    var gNow = $('#gender').val();
+                                    if (!gNow || gNow === '' || gNow === '-') {
+                                        $('#gender').val(gVal).trigger('change');
+                                    }
+                                }
+                                if (res && res.tanggalLahir && !$('#employee_dob').val()) {
+                                    $('#employee_dob').val(res.tanggalLahir);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
+            $('#no_ktp').on('input change blur', function() {
+                autoExtractKtp();
+            });
+
+            $('#citizenship').on('change', function() {
+                if ($(this).val() === 'WNI') {
+                    if ($('#country_code option[value="IDN"]').length > 0) {
+                        $('#country_code').val('IDN').trigger('change');
+                    }
+                    autoExtractKtp();
+                }
+            });
 
         });
     </script>

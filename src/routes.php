@@ -94,6 +94,7 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     // Route::post('mcu/store-json', [\Bangsamu\Master\Controllers\McuController::class, 'storeJson'])->name('mcu.store.json');
     // Route::post('mcu/import', [\Bangsamu\Master\Controllers\McuController::class, 'import'])->name('mcu.import');
 
+    Route::post('employee/extract-ktp', [\Bangsamu\Master\Controllers\EmployeeController::class, 'extractKtp'])->name('employee.extract_ktp');
     Route::resource('employee', \Bangsamu\Master\Controllers\EmployeeController::class);
     Route::post('employee/import', [\Bangsamu\Master\Controllers\EmployeeController::class, 'import'])->name('employee.import');
 
