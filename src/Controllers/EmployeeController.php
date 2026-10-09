@@ -306,7 +306,7 @@ class EmployeeController extends Controller
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
-            $data['datatable']['btn']['sync']['act'] = "syncFn('employee,status,location,job_position,department')";
+            $data['datatable']['btn']['sync']['act'] = "syncFn('employee,status,location,job_position,department,vendor')";
         }
 
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_employee'))) {
