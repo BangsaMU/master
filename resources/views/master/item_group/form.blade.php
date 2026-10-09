@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 col-sm-8">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -20,19 +20,19 @@
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="item_group_code">Item Group Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_group_code" id="item_group_code" class="form-control"
                                    value="{{ $param ? $param->item_group_code : old('item_group_code') }}">
                                    @error('item_group_code') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="item_group_name">Item Group Name</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_group_name" id="item_group_name" class="form-control"
                                    value="{{ $param ? $param->item_group_name : old('item_group_name') }}">
                                    @error('item_group_name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="attributes">Item Group Attributes</label>
                             <div id="form-attributes">
 

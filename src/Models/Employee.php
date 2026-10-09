@@ -22,10 +22,9 @@ class Employee extends Model
 
     protected static $hasCheckedTable = false;
 
-    protected static function boot()
+    protected static function booted()
     {
         // add form citizenship
-        parent::boot();
 
         if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;

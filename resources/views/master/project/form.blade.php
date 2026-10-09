@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 col-sm-8">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -23,7 +23,7 @@
 
 
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label>Project Code</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
@@ -46,7 +46,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col-6 ">
                                 <label>Project Start Date</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
@@ -69,7 +69,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col-6">
                                 <label>Project Type</label>
                                 <select {{ $data['page']['readonly'] ? 'readonly' : '' }}
@@ -87,7 +87,7 @@
                         </div>
 
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label>Project Remark</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
@@ -100,13 +100,13 @@
                             </div>
                         </div>
                         {{--
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="project_code">Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_code"
                                 id="project_code" class="form-control"
                                 value="{{ $param ? $param->project_code : old('project_code') }}" required>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="project_name">Name</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_name"
                                 id="project_name" class="form-control"

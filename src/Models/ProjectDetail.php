@@ -23,9 +23,8 @@ class ProjectDetail extends Model
 
     protected static $hasCheckedTable = false;
 
-    protected static function boot()
+    protected static function booted()
     {
-        parent::boot();
 
         if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;

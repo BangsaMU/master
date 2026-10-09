@@ -37,7 +37,7 @@
                         @endif
                     </div>
                 </div>
-                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                <button type="button" class="close btn-close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -57,7 +57,7 @@
                         @endif
                     </div>
                 </div>
-                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                <button type="button" class="close btn-close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -75,7 +75,7 @@
                         @endphp
                     </div>
                 </div>
-                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                <button type="button" class="close btn-close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -93,7 +93,7 @@
                         @endphp
                     </div>
                 </div>
-                <button type="button" class="close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" aria-label="close">
+                <button type="button" class="close btn-close button button--ghost button--neutral button--icon-only button--sm" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -110,7 +110,7 @@
                         {!! Session::get('error_message') . '<br/>' !!}
                     @endif
 
-                    <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                    <button type="button" class="close btn-close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                 </div>
             </div>
         @endif
@@ -126,7 +126,7 @@
                         {!! Session::get('success_message') . '<br/>' !!}
                     @endif
 
-                    <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                    <button type="button" class="close btn-close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                 </div>
             </div>
         @endif
@@ -140,7 +140,7 @@
                                 echo $error['message'] . '<br/>';
                             endforeach;
                         @endphp
-                        <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                        <button type="button" class="close btn-close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                     </div>
                 </div>
             @endif
@@ -155,7 +155,7 @@
                                 echo $success['message'] . '<br/>';
                             endforeach;
                         @endphp
-                        <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                        <button type="button" class="close btn-close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                     </div>
                 </div>
             @endif

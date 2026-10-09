@@ -18,7 +18,7 @@
                     {!! Session::get('error_message') . '<br/>' !!}
                 @endif
 
-                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <button type="button" class="close btn-close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
             </div>
         </div>
     @endif

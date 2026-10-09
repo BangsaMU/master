@@ -26,7 +26,7 @@
                         <input type="hidden" id="croppedSignature" name="signature">
                         <input type="hidden" id="croppedParaf" name="paraf">
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="inputName">Name</label>
                                 <input type="text" class="form-control @error('name') is-invalid @enderror" id="inputName" name="name" value="{{ $user->name ?? old('name') }}">
@@ -39,7 +39,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="inputis_active">is active</label>
                                 <select @can('is_admin') @else disabled @endcan class="form-control @error('is_active') is-invalid @enderror" name="is_active" id="inputis_active">
@@ -55,7 +55,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="inputSignature">Signature</label>
                                 <input name="signature" type="file" class="form-control @error('signature') is-invalid @enderror" id="inputSignature" accept="image/*" />

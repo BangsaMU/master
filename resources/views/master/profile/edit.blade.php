@@ -31,7 +31,7 @@
 
 
                         <!-- Hidden input untuk simpan base64 -->
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="inputName">Name</label>
                                 <input type="text" class="form-control @error('name') is-invalid @enderror"
@@ -52,7 +52,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             {{-- <div class="col">
                             <label for="inputProjects">Project</label>
                             <select multiple class="form-control @error('welding_process') is-invalid @enderror" name="projects[]" id="inputProjects">
@@ -101,7 +101,7 @@
                                 @enderror
                             </div>
                         </div>
-                        {{-- <div class="form-group row">
+                        {{-- <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="inputPassword">Password</label>
                                 <input type="password" class="form-control @error('password') is-invalid @enderror"
@@ -117,7 +117,7 @@
                             </div>
                         </div> --}}
 {{-- {{dd(auth()->user(),auth()->user()->signature,auth()->user()->paraf)}} --}}
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="inputSignature">Signature</label>
                                 <input name="inputSignature" type="file" class="form-control @error('signature') is-invalid @enderror"
@@ -161,15 +161,13 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="cropModalLabel">Crop Image</h5>
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
+                                <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                             </div>
                             <div class="modal-body">
                                 <img id="image-cropperSignature" src="" alt="Image" class="img-fluid">
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
                                 <button type="button" class="btn btn-primary" id="cropSignature">Crop and Save</button>
                             </div>
                         </div>
@@ -182,15 +180,13 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="cropModalLabel">Crop Image</h5>
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
+                                <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                             </div>
                             <div class="modal-body">
                                 <img id="image-cropperParaf" src="" alt="Image" class="img-fluid">
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
                                 <button type="button" class="btn btn-primary" id="cropParaf">Crop and Save</button>
                             </div>
                         </div>
@@ -204,7 +200,11 @@
 
 @push('css')
     <!-- Cropper CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+    @if (file_exists(public_path('local/cropperjs/cropper.min.css')))
+        <link href="{{ asset('local/cropperjs/cropper.min.css') }}" rel="stylesheet">
+    @else
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+    @endif
     <style>
         .cropper-container {
             max-width: 100%;
@@ -213,7 +213,11 @@
 @endpush
 
 @push('js')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    @if (file_exists(public_path('local/cropperjs/cropper.min.js')))
+        <script src="{{ asset('local/cropperjs/cropper.min.js') }}"></script>
+    @else
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    @endif
 
     <script>
         $(document).ready(function() {
@@ -505,7 +509,7 @@
                     });
                     // console.log(err);
                     err +=
-                        '<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a></div>';
+                        '<button type="button" class="close btn-close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="close"><span aria-hidden="true" class="visually-hidden">&times;</span></button></div>';
                     $("#errors").append(err);
 
                     // Swal.fire("Failed!", err, "error");

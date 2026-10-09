@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 col-sm-8">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -21,7 +21,7 @@
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="project_id" value="{{ $param->project_id }}">
                         @endif
 
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="project_id">Relate to Project</label>
                             <select @if(isset($param->project_id)) disabled @endif class="form-control @error('project_id') is-invalid @enderror" name="project_id" id="project_id">
                                 @if(isset($param->project_id))
@@ -31,21 +31,21 @@
                             @error('project_id') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="project_code_client">Project Code Client</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_code_client" id="project_code_client" class="form-control @error('project_code_client') is-invalid @enderror"
                                    value="{{ $param ? $param->project_code_client : old('project_code_client') }}" required placeholder="Input your Project Code Client">
 
                             @error('project_code_client') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="project_name_client">Project Name Client</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_name_client" id="project_name_client" class="form-control @error('project_name_client') is-invalid @enderror"
                                    value="{{ $param ? $param->project_name_client : old('project_name_client') }}" required placeholder="Input your Project Name Client">
 
                             @error('project_name_client') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="company_id">Company</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('company_id') is-invalid @enderror" name="company_id" id="company_id">
                                 @if(isset($param->company_id))
@@ -69,32 +69,32 @@
         @if ($param)
         <div class="col-sm-4">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     Project Detail
                 </div>
                 <div class="card-body">
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="project_code">Project Code</label>
                         <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_code" id="project_code" class="form-control"
                             value="{{ $param ? $param->project_code : old('project_code') }}" disabled>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="project_name">Project Name</label>
                         <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_name" id="project_name" class="form-control"
                             value="{{ $param ? $param->project_name : old('project_name') }}" disabled>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="internal_external">Project Type</label>
                         <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                             class="form-control @error('internal_external') is-invalid @enderror"
                             value="{{ $param && $param->internal_external === 'I' ? 'Internal' : ($param && $param->internal_external === 'E' ? 'External' : old('internal_external')) }}" disabled>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="project_start_date">Start Date</label>
                         <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date" name="project_start_date" id="project_start_date" class="form-control"
                             value="{{ $param ? $param->project_start_date : old('project_start_date') }}" disabled>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="project_complete_date">Complete Date</label>
                         <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date" name="project_complete_date" id="project_complete_date" class="form-control"
                             value="{{ $param ? $param->project_complete_date : old('project_complete_date') }}" disabled>

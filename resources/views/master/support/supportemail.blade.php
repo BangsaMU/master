@@ -42,15 +42,13 @@
 @section('content')
 <div class="alert alert-warning alert-dismissible fade show" role="alert">
     Fitur ini digunakan untuk mencatat informasi keluhan dari user yang akan dikirimkan langsung ke email <strong>{{ $app_support_email }}</strong> sebagai report ticket. Mohon di pilih sesuai dengan kriteria tiket yang tersedia pada box dibawah!
-    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-      <span aria-hidden="true">&times;</span>
-    </button>
+    <button type="button" class="close btn-close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
 </div>
 <div class="row">
     <div class="col-md-3 col-6">
         <div class="card card-outline card-warning">
             <div class="card-header">
-                <h3 class="card-title font-weight-bold">Employee Internal</h3>
+                <h3 class="card-title font-weight-bold fw-bold">Employee Internal</h3>
             </div>
             <div class="card-body">
                 <p>
@@ -61,7 +59,7 @@
                     <br>
                     <b>[{{ $appName }}][EMPLOYEE-INTERNAL]</b>
                 </p>
-                <button type="button" class="btn btn-warning btn-block btn-ticket" data-toggle="modal" data-target="#composeModal"
+                <button type="button" class="btn btn-warning w-100 btn-ticket" data-toggle="modal" data-bs-toggle="modal" data-target="#composeModal" data-bs-target="#composeModal"
                     data-subject="[{{ $appName }}][EMPLOYEE-INTERNAL]">
                     <i class="fa fa-plus"></i> Create Employee Internal Ticket
                 </button>
@@ -71,7 +69,7 @@
     <div class="col-md-3 col-6">
         <div class="card card-outline card-warning">
             <div class="card-header">
-                <h3 class="card-title font-weight-bold">Employee External</h3>
+                <h3 class="card-title font-weight-bold fw-bold">Employee External</h3>
             </div>
             <div class="card-body">
                 <p>
@@ -85,7 +83,7 @@
                     <br>
                     <b>[{{ $appName }}][EMPLOYEE-EXTERNAL]</b>
                 </p>
-                <button type="button" class="btn btn-warning btn-block btn-ticket" data-toggle="modal" data-target="#composeModal"
+                <button type="button" class="btn btn-warning w-100 btn-ticket" data-toggle="modal" data-bs-toggle="modal" data-target="#composeModal" data-bs-target="#composeModal"
                     data-subject="[{{ $appName }}][EMPLOYEE-EXTERNAL]">
                     <i class="fa fa-plus"></i> Create Employee External Ticket
                 </button>
@@ -96,7 +94,7 @@
     <div class="col-md-3 col-6">
         <div class="card card-outline card-danger">
             <div class="card-header">
-                <h3 class="card-title font-weight-bold">Master</h3>
+                <h3 class="card-title font-weight-bold fw-bold">Master</h3>
             </div>
             <div class="card-body">
                 <p>
@@ -107,7 +105,7 @@
                     <br>
                     <b>[{{ $appName }}][MASTER]</b>
                 </p>
-                <button type="button" class="btn btn-danger btn-block btn-ticket" data-toggle="modal" data-target="#composeModal"
+                <button type="button" class="btn btn-danger w-100 btn-ticket" data-toggle="modal" data-bs-toggle="modal" data-target="#composeModal" data-bs-target="#composeModal"
                     data-subject="[{{ $appName }}][MASTER]">
                     <i class="fa fa-plus"></i> Create Master Ticket
                 </button>
@@ -118,7 +116,7 @@
     {{-- <div class="col-md-3 col-6">
         <div class="card card-outline card-primary">
             <div class="card-header">
-                <h3 class="card-title font-weight-bold">Report</h3>
+                <h3 class="card-title font-weight-bold fw-bold">Report</h3>
             </div>
             <div class="card-body">
                 <p>
@@ -129,7 +127,7 @@
                     <br>
                     <b>[{{ $appName }}][REPORT]</b>
                 </p>
-                <button type="button" class="btn btn-primary btn-block btn-ticket" data-toggle="modal" data-target="#composeModal"
+                <button type="button" class="btn btn-primary w-100 btn-ticket" data-toggle="modal" data-bs-toggle="modal" data-target="#composeModal" data-bs-target="#composeModal"
                     data-subject="[{{ $appName }}][REPORT]">
                     <i class="fa fa-plus"></i> Create Report Ticket
                 </button>
@@ -140,7 +138,7 @@
     <div class="col-md-3 col-6">
         <div class="card card-outline card-secondary">
             <div class="card-header">
-                <h3 class="card-title font-weight-bold">Others</h3>
+                <h3 class="card-title font-weight-bold fw-bold">Others</h3>
             </div>
             <div class="card-body">
                 <p>
@@ -151,7 +149,7 @@
                     <br>
                     <b>[{{ $appName }}][OTHERS]</b>
                 </p>
-                <button type="button" class="btn btn-secondary btn-block btn-ticket" data-toggle="modal" data-target="#composeModal"
+                <button type="button" class="btn btn-secondary w-100 btn-ticket" data-toggle="modal" data-bs-toggle="modal" data-target="#composeModal" data-bs-target="#composeModal"
                     data-subject="[{{ $appName }}][OTHERS]">
                     <i class="fa fa-plus"></i> Create Others Ticket
                 </button>
@@ -191,13 +189,13 @@
                         <td>{{ $ticket['subject'] }}</td>
                         <td>
                             <span class="badge
-                                {{ $ticket['status'] === 'open' ? 'badge-success' : ($ticket['status'] === 'closed' ? 'badge-danger' : 'badge-secondary') }}">
+                                {{ $ticket['status'] === 'open' ? 'badge-success text-bg-success' : ($ticket['status'] === 'closed' ? 'badge-danger text-bg-danger' : 'badge-secondary text-bg-secondary') }}">
                                 {{ $ticket['status'] }}
                             </span>
                         </td>
                         <td>{{ \Carbon\Carbon::parse($ticket['created_at'])->format('Y-m-d') }}</td>
                         <td>
-                            <span class="badge {{ $ticket['email_sent'] == 1 ? 'badge-primary' : 'badge-warning' }}">
+                            <span class="badge {{ $ticket['email_sent'] == 1 ? 'badge-primary text-bg-primary' : 'badge-warning text-bg-warning' }}">
                                 {{ $ticket['email_sent'] == 1 ? 'Sent to Email' : 'Not yet sent' }}
                             </span>
                         </td>
@@ -247,15 +245,13 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="composeModalLabel">Compose New Ticket</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
             </div>
             <form id="ticketForm" action="{{ route('support.ticket-store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
                     @if (auth()->user()->email == 'bagas.setyonugroho@demo.com')
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label>CC/Notified User</label>
                             <select id="email-to" name="email_to[]" autocomplete="off" class="form-control" multiple="multiple"
                                 style="width: 100%;" placeholder="To:">
@@ -264,26 +260,26 @@
                             </select>
                         </div>
                     @endif
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="email-subject">Subject</label>
                         <input autocomplete="off" type="text" class="form-control" id="email-subject" name="email_subject"
                             data-prefixsubject="" placeholder="Ticket Subject">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="compose-textarea">Description</label>
                         <textarea id="compose-textarea" name="description" class="form-control"
                             style="height: 300px;"></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <div class="custom-file">
-                            <input type="file" autocomplete="off" class="custom-file-input" id="customFile"
+                            <input type="file" autocomplete="off" class="form-control custom-file-input" id="customFile"
                                 name="attachments[]" multiple>
-                            <label class="custom-file-label" for="customFile">Choose files</label>
+                            <div class="form-text custom-file-label" for="customFile">Choose files</div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal"><i
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal"><i
                             class="fas fa-times"></i> Discard</button>
                     <button type="submit" class="btn btn-primary"><i class="far fa-envelope"></i> Send</button>
                 </div>
@@ -299,30 +295,28 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="ticketModalLabel">View Ticket</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="cc">CC</label>
                     <input readonly type="text" class="form-control" id="ticket-cc" name="cc" placeholder="Ticket Subject">
                 </div>
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="subject">Subject</label>
                     <input readonly type="text" class="form-control" id="ticket-subject" name="subject" placeholder="Ticket Subject">
                 </div>
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="subject">Description/Detail</label>
                     <div id="ticket-description" class="form-control" style="height: 300px; overflow-y: auto; background: #fff;"></div>
                 </div>
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="created-at">Created At</label>
                     <input readonly type="text" class="form-control" id="ticket-created-at" name="created-at" placeholder="Ticket Created At">
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -341,24 +335,24 @@
 @endphp
 
 {{-- Alpine.js --}}
-@if (local_asset_exists('local/alpinejs'))
-    <script src="{{ asset('local/alpinejs') }}" defer></script>
+@if (local_asset_exists('local/alpinejs/alpine.min.js'))
+    <script src="{{ asset('local/alpinejs/alpine.min.js') }}" defer></script>
 @else
     <script src="https://unpkg.com/alpinejs" defer></script>
 @endif
 
 {{-- Summernote CSS --}}
-@if (local_asset_exists('local/summernote.min.css'))
-    <link href="{{ asset('local/summernote.min.css') }}" rel="stylesheet">
+@if (local_asset_exists('local/summernote-lite/summernote-lite.min.css'))
+    <link href="{{ asset('local/summernote-lite/summernote-lite.min.css') }}" rel="stylesheet">
 @else
-    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.css" rel="stylesheet">
 @endif
 
 {{-- Summernote JS --}}
-@if (local_asset_exists('local/summernote.min.js'))
-    <script src="{{ asset('local/summernote.min.js') }}"></script>
+@if (local_asset_exists('local/summernote-lite/summernote-lite.min.js'))
+    <script src="{{ asset('local/summernote-lite/summernote-lite.min.js') }}"></script>
 @else
-    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"></script>
 @endif
 
 <script>

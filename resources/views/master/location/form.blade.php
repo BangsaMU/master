@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 col-sm-8">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -21,7 +21,7 @@
                                 value="{{ $param->id }}">
                         @endif
 
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="loc_code">Location Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="loc_code"
                                 id="loc_code" class="form-control @error('loc_code') is-invalid @enderror "
@@ -30,7 +30,7 @@
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="loc_name">Location Name</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="loc_name"
                                 id="loc_name" class="form-control @error('loc_name') is-invalid @enderror "
@@ -39,7 +39,7 @@
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="group_type">Group</label>
                             <select {{ $data['page']['readonly'] ? 'readonly' : '' }} name="group_type" id="group_type"
                                 class="form-control @error('group_type') is-invalid @enderror " required>

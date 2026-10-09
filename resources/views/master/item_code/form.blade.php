@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 col-sm-8">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -20,13 +20,13 @@
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="item_code">Item Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_code" id="item_code" class="form-control"
                                    value="{{ $param ? $param->item_code : old('item_code') }}" placeholder="Input your Item Code">
                             @error('item_code') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="item_name">Description</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="item_name" id="item_name" class="form-control"
                                    value="{{ $param ? $param->item_name : old('item_name') }}" placeholder="Input your Description">
@@ -49,7 +49,7 @@
                             </div>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="uom">Unit of Measurement</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('uom_id') is-invalid @enderror" name="uom_id" id="uom">
                                 @if(isset($param->uom_id))
@@ -58,7 +58,7 @@
                             </select>
                             @error('uom_id') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="pca">PCA</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('pca_id') is-invalid @enderror" name="pca_id" id="pca">
                                 @if(isset($param->pca_id))
@@ -67,7 +67,7 @@
                             </select>
                             @error('pca_id') <span class="text-danger">{{$message}}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="category">Category</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('category_id') is-invalid @enderror" name="category_id" id="category">
                                 @if(isset($param->category_id))
@@ -76,7 +76,7 @@
                             </select>
                             @error('category_id') <span class="text-danger">{{$message}}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="group">Item Group</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('group_id') is-invalid @enderror" name="group_id" id="item_group">
                                 @if(isset($param->group_id))
@@ -206,7 +206,7 @@
             console.log('defaultValue', defaultValue);
 
             $('#form-attributes').append(`
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="${key}">${formatString(key)}</label>
                     <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="attributes[]" id="${key}" class="form-control" value="${defaultValue}" placeholder="Input your ${formatString(key)}">
                 </div>

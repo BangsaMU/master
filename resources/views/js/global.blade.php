@@ -118,7 +118,7 @@
         return false;
     }
 
-    $(document).on('click', '[data-dismiss="alert"], .alert-dismissible .close, .alert .close', function(e) {
+    $(document).on('click', '[data-dismiss="alert"], [data-bs-dismiss="alert"], .alert-dismissible .close, .alert .close', function(e) {
         e.preventDefault();
         $(this).closest('.alert').fadeOut(150, function() {
             $(this).remove();

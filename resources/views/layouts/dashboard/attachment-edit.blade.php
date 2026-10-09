@@ -14,13 +14,13 @@
     @endif
     <div class="@if ($agent->isMobile()) @else d-flex @endif">
         {{-- <h3 class="text-dark">List of Attachments</h3> --}}
-        <ul class="nav nav-pills ml-auto mb-2">
+        <ul class="nav nav-pills ml-auto ms-auto mb-2">
             @if (isset($data['sub-menu']['nav']))
                 @foreach ($data['sub-menu']['nav'] as $key => $item)
                     <li class="nav-item">
                         <a class="nav-link text-sm {{ $filetype == 'document' ? 'active' : '' }}"
                             href="{{ @$data['route']['attachments'] . '/' . $item['type'] }}"><i
-                                class="fa fa-sm fa-fw fa-{{ $item['icon'] }} mr-1"></i>{{ $item['title'] }}
+                                class="fa fa-sm fa-fw fa-{{ $item['icon'] }} mr-1 me-1"></i>{{ $item['title'] }}
                         </a>
                     </li>
                 @endforeach
@@ -37,12 +37,12 @@
 
                     <div class="d-flex mb-2">
                         {{-- @if (strpos('A|draft', @$formdata->status) || @$formdata->status_id > 0) --}}
-                        <a id="upload_attachment" href="#" data-toggle="modal" data-target="#UPLOAD-ATTACHMENT-MODAL"
-                            class="btn btn-sm btn-primary mr-1">
+                        <a id="upload_attachment" href="#" data-toggle="modal" data-bs-toggle="modal" data-target="#UPLOAD-ATTACHMENT-MODAL" data-bs-target="#UPLOAD-ATTACHMENT-MODAL"
+                            class="btn btn-sm btn-primary mr-1 me-1">
                             Upload
                         </a>
                         {{-- @endif --}}
-                        {{-- <a href="#" class="btn btn-sm btn-primary mr-1" onclick="showSearch();">Search</a> --}}
+                        {{-- <a href="#" class="btn btn-sm btn-primary mr-1 me-1" onclick="showSearch();">Search</a> --}}
                     </div>
 
                     @isset($data['page']['slug'])
@@ -73,9 +73,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Upload Attachment</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                 </div>
                 <form id="attachment" method="post" enctype="multipart/form-data">
                     @csrf
@@ -94,7 +92,7 @@
                     </div>
                 </form>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-primary" id="attachmentsubmit">Save changes</button>
                 </div>
             </div>
@@ -106,9 +104,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Add from Gallery</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                 </div>
                 <form id="addfromgallery" action="" method="post" enctype="multipart/form-data">
                     <input type="text" hidden name="filetype" value="{{ @$filetype }}">
@@ -121,7 +117,7 @@
 
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-primary" id="addgallerysubmit">Save changes</button>
                 </div>
             </div>

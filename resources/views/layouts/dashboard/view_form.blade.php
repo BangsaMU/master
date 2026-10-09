@@ -271,9 +271,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="fileManagerLabel">File Manager</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                        <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
                     </div>
                     <div class="modal-body" id="file-manager-body" style="height: 65vh; overflow-y: scroll;">
 
@@ -286,7 +284,7 @@
                             <button type="button" class="btn btn-info" onclick="getImages('next')">Next</button>
                         </div>
                         <div>
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
                             {{-- <button type="button" class="btn btn-primary">Save changes</button> --}}
                         </div>
                     </div>

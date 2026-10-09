@@ -4,9 +4,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">List Comment by item</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
             </div>
             <div class="modal-body">
                 <table width="100%" id="{{ $data['page']['slug'] }}_tabel_comment"
@@ -15,9 +13,9 @@
                 </table>
             </div>
             @if (@$data['page']['global_disable']==false)
-                <div class="form-group m-3">
+                <div class="form-group mb-3 m-3">
                     <input type="hidden" id="requisition_detail_id" name="requisition_detail_id" />
-                    <label class="font-weight-normal" id="requisition_detail_commentTitle">Leave a Comment (<small
+                    <label class="font-weight-normal fw-normal" id="requisition_detail_commentTitle">Leave a Comment (<small
                             class="text-danger">*can be empty</small>)</label>
                     <textarea name="comment" class="form-control" id="requisition_detail_input_comment" cols="40"></textarea>
                     <small id="requisition_detail_commentSmallAlert" class="text-danger"
@@ -25,7 +23,7 @@
                 </div>
             @endif
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
                 @if (@$data['page']['global_disable']==false)
                     <button type="submit" class="btn btn-primary" id="commentSubmit">Add Comment</button>
                 @endif

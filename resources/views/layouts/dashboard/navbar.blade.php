@@ -4,8 +4,8 @@
     <div class="card card-outline card-primary mb-0">
         <div class="card-body">
             <div class="dropdown mt-2">
-                <a href="#" class="btn btn-primary btn-block dropdown-toggle" type="button" id="dropdownMenuButton"
-                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <a href="#" class="btn btn-primary w-100 dropdown-toggle" type="button" id="dropdownMenuButton"
+                    data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     Menu
                 </a>
                 <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
@@ -18,9 +18,9 @@
             </div>
 
             @if (isset($data['tab-menu']['action']))
-                <div class="dropdown show ml-auto mt-2">
-                    <a class="btn btn-block btn-secondary dropdown-toggle" href="#" role="button"
-                        id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <div class="dropdown show ml-auto ms-auto mt-2">
+                    <a class="btn w-100 btn-secondary dropdown-toggle" href="#" role="button"
+                        id="dropdownMenuLink" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Action
                     </a>
 
@@ -51,7 +51,7 @@
                     @if (isset($data['route']))
                         @foreach ($data['route'] as $name => $item)
                         <!-- active::{{json_encode(str_contains($item,url()->current()))}} curr_url::{{url()->current()}} $item::{{$item}}-->
-                            <a class="nav-link mr-1 {{ str_contains($item,url()->current()) ? 'active' : ($data['page']['id'] ? '' : 'disabled') }}"
+                            <a class="nav-link mr-1 me-1 {{ str_contains($item,url()->current()) ? 'active' : ($data['page']['id'] ? '' : 'disabled') }}"
                                 href="{{ $item }}">{{ ucfirst($name) }}
                             </a>
                         @endforeach
@@ -59,9 +59,9 @@
                 </nav>
 
                 @if (isset($data['tab-menu']['action']))
-                    <div class="dropdown show ml-auto dropleft">
+                    <div class="dropdown show ml-auto ms-auto dropleft">
                         <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
-                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             Action
                         </a>
 

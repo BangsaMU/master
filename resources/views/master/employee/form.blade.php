@@ -11,7 +11,7 @@
     <div class="row">
         <div class="col-12">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -24,7 +24,7 @@
                         @endif
 
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="employee_name">Nama Lengkap</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
@@ -58,7 +58,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col-2">
                                 <label for="citizenship">Citizenship</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} autocomplete="off" class="form-control @error('citizenship') is-invalid @enderror"
@@ -146,7 +146,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
 
                             <div class="col" id="col_status">
                                 <label for="status_id">Status</label>
@@ -216,7 +216,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
 
                             <div class="col">
                                 <label for="hire_id">Hire Lokasi</label>
@@ -283,7 +283,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="employee_dob">Tanggal Lahir</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="date"
@@ -328,7 +328,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="employee_phone">Employee Phone</label>
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
@@ -353,7 +353,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             <div class="col">
                                 <label for="keterangan">Keterangan</label>
                                 <textarea {{ $data['page']['readonly'] ? 'disabled' : '' }}
@@ -365,7 +365,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group mb-3 row">
                             @if (@$param && @$param->id)
                                 <div class="col-6">
                                     <label for="no_id_karyawan">No ID Karyawan</label>

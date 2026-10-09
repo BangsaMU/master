@@ -3,9 +3,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalLabel">{{ $formModal['modal_format']['title'] }}</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true" class="visually-hidden">&times;</span></button>
             </div>
             <div class="modal-body">
                 <form class="row" action="{{ $formModal['form_format']['url'] }}" method="post" enctype="multipart/form-data" id="{{ $formModal['form_format']['identification'] }}">
@@ -49,7 +47,7 @@
                             @case('date_range')
                                 <div class="form-group mb-2 col-6">
                                     <label for="{{ $input['identification'] }}">{{ $input['label'] }}</label>
-                                    <input type="text" class="form-control float-right" id="date-range-{{ $input['identification'] }}" name="{{ $input['identification'] }}">
+                                    <input type="text" class="form-control float-right float-end" id="date-range-{{ $input['identification'] }}" name="{{ $input['identification'] }}">
                                 </div>
                                 @break
 
@@ -59,7 +57,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
                 <button type="submit" class="btn btn-primary" id="btn-submit">{{ $formModal['modal_format']['button_title'] }}</button>
             </div>
         </div>

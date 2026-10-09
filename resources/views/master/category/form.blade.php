@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 col-sm-8">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -20,19 +20,19 @@
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="category_code">Category Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="category_code" id="category_code" class="form-control @error('category_code') is-invalid @enderror"
                                    value="{{ $param ? $param->category_code : old('category_code') }}" required>
                             @error('category_code') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="category_name">Category Name</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="category_name" id="category_name" class="form-control @error('category_name') is-invalid @enderror"
                                    value="{{ $param ? $param->category_name : old('category_name') }}" required>
                             @error('category_name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="remark">Remark</label>
                             <textarea {{ $data['page']['readonly'] ? 'readonly' : '' }} name="remark" id="remark" class="form-control">{{ $param ? $param->remark : old('remark') }}</textarea>
                         </div>

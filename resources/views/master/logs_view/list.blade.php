@@ -1,7 +1,7 @@
 <div class="row">
     <div class="col ">
         <div class="card card-outline card-primary">
-            <div class="card-header font-weight-bold">
+            <div class="card-header font-weight-bold fw-bold">
                 {{ $title ?? 'Timeline' }}
             </div>
             <div class="card-body">

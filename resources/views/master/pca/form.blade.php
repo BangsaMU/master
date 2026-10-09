@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 col-sm-8">
             <div class="card card-outline card-primary">
-                <div class="card-header font-weight-bold">
+                <div class="card-header font-weight-bold fw-bold">
                     {{ $data['page']['title'] }} Form
                 </div>
                 <div class="card-body">
@@ -20,7 +20,7 @@
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                         @endif
 
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="pca_code">PCA Code</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="pca_code" id="pca_code" class="form-control @error('pca_code') is-invalid @enderror"
                                    value="{{ $param ? $param->pca_code : old('pca_code') }}" required>
@@ -28,7 +28,7 @@
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="pca_name">PCA Name</label>
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="pca_name" id="pca_name" class="form-control @error('pca_name') is-invalid @enderror"
                                    value="{{ $param ? $param->pca_name : old('pca_name') }}" required>
