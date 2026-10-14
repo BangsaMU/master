@@ -69,6 +69,7 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     Route::resource('location', \Bangsamu\Master\Controllers\LocationController::class);
     Route::post('location/import', [\Bangsamu\Master\Controllers\LocationController::class, 'import'])->name('location.import');
 
+    Route::get('vendor/importtemplate', [\Bangsamu\Master\Controllers\VendorController::class, 'importtemplate'])->name('vendor.importtemplate');
     Route::resource('vendor', \Bangsamu\Master\Controllers\VendorController::class);
     Route::post('vendor/import', [\Bangsamu\Master\Controllers\VendorController::class, 'import'])->name('vendor.import');
 

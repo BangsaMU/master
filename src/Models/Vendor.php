@@ -27,6 +27,9 @@ class Vendor extends Model
         'vendor_description',
         'vendor_address',
         'vendor_phone',
+        'vendor_fax',
+        'vendor_email',
+        'loc_id',
     ];
 
     protected static $hasCheckedTable = false;

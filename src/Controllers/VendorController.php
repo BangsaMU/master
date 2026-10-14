@@ -3,9 +3,10 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\VendorTemplateExport;
 use Bangsamu\Master\Imports\Master\VendorImport;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\VendorService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,8 @@ use Maatwebsite\Excel\Facades\Excel;
 class VendorController extends Controller
 {
     use DynamicFilterable;
+
+    protected VendorService $vendorService;
 
     protected $readonly = false;
 
@@ -43,9 +46,10 @@ class VendorController extends Controller
      *
      * @return void
      */
-    public function __construct(Request $request)
+    public function __construct(Request $request, ?VendorService $vendorService = null)
     {
         // parent::__construct($request);
+        $this->vendorService = $vendorService ?? app(VendorService::class);
     }
 
     public function config($id = null, $data = null)
@@ -119,7 +123,7 @@ class VendorController extends Controller
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.vendor.import');
-        $data['page']['import']['template'] = url('/templates/VendorImportTemplate.xlsx');
+        $data['page']['import']['template'] = route('master.vendor.importtemplate');
 
         $page_var = compact('data');
 
@@ -292,75 +296,12 @@ class VendorController extends Controller
 
     protected function syncVendorLocation($vendorCode, $vendorDescription, $oldVendorCode = null)
     {
-        $currentTimestamp = now()->format('Y-m-d H:i:s');
-        $locationCode = Str::upper(trim((string) $vendorCode));
-        $locationName = $vendorDescription ?? '';
-        $locationModel = LibraryClayController::resolveModelFromSheetSlug('location');
-        $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
-
-        if ($oldVendorCode !== null && Str::upper(trim((string) $oldVendorCode)) !== $locationCode) {
-            $oldLocationCode = Str::upper(trim((string) $oldVendorCode));
-
-            $modelsToUpdate = LibraryClayController::isMasterDbSameAsDefault()
-                ? [$locationModel]
-                : [$locationModel, $masterLocationModel];
-
-            foreach ($modelsToUpdate as $modelClass) {
-                $modelClass::where('group_type', 'vendor')
-                    ->where('loc_code', $oldLocationCode)
-                    ->whereNull('deleted_at')
-                    ->get()
-                    ->each(function ($location) use ($locationCode, $locationName, $currentTimestamp) {
-                        $location->update([
-                            'loc_code' => $locationCode,
-                            'loc_name' => $locationName,
-                            'created_at' => $currentTimestamp,
-                        ]);
-                    });
-            }
-        }
-
-        $location = $locationModel::updateOrCreate(
-            ['loc_code' => $locationCode, 'group_type' => 'vendor'],
-            ['loc_name' => $locationName, 'created_at' => $currentTimestamp]
-        );
-
-        if (! LibraryClayController::isMasterDbSameAsDefault()) {
-            $masterLocation = $masterLocationModel::updateOrCreate(
-                ['loc_code' => $locationCode, 'group_type' => 'vendor'],
-                ['loc_name' => $locationName, 'created_at' => $currentTimestamp]
-            );
-
-            return $masterLocation->id;
-        }
-
-        return $location->id;
+        return $this->vendorService->syncVendorLocation($vendorCode, $vendorDescription, $oldVendorCode);
     }
 
     protected function deleteVendorLocation($vendorCode)
     {
-        $locationCode = Str::upper(trim((string) $vendorCode));
-        $locationModel = LibraryClayController::resolveModelFromSheetSlug('location');
-
-        $locationModel::where('group_type', 'vendor')
-            ->where('loc_code', $locationCode)
-            ->whereNull('deleted_at')
-            ->get()
-            ->each(function ($location) {
-                $location->delete();
-            });
-
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-            $masterLocationModel = LibraryClayController::resolveModelFromSheetSlug('master_location');
-
-            $masterLocationModel::where('group_type', 'vendor')
-                ->where('loc_code', $locationCode)
-                ->whereNull('deleted_at')
-                ->get()
-                ->each(function ($location) {
-                    $location->delete();
-                });
-        }
+        $this->vendorService->deleteVendorLocation($vendorCode);
     }
 
     public function store(Request $request)
@@ -371,153 +312,32 @@ class VendorController extends Controller
             'vendor_address' => 'required',
         ]);
 
-        if ($request->id) {
-            // Update existing vendor
-            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
-            $model = $modelClass::find($request->id);
+        $vendorData = [
+            'vendor_code' => $request->vendor_code,
+            'vendor_description' => $request->vendor_description,
+            'vendor_address' => $request->vendor_address,
+            'vendor_phone' => $request->vendor_phone,
+            'vendor_fax' => $request->vendor_fax,
+            'vendor_email' => $request->vendor_email,
+        ];
 
-            if (! $model) {
-                abort(404, 'Model not found');
-            }
+        $contactData = [
+            'vendor_contact_name' => $request->vendor_contact_name,
+            'vendor_contact_phone' => $request->vendor_contact_phone,
+            'vendor_contact_email' => $request->vendor_contact_email,
+            'vendor_contact_fax' => $request->vendor_contact_fax,
+        ];
 
-            $oldVendorCode = $model->vendor_code;
-            $locId = $this->syncVendorLocation($request->vendor_code, $request->vendor_description, $oldVendorCode);
+        $result = $this->vendorService->saveVendor($vendorData, $contactData, $request->id ? (int) $request->id : null);
 
-            $model->forceFill([
-                'vendor_code' => $request->vendor_code,
-                'vendor_description' => $request->vendor_description,
-                'vendor_address' => $request->vendor_address,
-                'vendor_phone' => $request->vendor_phone,
-                'vendor_fax' => $request->vendor_fax,
-                'vendor_email' => $request->vendor_email,
-                'loc_id' => $locId,
-            ]);
-            $update = $model->save();
-
-            // Update existing vendor_contact
-            $contactModelClass = LibraryClayController::resolveModelFromSheetSlug('vendor_contact'); // misalnya "VendorContact"
-            $model1 = $contactModelClass::where('vendor_id', $request->id)->first();
-
-            if (! $model1) {
-                $model1 = new $contactModelClass;
-                $model1->vendor_id = $request->id;
-            }
-
-            $model1->forceFill([
-                'vendor_contact_name' => $request->vendor_contact_name,
-                'vendor_contact_phone' => $request->vendor_contact_phone,
-                'vendor_contact_email' => $request->vendor_contact_email,
-                'vendor_contact_fax' => $request->vendor_contact_fax,
-            ]);
-            $update1 = $model1->save();
-
-            $vendorChanged = $model->wasChanged();
-            $contactChanged = $model1->wasChanged();
-
-            if ($vendorChanged || $contactChanged) {
-                if ($vendorChanged) {
-                    $id = $model->id;
-                    $sync_tabel = 'master_'.$this->sheet_slug;
-                    $sync_id = $id;
-                    $sync_row = $model->toArray();
-                    $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                    // update ke master DB saja
-                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                        $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
-                    }
-                }
-
-                if ($contactChanged) {
-                    $id = $model->id; // vendor_id
-                    $sync_tabel = 'master_vendor_contact';
-                    $sync_id = $id;
-                    $sync_row = $model1->toArray();
-                    $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                    // update ke master DB saja
-                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                        $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
-                    }
-                }
-
+        if ($result['isNew']) {
+            $message = $this->sheet_name.' created successfully';
+        } else {
+            if ($result['vendorChanged'] || $result['contactChanged']) {
                 $message = $this->sheet_name.' updated successfully';
             } else {
                 $message = $this->sheet_name.' no data changed';
             }
-
-        } else {
-            // Create new vendor
-            $locId = $this->syncVendorLocation($request->vendor_code, $request->vendor_description);
-
-            $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
-            $vendor = new $modelClass;
-            $vendor->forceFill([
-                'vendor_code' => $request->vendor_code,
-                'vendor_description' => $request->vendor_description,
-                'vendor_address' => $request->vendor_address,
-                'vendor_phone' => $request->vendor_phone,
-                'vendor_fax' => $request->vendor_fax,
-                'vendor_email' => $request->vendor_email,
-                'loc_id' => $locId,
-            ]);
-            $vendor->save();
-
-            $contactModelClass = LibraryClayController::resolveModelFromSheetSlug('vendor_contact');
-            $vendorContact = $contactModelClass::updateOrCreate(
-                ['vendor_id' => $vendor->id],
-                [
-                    'vendor_contact_name' => $request->vendor_contact_name,
-                    'vendor_contact_phone' => $request->vendor_contact_phone,
-                    'vendor_contact_email' => $request->vendor_contact_email,
-                    'vendor_contact_fax' => $request->vendor_contact_fax,
-                ]
-            );
-
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                // Sinkronisasi data Vendor ke master DB
-                $masterVendorModel = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
-                try {
-                    $masterVendorModel::updateOrCreate(
-                        ['vendor_code' => $vendor->vendor_code],
-                        [
-                            'vendor_description' => $vendor->vendor_description,
-                            'vendor_address' => $vendor->vendor_address,
-                            'vendor_phone' => $vendor->vendor_phone,
-                            'vendor_fax' => $vendor->vendor_fax,
-                            'vendor_email' => $vendor->vendor_email,
-                            'loc_id' => $locId,
-                        ]
-                    );
-                } catch (\Illuminate\Database\QueryException $exception) {
-                    if ($exception->getCode() === '23000' || str_contains($exception->getMessage(), 'Duplicate entry')) {
-                        $masterVendorModel::where('vendor_code', $vendor->vendor_code)
-                            ->whereNull('deleted_at')
-                            ->update([
-                                'vendor_description' => $vendor->vendor_description,
-                                'vendor_address' => $vendor->vendor_address,
-                                'vendor_phone' => $vendor->vendor_phone,
-                                'vendor_fax' => $vendor->vendor_fax,
-                                'vendor_email' => $vendor->vendor_email,
-                                'loc_id' => $locId,
-                            ]);
-                    } else {
-                        throw $exception;
-                    }
-                }
-
-                // Sinkronisasi data VendorContact ke master DB
-                $masterContactModel = LibraryClayController::resolveModelFromSheetSlug('master_vendor_contact');
-                $masterContactModel::updateOrCreate(
-                    ['vendor_id' => $vendor->id],
-                    [
-                        'vendor_contact_name' => $vendorContact->vendor_contact_name,
-                        'vendor_contact_phone' => $vendorContact->vendor_contact_phone,
-                        'vendor_contact_email' => $vendorContact->vendor_contact_email,
-                        'vendor_contact_fax' => $vendorContact->vendor_contact_fax,
-                    ]
-                );
-            }
-
-            $message = $this->sheet_name.' created successfully';
         }
 
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
@@ -597,5 +417,10 @@ class VendorController extends Controller
 
             return redirect()->route('master.vendor.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new VendorTemplateExport, 'VendorImportTemplate.xlsx');
     }
 }
