@@ -47,12 +47,12 @@ class VendorImport implements ToCollection, WithChunkReading, WithEvents, WithHe
         }
 
         foreach ($rows as $key => $row) {
-            $row_index = $key + 1;
+            $row_index = $key + 2; // Baris di file Excel (Baris 1 adalah Header)
             $rowArray = $row instanceof Collection ? $row->toArray() : (array) $row;
             $hasData = ! empty(array_filter($rowArray, fn ($val) => $val !== null && trim((string) $val) !== ''));
 
             if ($hasData) {
-                $vendorCode = trim((string) ($rowArray['vendor_code'] ?? ''));
+                $vendorCode = trim(preg_replace('/[\x00-\x1F\x7F\xA0]/u', ' ', (string) ($rowArray['vendor_code'] ?? '')));
                 $vendorDesc = trim((string) ($rowArray['vendor_name'] ?? $rowArray['vendor_description'] ?? ''));
                 $vendorAddress = trim((string) ($rowArray['vendor_address'] ?? ''));
                 $vendorPhone = trim((string) ($rowArray['vendor_phone'] ?? ''));
@@ -74,7 +74,7 @@ class VendorImport implements ToCollection, WithChunkReading, WithEvents, WithHe
                     $normalizedCode = strtoupper($vendorCode);
 
                     if ($this->existingVendors->has($normalizedCode)) {
-                        $this->error[] = "Row {$row_index}: Vendor already exists!";
+                        $this->error[] = "Row {$row_index}: Vendor Code '{$vendorCode}' already exists in database!";
                     } else {
                         try {
                             $vendorData = [
@@ -96,7 +96,7 @@ class VendorImport implements ToCollection, WithChunkReading, WithEvents, WithHe
                             $this->vendorService->saveVendor($vendorData, $contactData);
                             $this->existingVendors->put($normalizedCode, true);
 
-                            $this->success[] = "Row {$row_index} : {$vendorCode} has been imported successfully.";
+                            $this->success[] = "Row {$row_index} : Vendor Code '{$vendorCode}' has been imported successfully.";
                         } catch (Throwable $e) {
                             $this->error[] = "Row {$row_index} : {$e->getMessage()}";
                         }
