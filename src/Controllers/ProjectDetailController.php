@@ -652,7 +652,7 @@ class ProjectDetailController extends Controller
 
     public function importtemplate()
     {
-        return Excel::download(new ProjectDetailTemplateExport, 'ProjectDetailTemplateExport.xlsx');
+        return Excel::download(new ProjectDetailTemplateExport, 'ProjectDetailTemplateImport.xlsx');
     }
 }
 

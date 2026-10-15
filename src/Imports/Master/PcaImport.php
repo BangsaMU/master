@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Throwable;
 
 class PcaImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow
 {
@@ -21,6 +22,7 @@ class PcaImport implements ToCollection, WithChunkReading, WithEvents, WithHeadi
 
     private $success = [];
 
+    /** Pre-loaded existing PCAs keyed by uppercase pca_code */
     protected ?Collection $existingPcas = null;
 
     public function getImportTable(): string
@@ -30,44 +32,67 @@ class PcaImport implements ToCollection, WithChunkReading, WithEvents, WithHeadi
 
     public function collection(Collection $rows)
     {
+        // Pre-load existing PCAs once per chunk (zero N+1 queries)
         if ($this->existingPcas === null) {
             $this->existingPcas = DB::table('master_pca')
+                ->whereNull('deleted_at')
                 ->select('id', 'pca_code', 'pca_name', 'deleted_at')
                 ->get()
-                ->keyBy(fn ($pca) => strtoupper(trim((string) $pca->pca_code)).'|'.strtoupper(trim((string) $pca->pca_name)));
+                ->keyBy(fn ($pca) => strtoupper(trim((string) $pca->pca_code)));
         }
 
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if ($row->filter()->isNotEmpty()) {
-                $pcaCode = trim((string) ($row['pca_code'] ?? ''));
-                $pcaName = trim((string) ($row['pca_name'] ?? ''));
+            $rowCol = $row instanceof Collection ? $row : collect($row);
+
+            if ($rowCol->filter()->isNotEmpty()) {
+                $pcaCode = strtoupper(trim((string) ($row['pca_code'] ?? $row['pcacode'] ?? $row['PCA Code'] ?? '')));
+                $pcaName = trim((string) ($row['pca_name'] ?? $row['pcaname'] ?? $row['PCA Name'] ?? ''));
 
                 if (empty($pcaCode)) {
-                    $this->error[] = "Row {$row_index} PCA Code : field is required.";
-                } elseif (empty($pcaName)) {
-                    $this->error[] = "Row {$row_index} PCA Name : field is required.";
-                } else {
-                    $lookupKey = strtoupper($pcaCode).'|'.strtoupper($pcaName);
-                    $exists = $this->existingPcas->get($lookupKey);
+                    $this->error[] = "Row {$row_index}: PCA Code is required.";
+                    continue;
+                }
 
-                    if (! $exists) {
-                        $data = new Pca;
-                        $data->pca_code = strtoupper($pcaCode);
-                        $data->pca_name = $pcaName;
-                        $data->save();
+                if (strlen($pcaCode) > 20) {
+                    $this->error[] = "Row {$row_index} [{$pcaCode}]: PCA Code exceeds maximum length of 20 characters.";
+                    continue;
+                }
 
-                        $this->existingPcas->put($lookupKey, (object) [
-                            'id' => $data->id,
-                            'pca_code' => $data->pca_code,
-                            'pca_name' => $data->pca_name,
-                            'deleted_at' => null,
-                        ]);
+                if (empty($pcaName)) {
+                    $this->error[] = "Row {$row_index} [{$pcaCode}]: PCA Name is required.";
+                    continue;
+                }
 
-                        $this->success[] = "Row {$row_index} : {$pcaCode} has been imported successfully.";
-                    } else {
-                        $this->error[] = "Row {$row_index}: PCA already exists!";
-                    }
+                if (strlen($pcaName) > 150) {
+                    $this->error[] = "Row {$row_index} [{$pcaCode}]: PCA Name exceeds maximum length of 150 characters.";
+                    continue;
+                }
+
+                $exists = $this->existingPcas->get($pcaCode);
+
+                if ($exists) {
+                    $this->error[] = "Row {$row_index} [{$pcaCode}]: PCA Code already exists, skipped.";
+                    continue;
+                }
+
+                try {
+                    $data = new Pca;
+                    $data->pca_code = $pcaCode;
+                    $data->pca_name = $pcaName;
+                    $data->app_code = config('SsoConfig.main.APP_CODE') ?? 'APP03';
+                    $data->save();
+
+                    $this->existingPcas->put($pcaCode, (object) [
+                        'id'         => $data->id,
+                        'pca_code'   => $data->pca_code,
+                        'pca_name'   => $data->pca_name,
+                        'deleted_at' => null,
+                    ]);
+
+                    $this->success[] = "Row {$row_index} [{$pcaCode}]: imported successfully.";
+                } catch (Throwable $e) {
+                    $this->error[] = "Row {$row_index} [{$pcaCode}]: Failed to import — {$e->getMessage()}";
                 }
             }
         }

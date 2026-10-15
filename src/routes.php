@@ -73,6 +73,7 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     Route::resource('vendor', \Bangsamu\Master\Controllers\VendorController::class);
     Route::post('vendor/import', [\Bangsamu\Master\Controllers\VendorController::class, 'import'])->name('vendor.import');
 
+    Route::get('pca/importtemplate', [\Bangsamu\Master\Controllers\PcaController::class, 'importtemplate'])->name('pca.importtemplate');
     Route::resource('pca', \Bangsamu\Master\Controllers\PcaController::class);
     Route::post('pca/import', [\Bangsamu\Master\Controllers\PcaController::class, 'import'])->name('pca.import');
 

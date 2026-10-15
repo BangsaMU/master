@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\PcaTemplateExport;
 use Bangsamu\Master\Imports\Master\PcaImport;
 use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Services\MasterBroadcastService;
@@ -121,7 +122,7 @@ class PcaController extends Controller
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.pca.import');
-        $data['page']['import']['template'] = url('/templates/PCAImportTemplate.xlsx');
+        $data['page']['import']['template'] = route('master.pca.importtemplate');
 
         $page_var = compact('data');
 
@@ -421,5 +422,10 @@ class PcaController extends Controller
 
             return redirect()->route('master.pca.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new PcaTemplateExport, 'PCATemplateImport.xlsx');
     }
 }

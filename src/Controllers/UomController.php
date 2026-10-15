@@ -439,6 +439,6 @@ class UomController extends Controller
 
     public function importtemplate()
     {
-        return Excel::download(new UomTemplateExport, 'UOMTemplateExport.xlsx');
+        return Excel::download(new UomTemplateExport, 'UOMTemplateImport.xlsx');
     }
 }

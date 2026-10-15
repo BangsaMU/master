@@ -570,6 +570,6 @@ class ProjectController extends Controller
 
     public function importtemplate()
     {
-        return Excel::download(new ProjectTemplateExport, 'ProjectTemplateExport.xlsx');
+        return Excel::download(new ProjectTemplateExport, 'ProjectTemplateImport.xlsx');
     }
 }
