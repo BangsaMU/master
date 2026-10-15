@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Bangsamu\Master\Imports\Master;
 
-use Bangsamu\Master\Models\UoM;
+use Bangsamu\Master\Models\Uom;
 use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -39,9 +39,10 @@ class UomImport implements ToCollection, WithChunkReading, WithEvents, WithHeadi
 
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if ($row->filter()->isNotEmpty()) {
-                $code = trim((string) ($row['uom_code'] ?? ''));
-                $name = trim((string) ($row['uom_name'] ?? ''));
+            $rowCol = $row instanceof Collection ? $row : collect($row);
+            if ($rowCol->filter()->isNotEmpty()) {
+                $code = trim((string) ($row['uom_code'] ?? $row['uomcode'] ?? $row['UOM Code'] ?? ''));
+                $name = trim((string) ($row['uom_name'] ?? $row['uomname'] ?? $row['UOM Name'] ?? ''));
 
                 if (empty($code)) {
                     $this->error[] = "Row {$row_index} UOM Code : field is required.";
@@ -52,7 +53,7 @@ class UomImport implements ToCollection, WithChunkReading, WithEvents, WithHeadi
                     $exists = $this->existingUoms->get($lookupKey);
 
                     if (! $exists) {
-                        $data = new UoM;
+                        $data = new Uom;
                         $data->uom_code = strtoupper($code);
                         $data->uom_name = $name;
                         $data->save();

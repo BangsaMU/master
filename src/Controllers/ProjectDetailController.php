@@ -4,14 +4,18 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\ProjectDetailTemplateExport;
+use Bangsamu\Master\Imports\Master\ProjectDetailImport;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
+use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProjectDetailController extends Controller
 {
@@ -52,6 +56,9 @@ class ProjectDetailController extends Controller
         $data['page']['new']['active'] = true;
         $data['page']['new']['url'] = route('master.'.$this->sheet_slug.'.create');
 
+        $data = configDefAction($id, $data);
+
+        $data['page']['js_list'][] = 'js.global';
         $data['page']['js_list'][] = 'js.master-data';
 
         $data['page']['id'] = $id;
@@ -79,14 +86,14 @@ class ProjectDetailController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_project_detail') == true) {
+        if (checkPermission('is_admin') || checkPermission('read_project_detail') || checkPermission('read_project')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('project,company,project_detail')";
         }
 
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project_detail'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project_detail') || checkPermission('create_project'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -99,13 +106,17 @@ class ProjectDetailController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_project_detail'))) {
+        if ((checkPermission('is_admin') || checkPermission('read_project_detail') || checkPermission('read_project'))) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
             $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_project_detail']);
             // $data['datatable']['btn']['export']['url'] = url('master/getmaster_project_detail/export');
         }
+
+        $data['page']['import']['layout'] = 'layouts.import.form';
+        $data['page']['import']['post'] = route('master.'.$sheet_slug.'.import');
+        $data['page']['import']['template'] = route('master.'.$sheet_slug.'.importtemplate');
 
         $page_var = compact('data');
 
@@ -247,12 +258,12 @@ class ProjectDetailController extends Controller
                         break;
                 }
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_project_detail'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_project_detail') || checkPermission('update_project'))) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_project_detail'))) {
+                if ((checkPermission('is_admin') || checkPermission('delete_project_detail') || checkPermission('delete_project'))) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -313,7 +324,7 @@ class ProjectDetailController extends Controller
             $project_detail = ProjectDetail::findOrFail($request->id);
             $update = $project_detail->update([
                 'project_id' => $request->project_id,
-                'project_code_client' => $request->project_code_client,
+                'project_code_client' => strtoupper($request->project_code_client),
                 'project_name_client' => $request->project_name_client,
                 'company_id' => $request->company_id,
             ]);
@@ -610,4 +621,38 @@ class ProjectDetailController extends Controller
         // dd($request->all());
         return self::store($request, $json);
     }
+
+    public function import(Request $request)
+    {
+        set_time_limit(600);
+        ini_set('memory_limit', '512M');
+
+        $request->validate([
+            'file' => 'required|file|max:20480|mimes:xls,xlsx,txt,csv',
+        ]);
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+
+            $import = new ProjectDetailImport;
+
+            MasterBroadcastService::withoutBroadcasting(function () use ($import, $file) {
+                Excel::import($import, $file);
+            });
+
+            // Ensure single batch summary broadcast is dispatched to Senada
+            $import->sendBatchBroadcastSummary();
+
+            $error = $import->getError();
+            $success = $import->getSuccess();
+
+            return redirect()->route('master.project-detail.index')->with('error_message', $error)->with('success_message', $success);
+        }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new ProjectDetailTemplateExport, 'ProjectDetailTemplateExport.xlsx');
+    }
 }
+

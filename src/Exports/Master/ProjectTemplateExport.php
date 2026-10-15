@@ -38,11 +38,12 @@ class ProjectTemplate implements FromCollection, ShouldAutoSize, WithHeadings, W
     {
         return collect([
             [
-                'Your project code here..',
-                'Your project name here..',
-                'I / E',
-                '2020-06-30',
-                '2024-06-30',
+                'PRJ-001',
+                'Project Alpha Construction',
+                'I',
+                '2026-01-01',
+                '2026-12-31',
+                'Remark for project',
             ],
         ]);
     }
@@ -55,6 +56,7 @@ class ProjectTemplate implements FromCollection, ShouldAutoSize, WithHeadings, W
             'Project Type',
             'Project Start Date',
             'Project Complete Date',
+            'Project Remarks',
         ];
     }
 }

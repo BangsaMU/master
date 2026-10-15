@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\UomTemplateExport;
 use Bangsamu\Master\Imports\Master\UomImport;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Traits\DynamicFilterable;
@@ -120,7 +121,7 @@ class UomController extends Controller
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.uom.import');
-        $data['page']['import']['template'] = url('/templates/UOMImportTemplate.xlsx');
+        $data['page']['import']['template'] = route('master.uom.importtemplate');
 
         $page_var = compact('data');
 
@@ -434,5 +435,10 @@ class UomController extends Controller
 
             return redirect()->route('master.uom.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new UomTemplateExport, 'UOMTemplateExport.xlsx');
     }
 }

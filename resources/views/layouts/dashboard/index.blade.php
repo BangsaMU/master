@@ -582,6 +582,58 @@
                 }
             });
         }
+
+        if (typeof window.importFn === 'undefined') {
+            window.importFn = function() {
+                const importEl = document.getElementById('importItemDiv');
+                if (importEl) {
+                    const isCurrentlyClosed = importEl.classList.contains('hidden') || 
+                                              importEl.classList.contains('d-none') || 
+                                              importEl.getAttribute('data-state') === 'closed' || 
+                                              !importEl.open;
+
+                    if (isCurrentlyClosed) {
+                        importEl.classList.remove('hidden', 'd-none');
+                        importEl.setAttribute('data-state', 'open');
+                        importEl.setAttribute('open', '');
+
+                        if (typeof importEl.showModal === 'function' && importEl.tagName.toLowerCase() === 'dialog') {
+                            try {
+                                if (!importEl.open) {
+                                    importEl.showModal();
+                                }
+                            } catch (e) {
+                                console.warn('showModal:', e);
+                            }
+                        }
+                    } else {
+                        window.importFnClose();
+                    }
+                }
+                return false;
+            };
+        }
+
+        if (typeof window.importFnClose === 'undefined') {
+            window.importFnClose = function() {
+                const importEl = document.getElementById('importItemDiv');
+                if (importEl) {
+                    if (typeof importEl.close === 'function' && importEl.tagName.toLowerCase() === 'dialog') {
+                        try {
+                            if (importEl.open) {
+                                importEl.close();
+                            }
+                        } catch (e) {
+                            console.warn('close:', e);
+                        }
+                    }
+                    importEl.classList.add('hidden', 'd-none');
+                    importEl.setAttribute('data-state', 'closed');
+                    importEl.removeAttribute('open');
+                }
+                return false;
+            };
+        }
     </script>
 
     @if (is_array(@$data['page']['js_list']))

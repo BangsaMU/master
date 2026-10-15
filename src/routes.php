@@ -76,16 +76,18 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     Route::resource('pca', \Bangsamu\Master\Controllers\PcaController::class);
     Route::post('pca/import', [\Bangsamu\Master\Controllers\PcaController::class, 'import'])->name('pca.import');
 
-    // belum test Route::get('project/importtemplate', [\Bangsamu\Master\Controllers\ProjectController::class, 'importtemplate'])->name('project.importtemplate');
+    Route::get('project/importtemplate', [\Bangsamu\Master\Controllers\ProjectController::class, 'importtemplate'])->name('project.importtemplate');
     Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
     Route::post('project/import', [\Bangsamu\Master\Controllers\ProjectController::class, 'import'])->name('project.import');
 
     // Route::resource('project2', \Bangsamu\Master\Controllers\ProjectController2::class);
     // Route::post('project2/import', [\Bangsamu\Master\Controllers\ProjectController2::class, 'import'])->name('project2.import');
 
+    Route::get('project-detail/importtemplate', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'importtemplate'])->name('project-detail.importtemplate');
     Route::resource('project-detail', \Bangsamu\Master\Controllers\ProjectDetailController::class);
     Route::post('project-detail/import', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'import'])->name('project-detail.import');
 
+    Route::get('uom/importtemplate', [\Bangsamu\Master\Controllers\UomController::class, 'importtemplate'])->name('uom.importtemplate');
     Route::resource('uom', \Bangsamu\Master\Controllers\UomController::class);
     Route::post('uom/import', [\Bangsamu\Master\Controllers\UomController::class, 'import'])->name('uom.import');
 
