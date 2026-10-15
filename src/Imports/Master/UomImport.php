@@ -21,7 +21,9 @@ class UomImport implements ToCollection, WithChunkReading, WithEvents, WithHeadi
 
     private $success = [];
 
-    protected ?Collection $existingUoms = null;
+    protected ?Collection $existingCodes = null;
+
+    protected ?Collection $existingNames = null;
 
     public function getImportTable(): string
     {
@@ -30,44 +32,59 @@ class UomImport implements ToCollection, WithChunkReading, WithEvents, WithHeadi
 
     public function collection(Collection $rows)
     {
-        if ($this->existingUoms === null) {
-            $this->existingUoms = DB::table('master_uom')
-                ->select('id', 'uom_code', 'uom_name', 'deleted_at')
-                ->get()
-                ->keyBy(fn ($uom) => strtoupper(trim((string) $uom->uom_code)).'|'.strtoupper(trim((string) $uom->uom_name)));
+        if ($this->existingCodes === null || $this->existingNames === null) {
+            $existing = DB::table('master_uom')
+                ->select('id', 'uom_code', 'uom_name')
+                ->whereNull('deleted_at')
+                ->get();
+
+            $this->existingCodes = $existing->keyBy(fn ($uom) => strtoupper(trim((string) $uom->uom_code)));
+            $this->existingNames = $existing->keyBy(fn ($uom) => strtoupper(trim((string) $uom->uom_name)));
         }
 
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
             $rowCol = $row instanceof Collection ? $row : collect($row);
             if ($rowCol->filter()->isNotEmpty()) {
-                $code = trim((string) ($row['uom_code'] ?? $row['uomcode'] ?? $row['UOM Code'] ?? ''));
-                $name = trim((string) ($row['uom_name'] ?? $row['uomname'] ?? $row['UOM Name'] ?? ''));
+                $code = trim((string) ($row['uom_code'] ?? $row['uomcode'] ?? $row['uom_code'] ?? $row['code'] ?? ''));
+                $name = trim((string) ($row['uom_name'] ?? $row['uomname'] ?? $row['uom_name'] ?? $row['name'] ?? ''));
 
                 if (empty($code)) {
                     $this->error[] = "Row {$row_index} UOM Code : field is required.";
                 } elseif (empty($name)) {
                     $this->error[] = "Row {$row_index} UOM Name : field is required.";
+                } elseif (strlen($code) > 10) {
+                    $this->error[] = "Row {$row_index}: UOM Code exceeds maximum length of 10 characters.";
+                } elseif (strlen($name) > 25) {
+                    $this->error[] = "Row {$row_index}: UOM Name exceeds maximum length of 25 characters.";
                 } else {
-                    $lookupKey = strtoupper($code).'|'.strtoupper($name);
-                    $exists = $this->existingUoms->get($lookupKey);
+                    $codeUpper = strtoupper($code);
+                    $nameUpper = strtoupper($name);
 
-                    if (! $exists) {
+                    $hasCode = $this->existingCodes->has($codeUpper);
+                    $hasName = $this->existingNames->has($nameUpper);
+
+                    if ($hasCode) {
+                        $this->error[] = "Row {$row_index}: UOM Code '{$code}' already exists.";
+                    } elseif ($hasName) {
+                        $this->error[] = "Row {$row_index}: UOM Name '{$name}' already exists.";
+                    } else {
                         $data = new Uom;
-                        $data->uom_code = strtoupper($code);
+                        $data->uom_code = $codeUpper;
                         $data->uom_name = $name;
+                        $data->app_code = config('SsoConfig.main.APP_CODE', 'APP03');
                         $data->save();
 
-                        $this->existingUoms->put($lookupKey, (object) [
+                        $obj = (object) [
                             'id' => $data->id,
                             'uom_code' => $data->uom_code,
                             'uom_name' => $data->uom_name,
-                            'deleted_at' => null,
-                        ]);
+                        ];
+
+                        $this->existingCodes->put($codeUpper, $obj);
+                        $this->existingNames->put($nameUpper, $obj);
 
                         $this->success[] = "Row {$row_index} : {$code} has been imported successfully.";
-                    } else {
-                        $this->error[] = "Row {$row_index}: UOM already exists!";
                     }
                 }
             }

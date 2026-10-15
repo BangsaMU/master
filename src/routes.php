@@ -46,9 +46,9 @@ Route::prefix('api/master-sync')->name('api.master.sync.')->group(function () {
 Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(function () {
     // Route::get('user', [\Bangsamu\Master\Controllers\UserController::class, 'index'])->name('user.index');
 
+    Route::get('category/importtemplate', [\Bangsamu\Master\Controllers\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
     Route::resource('category', \Bangsamu\Master\Controllers\CategoryController::class);
     Route::post('category/import', [\Bangsamu\Master\Controllers\CategoryController::class, 'import'])->name('category.import');
-    // Route::get('category/importtemplate', [\Bangsamu\Master\Controllers\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
 
     Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('company.import');
@@ -63,9 +63,11 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     Route::resource('item-code', \Bangsamu\Master\Controllers\ItemCodeController::class);
     Route::post('item-code/import', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'import'])->name('item-code.import');
 
+    Route::get('item-group/importtemplate', [\Bangsamu\Master\Controllers\ItemGroupController::class, 'importtemplate'])->name('item-group.importtemplate');
     Route::resource('item-group', \Bangsamu\Master\Controllers\ItemGroupController::class);
     Route::post('item-group/import', [\Bangsamu\Master\Controllers\ItemGroupController::class, 'import'])->name('item-group.import');
 
+    Route::get('location/importtemplate', [\Bangsamu\Master\Controllers\LocationController::class, 'importtemplate'])->name('location.importtemplate');
     Route::resource('location', \Bangsamu\Master\Controllers\LocationController::class);
     Route::post('location/import', [\Bangsamu\Master\Controllers\LocationController::class, 'import'])->name('location.import');
 

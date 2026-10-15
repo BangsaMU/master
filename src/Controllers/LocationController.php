@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\LocationTemplateExport;
 use Bangsamu\Master\Imports\Master\LocationImport;
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Location;
@@ -198,7 +199,7 @@ class LocationController extends Controller
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.location.import');
-        $data['page']['import']['template'] = url('/templates/projectImportTemplate.xlsx');
+        $data['page']['import']['template'] = route('master.location.importtemplate');
 
         $page_var = compact('data');
 
@@ -724,5 +725,10 @@ class LocationController extends Controller
 
             return redirect()->route('master.location.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new LocationTemplateExport, 'LocationTemplateImport.xlsx');
     }
 }

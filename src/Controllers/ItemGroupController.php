@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\ItemGroupTemplateExport;
 use Bangsamu\Master\Imports\Master\ItemGroupImport;
 use Bangsamu\Master\Models\ItemGroup;
 use Bangsamu\Master\Services\MasterBroadcastService;
@@ -120,7 +121,7 @@ class ItemGroupController extends Controller
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.item-group.import');
-        $data['page']['import']['template'] = url('/templates/ItemGroupImportTemplate.xlsx');
+        $data['page']['import']['template'] = route('master.item-group.importtemplate');
 
         $page_var = compact('data');
 
@@ -433,5 +434,10 @@ class ItemGroupController extends Controller
 
             return redirect()->route('master.item-group.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new ItemGroupTemplateExport, 'ItemGroupTemplateImport.xlsx');
     }
 }

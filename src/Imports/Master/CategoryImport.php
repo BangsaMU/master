@@ -32,43 +32,50 @@ class CategoryImport implements ToCollection, WithChunkReading, WithEvents, With
     {
         if ($this->existingCategories === null) {
             $this->existingCategories = DB::table('master_category')
-                ->select('id', 'category_code', 'category_name', 'deleted_at')
+                ->select('id', 'category_code', 'category_name')
+                ->whereNull('deleted_at')
                 ->get()
-                ->keyBy(fn ($cat) => strtoupper(trim((string) $cat->category_code)).'|'.strtoupper(trim((string) $cat->category_name)));
+                ->keyBy(fn ($cat) => strtoupper(trim((string) $cat->category_code)));
         }
 
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if ($row->filter()->isNotEmpty()) {
-                $categoryCode = trim((string) ($row['category_code'] ?? ''));
-                $categoryName = trim((string) ($row['category_name'] ?? ''));
-                $remark = $row['remark'] ?? null;
+            $rowCol = $row instanceof Collection ? $row : collect($row);
+            if ($rowCol->filter()->isNotEmpty()) {
+                $categoryCode = trim((string) ($row['category_code'] ?? $row['categorycode'] ?? $row['code'] ?? ''));
+                $categoryName = trim((string) ($row['category_name'] ?? $row['categoryname'] ?? $row['name'] ?? ''));
+                $remark = trim((string) ($row['remark'] ?? $row['description'] ?? ''));
+                $remark = empty($remark) ? null : $remark;
 
                 if (empty($categoryCode)) {
                     $this->error[] = "Row {$row_index} Category Code : field is required.";
                 } elseif (empty($categoryName)) {
                     $this->error[] = "Row {$row_index} Category Name : field is required.";
+                } elseif (strlen($categoryCode) > 55) {
+                    $this->error[] = "Row {$row_index}: Category Code exceeds maximum length of 55 characters.";
+                } elseif (strlen($categoryName) > 110) {
+                    $this->error[] = "Row {$row_index}: Category Name exceeds maximum length of 110 characters.";
                 } else {
-                    $lookupKey = strtoupper($categoryCode).'|'.strtoupper($categoryName);
-                    $exists = $this->existingCategories->get($lookupKey);
+                    $codeUpper = strtoupper($categoryCode);
+                    $exists = $this->existingCategories->get($codeUpper);
 
                     if (! $exists) {
                         $data = new Category;
-                        $data->category_code = strtoupper($categoryCode);
+                        $data->category_code = $codeUpper;
                         $data->category_name = $categoryName;
                         $data->remark = $remark;
+                        $data->app_code = config('SsoConfig.main.APP_CODE', 'APP03');
                         $data->save();
 
-                        $this->existingCategories->put($lookupKey, (object) [
+                        $this->existingCategories->put($codeUpper, (object) [
                             'id' => $data->id,
                             'category_code' => $data->category_code,
                             'category_name' => $data->category_name,
-                            'deleted_at' => null,
                         ]);
 
                         $this->success[] = "Row {$row_index} : {$categoryCode} has been imported successfully.";
                     } else {
-                        $this->error[] = "Row {$row_index}: Category already exists!";
+                        $this->error[] = "Row {$row_index}: Category Code '{$categoryCode}' already exists.";
                     }
                 }
             }

@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\CategoryTemplateExport;
 use Bangsamu\Master\Imports\Master\CategoryImport;
 use Bangsamu\Master\Models\Category;
 use Bangsamu\Master\Services\MasterBroadcastService;
@@ -123,7 +124,7 @@ class CategoryController extends Controller
 
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.category.import');
-        $data['page']['import']['template'] = url('/templates/CategoryImportTemplate.xlsx');
+        $data['page']['import']['template'] = route('master.category.importtemplate');
 
         $page_var = compact('data');
 
@@ -415,5 +416,10 @@ class CategoryController extends Controller
 
             return redirect()->route('master.category.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new CategoryTemplateExport, 'CategoryTemplateImport.xlsx');
     }
 }

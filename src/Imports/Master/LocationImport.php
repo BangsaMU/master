@@ -13,16 +13,28 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Throwable;
 
 class LocationImport implements ToCollection, WithChunkReading, WithEvents, WithHeadingRow, WithMultipleSheets
 {
     use HandlesBatchImportBroadcast;
 
-    private $error = [];
+    private array $error = [];
 
-    private $success = [];
+    private array $success = [];
 
+    /** Pre-loaded existing locations keyed by "LOC_CODE|group_type" */
     protected ?Collection $existingLocations = null;
+
+    protected array $allowedGroupTypes = [
+        'office',
+        'warehouse',
+        'vendor',
+        'clinic',
+        'ohih',
+        'mcu',
+        'hrd',
+    ];
 
     public function getImportTable(): string
     {
@@ -36,46 +48,81 @@ class LocationImport implements ToCollection, WithChunkReading, WithEvents, With
         ];
     }
 
-    public function collection(Collection $rows)
+    public function collection(Collection $rows): void
     {
+        // Pre-load existing locations once per chunk (zero N+1 queries)
         if ($this->existingLocations === null) {
             $this->existingLocations = DB::table('master_location')
-                ->select('id', 'loc_code', 'loc_name', 'deleted_at')
+                ->whereNull('deleted_at')
+                ->select('id', 'loc_code', 'loc_name', 'group_type', 'deleted_at')
                 ->get()
-                ->keyBy(fn ($loc) => strtoupper(trim((string) $loc->loc_code)).'|'.strtoupper(trim((string) $loc->loc_name)));
+                ->keyBy(fn ($loc) =>
+                    strtoupper(trim((string) $loc->loc_code)) . '|' . strtolower(trim((string) ($loc->group_type ?? 'office')))
+                );
         }
 
         foreach ($rows as $key => $row) {
             $row_index = $key + 1;
-            if ($row->filter()->isNotEmpty()) {
-                $locCode = trim((string) ($row['location_code'] ?? ''));
-                $locName = trim((string) ($row['location_name'] ?? ''));
+            $rowCol = $row instanceof Collection ? $row : collect($row);
+
+            if ($rowCol->filter()->isNotEmpty()) {
+                $locCode  = strtoupper(trim((string) ($row['location_code'] ?? $row['loc_code'] ?? $row['Location Code'] ?? '')));
+                $locName  = trim((string) ($row['location_name'] ?? $row['loc_name'] ?? $row['Location Name'] ?? ''));
+                $rawGroup = strtolower(trim((string) ($row['group_type'] ?? $row['grouptype'] ?? $row['Group Type'] ?? '')));
+                $groupType = empty($rawGroup) ? 'office' : $rawGroup;
 
                 if (empty($locCode)) {
-                    $this->error[] = "Row {$row_index} Location Code : field is required.";
-                } elseif (empty($locName)) {
-                    $this->error[] = "Row {$row_index} Location Name : field is required.";
-                } else {
-                    $lookupKey = strtoupper($locCode).'|'.strtoupper($locName);
-                    $exists = $this->existingLocations->get($lookupKey);
+                    $this->error[] = "Row {$row_index}: Location Code is required.";
+                    continue;
+                }
 
-                    if (! $exists) {
-                        $data = new Location;
-                        $data->loc_code = strtoupper($locCode);
-                        $data->loc_name = $locName;
-                        $data->save();
+                if (strlen($locCode) > 15) {
+                    $this->error[] = "Row {$row_index} [{$locCode}]: Location Code exceeds maximum length of 15 characters.";
+                    continue;
+                }
 
-                        $this->existingLocations->put($lookupKey, (object) [
-                            'id' => $data->id,
-                            'loc_code' => $data->loc_code,
-                            'loc_name' => $data->loc_name,
-                            'deleted_at' => null,
-                        ]);
+                if (empty($locName)) {
+                    $this->error[] = "Row {$row_index} [{$locCode}]: Location Name is required.";
+                    continue;
+                }
 
-                        $this->success[] = "Row {$row_index} : {$locCode} has been imported successfully.";
-                    } else {
-                        $this->error[] = "Row {$row_index}: Location already exists!";
-                    }
+                if (strlen($locName) > 50) {
+                    $this->error[] = "Row {$row_index} [{$locCode}]: Location Name exceeds maximum length of 50 characters.";
+                    continue;
+                }
+
+                if (! in_array($groupType, $this->allowedGroupTypes, true)) {
+                    $allowedStr = implode(', ', $this->allowedGroupTypes);
+                    $this->error[] = "Row {$row_index} [{$locCode}]: Invalid Group Type [{$rawGroup}]. Allowed values: {$allowedStr}.";
+                    continue;
+                }
+
+                $lookupKey = $locCode . '|' . $groupType;
+                $exists = $this->existingLocations->get($lookupKey);
+
+                if ($exists) {
+                    $this->error[] = "Row {$row_index} [{$locCode} / {$groupType}]: Location already exists, skipped.";
+                    continue;
+                }
+
+                try {
+                    $data = new Location;
+                    $data->loc_code = $locCode;
+                    $data->loc_name = $locName;
+                    $data->group_type = $groupType;
+                    $data->save();
+
+                    $this->existingLocations->put($lookupKey, (object) [
+                        'id'         => $data->id,
+                        'loc_code'   => $data->loc_code,
+                        'loc_name'   => $data->loc_name,
+                        'group_type' => $data->group_type,
+                        'deleted_at' => null,
+                    ]);
+
+                    $this->success[] = "Row {$row_index} [{$locCode} / {$groupType}]: imported successfully.";
+                } catch (Throwable $e) {
+                    $this->error[] = "Row {$row_index} [{$locCode}]: Failed to import — {$e->getMessage()}";
                 }
             }
         }
