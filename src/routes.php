@@ -224,6 +224,8 @@ Route::prefix('api')->group(function () {
 Route::middleware(['web', 'auth'])->group(function () {
     // untuk kebutuhan app annotation get sesion
     Route::get('getcurrentuser', [\Bangsamu\Master\Controllers\ApiAnnotationController::class, 'getcurrentuser'])->middleware('auth')->name('getcurrentuser.async');
+    // buka viewer annotation dengan token launch (lihat docs/annotation-launch-token.md)
+    Route::get('annotation/open', [\Bangsamu\Master\Controllers\AnnotationLaunchController::class, 'open'])->name('annotation.open');
     Route::get('get-ip2', [Bangsamu\Master\Controllers\MasterController::class, 'getIp'])
         ->name('get-ip2');
 });

@@ -49,6 +49,14 @@ Paket terpusat Master Data untuk ekosistem aplikasi berbasis Laravel.
 
 ---
 
+## Token Launch Viewer Annotation (opt-in)
+
+Link viewer annotation tanpa token statis `md5(email)` dan tanpa cek cookie lintas-origin: route
+`GET /annotation/open` membuat token terenkripsi yang terikat ke session user, dicek server-side oleh
+`api/getcurrentuser`, `api/getSignature`, dan `api/getParaf`. Default `ANNOTATION_TOKEN_MODE=legacy`
+(perilaku lama). Pakai helper `annotation_launch_url($fileUrl, $callback)` di app. Detail dan langkah
+aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

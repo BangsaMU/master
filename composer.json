@@ -8,6 +8,10 @@
         "maatwebsite/excel": "*",
         "jenssegers/agent": "*"
     },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^10.5|^11.0"
+    },
     "autoload": {
         "psr-4": {
             "Bangsamu\\Master\\": "src/",
@@ -15,6 +19,14 @@
         },
         "files": [
             "src/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bangsamu\\Master\\Tests\\": "tests/"
+        },
+        "classmap": [
+            "tests/stubs/"
         ]
     },
     "extra": {
@@ -29,5 +41,8 @@
             "name": "infomediaku.com",
             "email": "hatur.cms@gmail.com"
         }
-    ]
+    ],
+    "scripts": {
+        "test": "phpunit"
+    }
 }

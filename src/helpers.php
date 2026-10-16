@@ -32,3 +32,15 @@ if (! function_exists('is_master_db_same_as_default')) {
         return ($defaultHost === $masterHost) && ($defaultPort === $masterPort) && ($defaultDb === $masterDb);
     }
 }
+
+if (! function_exists('annotation_launch_url')) {
+    /**
+     * Link untuk membuka file di viewer annotation.
+     * Mode legacy (default): link viewer lama dengan token md5(email).
+     * Mode launch (ANNOTATION_TOKEN_MODE=launch): link ke route annotation.open yang membuat token terenkripsi.
+     */
+    function annotation_launch_url(?string $fileUrl, ?string $callback = null): ?string
+    {
+        return app(\Bangsamu\Master\Services\AnnotationLaunchTokenService::class)->launchUrl($fileUrl, $callback);
+    }
+}
