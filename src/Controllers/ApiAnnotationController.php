@@ -9,6 +9,7 @@ use App\Models\Routing;
 use App\Models\User;
 use App\Models\UserDetail;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Services\AnnotationLaunchTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -273,6 +274,18 @@ class ApiAnnotationController extends Controller
 
     public function getTokenIdOrEmail($token = null)
     {
+        $launchTokens = app(AnnotationLaunchTokenService::class);
+
+        // token launch dari route annotation.open: cek expiry, file, dan session server-side
+        if ($launchTokens->isLaunchToken($token)) {
+            return $launchTokens->resolveUser($token, request()->input('file_name')) ?? abort(401, 'Unauthorized');
+        }
+
+        // tanpa token jangan sampai cocok ke user yang api_token-nya null
+        if (empty($token) || ! $launchTokens->acceptsLegacyToken()) {
+            abort(401, 'Unauthorized');
+        }
+
         $user = user::where('api_token', $token)->first() ?? null;
         if ($user === null) {
             $user = User::whereRaw('MD5(email) = ?', [$token])->first() ?? abort(401);
@@ -1317,6 +1330,7 @@ class ApiAnnotationController extends Controller
         $paraf_url = url('api/getParaf?token='.$token);
         // cek token id or email
         $user = $this->getTokenIdOrEmail($token);
+        $launchTokens = app(AnnotationLaunchTokenService::class);
 
         $user_id = $user->id ?? 0;
         $email = $user->email ?? 0;
@@ -1356,7 +1370,10 @@ class ApiAnnotationController extends Controller
         // dd($signature,Auth::user());
         if ($value) {
             $data = [
-                'validate_session' => config('AnnotationConfig.main.VALIDATE_SESSION'),
+                // token launch sudah dicek session-nya di server, viewer tidak perlu cek cookie lintas-origin
+                'validate_session' => $launchTokens->isLaunchToken($token) && $launchTokens->checksSession()
+                    ? false
+                    : config('AnnotationConfig.main.VALIDATE_SESSION'),
                 'success' => true,
                 'user' => [
                     'id' => $user_id,

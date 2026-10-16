@@ -147,6 +147,8 @@ class MasterPackageServiceProvider extends ServiceProvider
         $this->mergeConfigFrom($configPath, ucfirst($this->pkgPrefix.'Config'));
         $this->mergeConfigFrom($configPath2, ucfirst($this->pkgPrefix.'CrudConfig'));
         $this->mergeConfigFrom($configMenu, ucfirst($this->pkgPrefix.'Menu'));
+        // hanya menambah key 'launch', key 'main' milik app tidak tersentuh
+        $this->mergeConfigFrom($this->packagePath('resources/config/AnnotationConfig.php'), 'AnnotationConfig');
         // dd(config());
     }
 
