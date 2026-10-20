@@ -297,7 +297,7 @@ class ApiAnnotationController extends Controller
     public function getSignatureWithTimeStamp($signature_path, $request)
     {
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $name = $user->name;
 
         // Cek apakah file tanda tangan ada
@@ -433,7 +433,7 @@ class ApiAnnotationController extends Controller
     public function getSignatureWithTimeStampKanan($signature_path, $request)
     {
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $name = $user->name;
 
         // Cek apakah file tanda tangan ada
@@ -580,7 +580,7 @@ class ApiAnnotationController extends Controller
     {
         // dd(pathinfo($signature_path));
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $name = $user->name;
         // dd( $token,$name);
         // Cek apakah file tanda tangan ada
@@ -670,7 +670,7 @@ class ApiAnnotationController extends Controller
     public function getParafWithTimeStampKanan($paraf_path, $request)
     {
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $name = $user->name;
 
         // Cek apakah file tanda tangan ada
@@ -799,7 +799,7 @@ class ApiAnnotationController extends Controller
     public function getParafStampSize($paraf_path, $request)
     {
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $name = $user->name;
 
         if (! file_exists($paraf_path)) {
@@ -915,7 +915,7 @@ class ApiAnnotationController extends Controller
     {
         // dd(pathinfo($paraf_path));
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $name = $user->name;
         // dd( $token,$name);
         // Cek apakah file tanda tangan ada
@@ -1010,7 +1010,7 @@ class ApiAnnotationController extends Controller
     public function getSignatureWithTimeStampKananKekecilan($signature_path, $request)
     {
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $name = $user->name;
 
         if (! file_exists($signature_path)) {
@@ -1084,10 +1084,24 @@ class ApiAnnotationController extends Controller
     }
 
     // funngsi ambil paraf
+    /**
+     * User pemilik gambar getSignature / getParaf. Token launch memakai resolveImageUser() (tidak kedaluwarsa,
+     * lihat AnnotationLaunchTokenService); token lama sama seperti getTokenIdOrEmail().
+     */
+    public function getImageTokenUser($token = null)
+    {
+        $launchTokens = app(AnnotationLaunchTokenService::class);
+        if ($launchTokens->isLaunchToken($token)) {
+            return $launchTokens->resolveImageUser($token) ?? abort(401, 'Unauthorized');
+        }
+
+        return $this->getTokenIdOrEmail($token);
+    }
+
     public function getParaf(Request $request)
     {
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $user_id = $user->id ?? 0;
         $user_email = $user->email ?? null;
 
@@ -1147,7 +1161,7 @@ class ApiAnnotationController extends Controller
     public function getSignature(Request $request)
     {
         $token = $request->token;
-        $user = $this->getTokenIdOrEmail($token);
+        $user = $this->getImageTokenUser($token);
         $user_id = $user->id ?? 0;
         $user_email = $user->email ?? 0;
 

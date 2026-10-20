@@ -55,6 +55,11 @@ class AnnotationLaunchTokenService
         return filter_var(config('AnnotationConfig.launch.CHECK_SESSION', true), FILTER_VALIDATE_BOOLEAN);
     }
 
+    public function acceptsStoredImageToken(): bool
+    {
+        return filter_var(config('AnnotationConfig.launch.IMAGE_TOKEN_PERMANENT', true), FILTER_VALIDATE_BOOLEAN);
+    }
+
     public function ttlMinutes(): int
     {
         $ttl = (int) config('AnnotationConfig.launch.TOKEN_TTL', 120);
@@ -145,6 +150,35 @@ class AnnotationLaunchTokenService
 
         if ($this->checksSession() && ! $this->sessionBelongsToUser($payload['sid'], $payload['uid'], $guard)) {
             return $this->reject('session sudah tidak aktif', $payload);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Validasi token untuk gambar tanda tangan / paraf. Viewer menyimpan URL getSignature/getParaf (berisi token
+     * launch) ke anotasi dan memuatnya lagi tiap dokumen dibuka, jadi token yang asli (terdekripsi dengan APP_KEY
+     * app, user-nya masih ada) tetap diterima setelah kedaluwarsa, untuk file lain, atau setelah session berakhir.
+     * Dulu tanda tangan lama hilang di viewer begitu session penanda tangan habis (401).
+     */
+    public function resolveImageUser($token)
+    {
+        if (! $this->acceptsStoredImageToken()) {
+            return $this->resolveUser($token);
+        }
+
+        $payload = $this->decode($token);
+        if ($payload === null) {
+            return $this->reject('token tidak valid / dipalsukan');
+        }
+
+        $user = $this->retrieveUser($payload['uid'], $payload['g'] ?? null);
+        if (! $user || strcasecmp((string) ($user->email ?? ''), (string) ($payload['em'] ?? '')) !== 0) {
+            return $this->reject('user tidak ditemukan', $payload);
+        }
+
+        if ((int) ($payload['exp'] ?? 0) < now()->getTimestamp()) {
+            Log::info('[AnnotationLaunchToken] token gambar kedaluwarsa tetap diterima', ['uid' => $payload['uid'], 'file' => $payload['f'] ?? null]);
         }
 
         return $user;

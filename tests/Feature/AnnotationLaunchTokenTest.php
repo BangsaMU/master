@@ -8,7 +8,9 @@ use Bangsamu\Master\Tests\TestCase;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 class AnnotationLaunchTokenTest extends TestCase
 {
@@ -283,7 +285,8 @@ class AnnotationLaunchTokenTest extends TestCase
         app('session')->driver()->getHandler()->destroy($sessionId);
 
         $this->getJson('/api/getcurrentuser?token='.$token)->assertStatus(401);
-        $this->get('/api/getSignature?token='.$token)->assertStatus(401);
+        // URL gambar tanda tangan sudah tersimpan di anotasi: tetap lolos autentikasi (403 = user belum punya tanda tangan)
+        $this->get('/api/getSignature?token='.$token)->assertStatus(403);
     }
 
     public function test_launch_token_is_rejected_when_session_belongs_to_other_user(): void
@@ -325,6 +328,90 @@ class AnnotationLaunchTokenTest extends TestCase
         // lolos autentikasi; user belum punya tanda tangan / paraf -> 403 seperti sebelumnya
         $this->get('/api/getSignature?token='.$token)->assertStatus(403);
         $this->get('/api/getParaf?token='.$token)->assertStatus(403);
+    }
+
+    // ---------- URL gambar tersimpan di anotasi (getSignature / getParaf) ----------
+
+    private function giveSignature(User $user): string
+    {
+        Storage::fake('media');
+        Storage::disk('media')->put('signature/budi.png', $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
+        DB::table('user_details')->insert(['user_id' => $user->id, 'user_email' => $user->email, 'field_key' => 'signature', 'field_value' => 'signature/budi.png']);
+
+        return $png;
+    }
+
+    public function test_signature_image_of_an_old_launch_token_still_loads_after_expiry_and_logout(): void
+    {
+        $this->enableLaunchMode(acceptLegacy: false);
+        config(['AnnotationConfig.launch.TOKEN_TTL' => 30]);
+        $user = $this->makeUser();
+        $png = $this->giveSignature($user);
+        $sessionId = $this->loggedInSession($user);
+        $token = $this->issueToken($user, $sessionId);
+
+        // anotasi lama: session sudah logout dan token sudah lewat TTL
+        app('session')->driver()->getHandler()->destroy($sessionId);
+        $this->travel(3)->days();
+
+        $this->getJson('/api/getcurrentuser?token='.$token)->assertStatus(401);
+        $response = $this->get('/api/getSignature?token='.$token.'&reSize=100')->assertOk();
+        $this->assertSame($png, $response->streamedContent());
+        $this->get('/api/getParaf?token='.$token)->assertStatus(403); // lolos autentikasi, belum punya paraf
+
+        // URL yang disimpan viewer berisi cap waktu; fungsi cap waktu dulu memvalidasi token lagi dengan cara ketat
+        $stamped = $this->get('/api/getSignature?'.http_build_query([
+            'token' => $token, 'reSize' => 10, 'currentTime' => base64_encode('2026-10-20 13:33:15'), 'position' => 'right',
+        ]));
+        $stamped->assertOk();
+        $this->assertSame('image/png', $stamped->headers->get('Content-Type'));
+    }
+
+    public function test_legacy_md5_signature_url_with_timestamp_works_as_before(): void
+    {
+        // app lama (mode legacy, token md5(email)) tidak terpengaruh perubahan endpoint gambar
+        $user = $this->makeUser();
+        $png = $this->giveSignature($user);
+        $token = md5($user->email);
+
+        $this->assertSame($png, $this->get('/api/getSignature?token='.$token)->assertOk()->streamedContent());
+        $this->get('/api/getSignature?'.http_build_query([
+            'token' => $token, 'reSize' => 10, 'currentTime' => base64_encode('2026-10-20 13:33:15'), 'position' => 'right',
+        ]))->assertOk()->assertHeader('Content-Type', 'image/png');
+        $this->get('/api/getSignature?token='.$user->api_token)->assertOk();
+        $this->get('/api/getSignature?token='.md5('orang-lain@meindo.test'))->assertStatus(401);
+    }
+
+    public function test_signature_image_rejects_forged_tokens_and_removed_users(): void
+    {
+        $this->enableLaunchMode(acceptLegacy: false);
+        $user = $this->makeUser();
+        $this->giveSignature($user);
+        $token = $this->issueToken($user);
+
+        $other = new Encrypter(str_repeat('x', 32), 'AES-256-CBC');
+        $forged = AnnotationLaunchTokenService::PREFIX.rtrim(strtr($other->encryptString(json_encode([
+            'v' => 1, 'uid' => $user->id, 'em' => $user->email, 'f' => self::FILE_URL,
+            'sid' => str_repeat('a', 40), 'g' => 'web', 'exp' => time() + 3600,
+        ])), '+/', '-_'), '=');
+        $this->get('/api/getSignature?token='.$forged)->assertStatus(401);
+        $this->get('/api/getParaf?token='.AnnotationLaunchTokenService::PREFIX.'bukan-token')->assertStatus(401);
+
+        $user->delete();
+        $this->get('/api/getSignature?token='.$token)->assertStatus(401);
+    }
+
+    public function test_permanent_image_token_can_be_turned_off(): void
+    {
+        $this->enableLaunchMode(acceptLegacy: false);
+        config(['AnnotationConfig.launch.TOKEN_TTL' => 30, 'AnnotationConfig.launch.IMAGE_TOKEN_PERMANENT' => false]);
+        $user = $this->makeUser();
+        $this->giveSignature($user);
+        $token = $this->issueToken($user);
+
+        $this->get('/api/getSignature?token='.$token)->assertOk();
+        $this->travel(31)->minutes();
+        $this->get('/api/getSignature?token='.$token)->assertStatus(401);
     }
 
     public function test_file_name_normalization(): void

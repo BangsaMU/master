@@ -56,6 +56,18 @@ abstract class TestCase extends Orchestra
             $table->timestamps();
         });
 
+        // Setting::booted() membuat tabel ini sendiri hanya sekali per proses (flag statis), sedangkan tiap test
+        // memakai database in-memory baru; dipakai fungsi cap waktu tanda tangan (annotation_timestamp).
+        Schema::create('setting', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->text('value');
+            $table->string('category');
+            $table->timestamps();
+            $table->softDeletes();
+            $table->unique(['category', 'name'], 'category_name_unique');
+        });
+
         Schema::create('user_details', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();

@@ -25,6 +25,8 @@ tidak terpengaruh. Service meindo-annotation tidak perlu diubah.
    `api/getParaf`. App mendekripsi token, cek kedaluwarsa, cek `file_name` (bila dikirim) sesuai file di
    token, cek user masih ada, dan **cek session id di token masih aktif dan login sebagai user yang sama**
    lewat session handler Laravel (redis / file / database). Gagal → `401`.
+   Pengecualian `getSignature` / `getParaf` (termasuk varian cap waktu `currentTime` / `position`): lihat
+   "URL gambar tanda tangan" di bawah.
 4. Untuk token launch, `getcurrentuser` mengembalikan `validate_session: false`, sehingga JS viewer tidak
    lagi memanggil `/getcurrentuser` dengan cookie. Pengecekan hak routing (`permission`) tetap sama.
 
@@ -39,6 +41,7 @@ Nama route, parameter, dan bentuk JSON respons yang lama tidak berubah. Header C
 | `ANNOTATION_ACCEPT_LEGACY_TOKEN` | `true` | Hanya berlaku di mode `launch`: masih terima `api_token` / `md5(email)` selama transisi. Set `false` bila semua link sudah lewat helper |
 | `ANNOTATION_TOKEN_TTL` | `120` | Umur token launch (menit). Setelah lewat, viewer harus dibuka ulang dari app |
 | `ANNOTATION_TOKEN_CHECK_SESSION` | `true` | Cek session id ke session store. Matikan hanya bila app memakai `SESSION_DRIVER=cookie` (session tidak bisa dibaca server-side) |
+| `ANNOTATION_IMAGE_TOKEN_PERMANENT` | `true` | `getSignature` / `getParaf` tetap menerima token launch asli setelah kedaluwarsa / logout / untuk file lain (lihat di bawah). `false` = dicek seketat `getcurrentuser` |
 | `ANNOTATION_ALLOWED_HOSTS` | kosong | Host tambahan (pisah koma) yang boleh dipakai di `file_url` / `callback`. Host app sendiri (`APP_URL` dan host request) selalu boleh |
 
 Nilai ini ada di `config('AnnotationConfig.launch.*')` (di-merge dari paket; key `main` milik app tidak
@@ -48,7 +51,21 @@ Catatan:
 - Token launch selalu diterima di mode apa pun (hanya bisa dibuat lewat `annotation.open`).
 - `file_url` dan `callback` di `annotation.open` harus ke host yang diizinkan (lainnya `422`), supaya
   token tidak bisa dikirim ke domain lain lewat link buatan orang.
-- Logout di app (session di-invalidate) atau session kedaluwarsa langsung mematikan token.
+- Logout di app (session di-invalidate) atau session kedaluwarsa langsung mematikan token untuk
+  `getcurrentuser` (membuka / mengedit di viewer).
+
+### URL gambar tanda tangan / paraf
+
+Viewer menyimpan `signature_url` / `paraf_url` (berisi token launch) ke `annotate_content` anotasi dan memuatnya
+lagi setiap dokumen dibuka. Dengan validasi penuh, tanda tangan lama hilang (gambar `401`) begitu session
+penanda tangan berakhir atau lewat `ANNOTATION_TOKEN_TTL` (kasus APP27, 2026-10-20: log "ditolak: session sudah
+tidak aktif"). Karena itu `getSignature` / `getParaf` memakai `resolveImageUser()`: token harus terdekripsi
+dengan `APP_KEY` app (tidak bisa dipalsukan) dan user id + email di token masih cocok, tanpa cek `exp`, session,
+dan `file_name`. Token kedaluwarsa yang diterima dicatat di log (`token gambar kedaluwarsa tetap diterima`).
+
+Konsekuensi: siapa pun yang memegang URL itu bisa mengambil gambar tanda tangan pemiliknya selama `APP_KEY` tidak
+diganti (sama dengan token lama `md5(email)`, tapi tidak bisa ditebak). Mengganti `APP_KEY` mematikan semua URL
+gambar yang tersimpan. Solusi jangka panjang: service annotation menyimpan salinan gambar saat anotasi disimpan.
 - Perubahan kecil yang berlaku untuk semua mode: request ke `getcurrentuser` / `getSignature` / `getParaf`
   **tanpa token** sekarang `401`. Sebelumnya token kosong bisa cocok ke user yang `api_token`-nya `null`.
 

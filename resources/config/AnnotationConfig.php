@@ -19,6 +19,9 @@ return [
         'TOKEN_TTL' => env('ANNOTATION_TOKEN_TTL', 120),
         /* cek session id di token masih aktif di session store app (butuh SESSION_DRIVER server-side: redis, file, database) */
         'CHECK_SESSION' => env('ANNOTATION_TOKEN_CHECK_SESSION', true),
+        /* getSignature / getParaf: URL gambar (berisi token launch) disimpan permanen di anotasi, jadi token asli
+           tetap diterima setelah kedaluwarsa / session berakhir. false = cek sama ketatnya dengan getcurrentuser */
+        'IMAGE_TOKEN_PERMANENT' => env('ANNOTATION_IMAGE_TOKEN_PERMANENT', true),
         /* host tambahan (dipisah koma) yang boleh dipakai di file_url / callback, selain host app sendiri */
         'ALLOWED_HOSTS' => env('ANNOTATION_ALLOWED_HOSTS', ''),
     ],
