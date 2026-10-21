@@ -198,7 +198,8 @@ class LocationController extends Controller
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.location.import');
+        $data['page']['import']['post'] = route('master.import.preview', 'location');
+        $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.location.importtemplate');
 
         $page_var = compact('data');

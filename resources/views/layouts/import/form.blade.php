@@ -1,5 +1,6 @@
 @php
     $theme = config('app.themes');
+    $importLabel = $data['page']['import']['label'] ?? 'Import Items';
 @endphp
 
 @if ($theme == '_meridian')
@@ -20,7 +21,7 @@
                             <label class="field__label text-sm font-medium text-foreground">Choose File (Excel / CSV)</label>
                             <input type="file" name="file"
                                 class="input w-full @error('file') border-danger @enderror" required
-                                accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
                             @error('file')
                                 <span class="field__error text-xs text-danger mt-1">{{ $message }}</span>
                             @enderror
@@ -33,7 +34,7 @@
                         </a>
                         <div class="flex items-center gap-2">
                             <button type="button" class="button button--neutral button--ghost button--sm" data-stisla-dialog-close data-dismiss="modal" data-bs-dismiss="modal" onclick="importFnClose()">Cancel</button>
-                            <button type="submit" class="button button--primary button--sm font-semibold">Import Items</button>
+                            <button type="submit" class="button button--primary button--sm font-semibold">{{ $importLabel }}</button>
                         </div>
                     </footer>
                 </form>
@@ -51,14 +52,14 @@
                         <label>Choose File</label>
                         <input type="file" name="file"
                             class="form-control @error('file') is-invalid @enderror" required
-                            accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
                         @error('file')
                             <span class="text-danger">{{ $message }}</span>
                         @enderror
                         @include('master::components.importloading')
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Import Items</button>
+                <button type="submit" class="btn btn-primary">{{ $importLabel }}</button>
                 <a href="{{ $data['page']['import']['template'] }}" class="btn btn-primary float-right float-end"
                     download>
                     Template

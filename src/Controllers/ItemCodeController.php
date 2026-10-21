@@ -134,7 +134,8 @@ class ItemCodeController extends Controller
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.item-code.import');
+        $data['page']['import']['post'] = route('master.import.preview', 'item-code');
+        $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.item-code.importtemplate');
 
         $page_var = compact('data');

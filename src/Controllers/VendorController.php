@@ -122,7 +122,8 @@ class VendorController extends Controller
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.vendor.import');
+        $data['page']['import']['post'] = route('master.import.preview', 'vendor');
+        $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.vendor.importtemplate');
 
         $page_var = compact('data');

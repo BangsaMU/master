@@ -120,7 +120,8 @@ class UomController extends Controller
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.uom.import');
+        $data['page']['import']['post'] = route('master.import.preview', 'uom');
+        $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.uom.importtemplate');
 
         $page_var = compact('data');

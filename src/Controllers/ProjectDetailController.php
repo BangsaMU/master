@@ -115,7 +115,8 @@ class ProjectDetailController extends Controller
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.'.$sheet_slug.'.import');
+        $data['page']['import']['post'] = route('master.import.preview', 'project-detail');
+        $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.'.$sheet_slug.'.importtemplate');
 
         $page_var = compact('data');

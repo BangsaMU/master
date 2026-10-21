@@ -121,7 +121,8 @@ class PcaController extends Controller
         }
 
         $data['page']['import']['layout'] = 'layouts.import.form';
-        $data['page']['import']['post'] = route('master.pca.import');
+        $data['page']['import']['post'] = route('master.import.preview', 'pca');
+        $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.pca.importtemplate');
 
         $page_var = compact('data');

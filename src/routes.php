@@ -46,6 +46,15 @@ Route::prefix('api/master-sync')->name('api.master.sync.')->group(function () {
 Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(function () {
     // Route::get('user', [\Bangsamu\Master\Controllers\UserController::class, 'index'])->name('user.index');
 
+    // Import dengan preview (upload -> preview -> commit) untuk master yang terdaftar di MasterImportService::DEFINITIONS
+    $importEntities = array_keys(\Bangsamu\Master\Services\Import\MasterImportService::DEFINITIONS);
+    Route::post('import/{entity}/preview', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])
+        ->whereIn('entity', $importEntities)->name('import.preview');
+    Route::get('import/{entity}/preview/{token}', [\Bangsamu\Master\Controllers\MasterImportController::class, 'show'])
+        ->whereIn('entity', $importEntities)->whereUuid('token')->name('import.show');
+    Route::post('import/{entity}/commit/{token}', [\Bangsamu\Master\Controllers\MasterImportController::class, 'commit'])
+        ->whereIn('entity', $importEntities)->whereUuid('token')->name('import.commit');
+
     Route::get('category/importtemplate', [\Bangsamu\Master\Controllers\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
     Route::resource('category', \Bangsamu\Master\Controllers\CategoryController::class);
     Route::post('category/import', [\Bangsamu\Master\Controllers\CategoryController::class, 'import'])->name('category.import');
