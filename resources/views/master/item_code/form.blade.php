@@ -98,6 +98,11 @@
             </div>
         </div>
     </div>
+
+    {{-- Log perubahan data (termasuk dari import) --}}
+    @if (isset($data['page']['logs']) && count($data['page']['logs']) > 0)
+        @include('master::master.logs_view.list', ['title' => 'Log Item Code', 'logs' => $data['page']['logs']])
+    @endif
 @stop
 
 @push('js')

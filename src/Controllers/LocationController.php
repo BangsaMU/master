@@ -9,6 +9,7 @@ use Bangsamu\Master\Imports\Master\LocationImport;
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Location;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -683,6 +684,8 @@ class LocationController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Location::class, $id);
+
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 

@@ -39,7 +39,7 @@
             </span>
 
             <h3 class="timeline-header">
-                <a href="#">{{ $log->nama_user }}</a> {{ $log->action }}
+                <a href="#">{{ $log->nama_user }}</a> {{ $log->action }} <small class="text-muted">{{ $log->sort_description }}</small>
             </h3>
 
             <div class="timeline-body">

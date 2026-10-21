@@ -122,6 +122,15 @@
         </div>
         @endif
     </div>
+
+    {{-- Log perubahan data (termasuk dari import) --}}
+    @if (isset($data['page']['logs']))
+        <div class="row">
+            <div class="col-12 col-sm-8">
+                @include('master::master_tabler.logs_view.list', ['title' => 'Log Project Detail', 'logs' => $data['page']['logs']])
+            </div>
+        </div>
+    @endif
 @stop
 
 @push('js')

@@ -10,6 +10,7 @@ use Bangsamu\Master\Imports\Master\ItemCodeImport;
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\ItemCode;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -528,6 +529,8 @@ class ItemCodeController extends Controller
         $param->item_group_name = DB::table('master_item_group')->where('id', $param->group_id)->value('item_group_name');
 
         // dd($param);
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(ItemCode::class, $id);
+
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 

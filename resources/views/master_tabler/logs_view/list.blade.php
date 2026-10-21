@@ -55,6 +55,24 @@
                                     </span>
                                 </div>
 
+                                @php
+                                    $importInfo = is_array($log['properties']['import'] ?? null) ? $log['properties']['import'] : null;
+                                @endphp
+                                @if (trim((string) $log->sort_description) !== '')
+                                    <div class="text-secondary mb-2">{{ $log->sort_description }}</div>
+                                @endif
+                                @if ($importInfo)
+                                    <div class="mb-2 small">
+                                        <span class="badge bg-purple-lt">Import</span>
+                                        <span class="text-secondary">
+                                            {{ $importInfo['file'] ?? '' }}@if (!empty($importInfo['row'])) &middot; baris {{ $importInfo['row'] }}@endif
+                                        </span>
+                                        @if (!empty($importInfo['reason']))
+                                            <div class="mt-1"><span class="text-secondary">Alasan:</span> {{ $importInfo['reason'] }}</div>
+                                        @endif
+                                    </div>
+                                @endif
+
                                 <div class="table-responsive">
                                     <table class="table table-vcenter table-bordered card-table table-hover">
                                         <thead class="table-light">
@@ -108,7 +126,7 @@
                                             @elseif (isset($log['properties']) && is_array($log['properties']) && !empty($log['properties']))
                                                 {{-- Untuk log selain updated (seperti created) yang menyimpan properties langsung --}}
                                                 @foreach ($log['properties'] as $field => $val)
-                                                    @if ($field === 'updated_at' || $field === 'created_at')
+                                                    @if ($field === 'updated_at' || $field === 'created_at' || $field === 'import')
                                                         @continue
                                                     @endif
                                                     <tr>
