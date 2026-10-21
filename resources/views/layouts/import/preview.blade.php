@@ -118,7 +118,7 @@
                         @if ($summary['update'] > 0)
                             @if ($canUpdate)
                                 <label class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="allow_update" value="1" id="allowUpdate" @checked($allowUpdateOld)>
+                                    <input class="form-check-input" type="checkbox" name="allow_update" value="1" id="allowUpdate" {{ $allowUpdateOld ? 'checked' : '' }}>
                                     <span class="form-check-label">
                                         Izinkan update <strong>{{ $summary['update'] }}</strong> data yang sudah ada
                                     </span>
@@ -147,7 +147,7 @@
                     </div>
                     <div class="card-footer d-flex justify-content-between">
                         <a href="{{ route($definition->indexRoute()) }}" class="btn btn-link">Batal</a>
-                        <button type="submit" class="btn btn-primary" @disabled($summary['new'] === 0 && ($summary['update'] === 0 || ! $canUpdate))>
+                        <button type="submit" class="btn btn-primary" {{ $summary['new'] === 0 && ($summary['update'] === 0 || ! $canUpdate) ? 'disabled' : '' }}>
                             Proses Import
                         </button>
                     </div>

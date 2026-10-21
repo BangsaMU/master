@@ -6,6 +6,7 @@ namespace Bangsamu\Master\Requests;
 
 use Bangsamu\Master\Services\Import\MasterImportService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class MasterImportCommitRequest extends FormRequest
 {
@@ -28,7 +29,8 @@ class MasterImportCommitRequest extends FormRequest
     {
         return [
             'allow_update' => ['nullable', 'boolean'],
-            'update_reason' => ['nullable', 'required_if_accepted:allow_update', 'string', 'min:5', 'max:500'],
+            // Rule::requiredIf, bukan required_if_accepted (belum ada di Laravel 8)
+            'update_reason' => ['nullable', Rule::requiredIf(fn () => $this->boolean('allow_update')), 'string', 'min:5', 'max:500'],
         ];
     }
 
@@ -38,7 +40,7 @@ class MasterImportCommitRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'update_reason.required_if_accepted' => 'Alasan update wajib diisi bila update data existing diizinkan.',
+            'update_reason.required' => 'Alasan update wajib diisi bila update data existing diizinkan.',
             'update_reason.min' => 'Alasan update minimal 5 karakter.',
             'update_reason.max' => 'Alasan update maksimal 500 karakter.',
         ];
