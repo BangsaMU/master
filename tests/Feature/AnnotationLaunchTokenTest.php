@@ -382,6 +382,39 @@ class AnnotationLaunchTokenTest extends TestCase
         $this->get('/api/getSignature?token='.md5('orang-lain@meindo.test'))->assertStatus(401);
     }
 
+    public function test_signature_finds_old_stored_paths_like_paraf(): void
+    {
+        $user = $this->makeUser();
+        $png = $this->giveSignature($user);
+        $token = md5($user->email);
+
+        // path lama diawali /media (root disk media)
+        DB::table('user_details')->where('field_key', 'signature')->update(['field_value' => '/media/signature/budi.png']);
+        $this->assertSame($png, $this->get('/api/getSignature?token='.$token)->assertOk()->streamedContent());
+
+        // path lama relatif ke storage_path(), di luar disk media
+        $relative = 'app/test-signature-'.getmypid().'.png';
+        file_put_contents(storage_path($relative), $png);
+        try {
+            DB::table('user_details')->where('field_key', 'signature')->update(['field_value' => $relative]);
+            $this->assertSame($png, $this->get('/api/getSignature?token='.$token)->assertOk()->streamedContent());
+        } finally {
+            @unlink(storage_path($relative));
+        }
+
+        DB::table('user_details')->where('field_key', 'signature')->update(['field_value' => 'signature/tidak-ada.png']);
+        $this->get('/api/getSignature?token='.$token)->assertStatus(403);
+    }
+
+    public function test_signature_and_paraf_without_user_details_table_return_403_not_500(): void
+    {
+        $user = $this->makeUser();
+        \Illuminate\Support\Facades\Schema::drop('user_details');
+
+        $this->get('/api/getSignature?token='.md5($user->email))->assertStatus(403);
+        $this->get('/api/getParaf?token='.md5($user->email))->assertStatus(403);
+    }
+
     public function test_signature_image_rejects_forged_tokens_and_removed_users(): void
     {
         $this->enableLaunchMode(acceptLegacy: false);

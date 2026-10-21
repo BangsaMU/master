@@ -1163,7 +1163,8 @@ class ApiAnnotationController extends Controller
         $token = $request->token;
         $user = $this->getImageTokenUser($token);
         $user_id = $user->id ?? 0;
-        $user_email = $user->email ?? 0;
+        $user_email = $user->email ?? null;
+        $signature_query = null;
 
         if (! Schema::hasTable('user_details')) {
             // Handle jika tabel tidak ditemukan (misal: return default atau log error)
@@ -1171,10 +1172,13 @@ class ApiAnnotationController extends Controller
             $message_error = 'tabel user_details tidak ditemukan';
 
         } else {
+            // sama dengan getParaf: email kosong jangan ikut di-OR (user_email = 0 di MySQL cocok ke semua email)
             $signature_query = UserDetail::select('field_value')->where('field_key', 'signature')
                 ->where(function ($query) use ($user_id, $user_email) {
-                    $query->where('user_id', $user_id)
-                        ->orWhere('user_email', $user_email);
+                    $query->where('user_id', $user_id);
+                    if ($user_email) {
+                        $query->orWhere('user_email', $user_email);
+                    }
                 })->orderBy('id', 'desc');
             $signature = $signature_query->first();
             // ->where('user_id', $user_id)->orWhere('user_email', $user_email)->orderBy('id', 'desc')->first();
@@ -1187,46 +1191,38 @@ class ApiAnnotationController extends Controller
         ]);
 
         if ($signature) {
-            $signature->field_value = str_replace('/media', '', ($signature?->field_value ?? '')); // bug fix karena path nama sudah ada semua storage media
-            $signature_path = Storage::disk('media')->path($signature->field_value);
-            // dd($request->all(),$request->input('refresh'),$signature_path);
-            // Cek apakah file tanda tangan ada
-            // dd($signature->field_value,$signature_path,Storage::disk('media')->exists($signature->field_value));
+            // sama dengan getParaf: path di DB bisa diawali /media (root disk media), path storage lama, atau path mentah
+            $cleaned_path = str_replace('/media', '', ($signature->field_value ?? ''));
             Log::info('[ApiAnnotationController.getSignature validate path signature]', [
                 'signature->field_value' => $signature->field_value,
-                'file_exists' => Storage::disk('media')->exists($signature->field_value),
+                'file_exists' => Storage::disk('media')->exists($cleaned_path),
             ]);
-            if (Storage::disk('media')->exists($signature->field_value)) {
-                if ($request->currentTime) {
-                    if ($request->position == 'right') {
-                        $signature_path = self::getSignatureWithTimeStampKanan($signature_path, $request);
-                    } else {
-                        $signature_path = self::getSignatureWithTimeStamp($signature_path, $request);
-                    }
-                }
 
-                return response()->file($signature_path, [
-                    'Content-Type' => 'image/png',
-                ]);
+            if (Storage::disk('media')->exists($cleaned_path)) {
+                $signature_path = Storage::disk('media')->path($cleaned_path);
+            } elseif (file_exists(storage_path($signature->field_value))) {
+                $signature_path = storage_path($signature->field_value);
+            } elseif (Storage::disk('media')->exists($signature->field_value)) {
+                $signature_path = Storage::disk('media')->path($signature->field_value);
             } else {
-                // Jika file tidak ditemukan
                 abort(403, 'Signature file not found.');
             }
-        } else {
-            // Jika signature tidak ditemukan
-            abort(403, $message_error ?? 'No signature found for the user.');
+
+            if ($request->currentTime) {
+                if ($request->position == 'right') {
+                    $signature_path = self::getSignatureWithTimeStampKanan($signature_path, $request);
+                } else {
+                    $signature_path = self::getSignatureWithTimeStamp($signature_path, $request);
+                }
+            }
+
+            return response()->file($signature_path, [
+                'Content-Type' => 'image/png',
+            ]);
         }
 
-        if ($signature) {
-            // $signature_url = storage_path($signature->field_value);
-            // dd(storage_path($signature->field_value),$signature->toArray());
-            $signature_url = file_get_contents($paraf_path);
-            // $file_signature = storage_path($user->signature ?? 'no-image.png');
-        } else {
-            $signature_url = null;
-        }
-
-        return $signature_url;
+        // Jika signature tidak ditemukan
+        abort(403, $message_error ?? 'No signature found for the user.');
     }
 
     public function setAnnotationId(Request $request)

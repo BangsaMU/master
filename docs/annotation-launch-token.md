@@ -131,6 +131,10 @@ Jadi kode app cukup diganti sekali memakai helper, lalu mode dipindah lewat `.en
    viewer → `401`; buka link `annotation/open` saat belum login → diarahkan ke login lalu kembali ke viewer.
 6. Setelah semua link (termasuk email / notifikasi lama) sudah lewat helper dan link md5 lama tidak dipakai
    lagi, set `ANNOTATION_ACCEPT_LEGACY_TOKEN=false`.
+   **Perhatian:** anotasi Signature / Paraf yang dibuat sebelum mode launch menyimpan URL `getSignature` /
+   `getParaf` dengan token `md5(email)`. Setelah `false`, URL itu `401` dan tanda tangan lama hilang di viewer
+   (kasus yang sama dengan APP27). Jangan set `false` sebelum service annotation menyimpan salinan gambar sendiri,
+   atau sebelum URL di `annotate_content` lama dimigrasi.
 7. Opsional setelah transisi: `AnnotationConfig.main.VALIDATE_SESSION` boleh tetap `true`; nilai ini hanya
    dipakai untuk token lama. Untuk token launch respons selalu `validate_session: false`.
 
