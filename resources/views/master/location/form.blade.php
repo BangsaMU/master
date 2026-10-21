@@ -73,6 +73,9 @@
     @if (isset($data['page']['logs']) && count($data['page']['logs']) > 0)
         @include('master::master.logs_view.list', ['title' => 'Log Location', 'logs' => $data['page']['logs']])
     @endif
+
+    {{-- Kode huruf besar + kunci unik (readonly non-admin, konfirmasi admin) --}}
+    @include('master::components.unique-key-guard', ['entity' => 'location', 'param' => $param ?? null])
 @stop
 
 @push('js')

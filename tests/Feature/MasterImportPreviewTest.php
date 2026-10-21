@@ -1,567 +1,434 @@
 <?php
 
-namespace {
-    if (! function_exists('checkPermission')) {
-        /** Stub helper app: izin ditolak bila tercantum di config test.denied_permissions. */
-        function checkPermission($permission)
-        {
-            return auth()->check() && ! in_array($permission, config('test.denied_permissions', []), true);
-        }
-    }
+namespace Bangsamu\Master\Tests\Feature;
 
-    if (! function_exists('configDefAction')) {
-        /** Stub helper app untuk config halaman form master. */
-        function configDefAction($id = null, $data = null)
-        {
-            return $data;
-        }
-    }
-}
+use App\Models\User;
+use Bangsamu\LibraryClay\Models\ActivityLog;
+use Bangsamu\Master\Tests\Concerns\CreatesMasterTables;
+use Bangsamu\Master\Tests\TestCase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
-namespace Bangsamu\Master\Tests\Feature {
+class MasterImportPreviewTest extends TestCase
+{
+    use CreatesMasterTables;
 
-    use App\Models\User;
-    use Bangsamu\LibraryClay\Models\ActivityLog;
-    use Bangsamu\Master\Tests\TestCase;
-    use Illuminate\Database\Schema\Blueprint;
-    use Illuminate\Http\UploadedFile;
-    use Illuminate\Support\Facades\DB;
-    use Illuminate\Support\Facades\Http;
-    use Illuminate\Support\Facades\Schema;
-    use Maatwebsite\Excel\ExcelServiceProvider;
+    private User $user;
 
-    class MasterImportPreviewTest extends TestCase
+    protected function setUp(): void
     {
-        private User $user;
+        parent::setUp();
 
-        protected function getPackageProviders($app)
-        {
-            return array_merge(parent::getPackageProviders($app), [ExcelServiceProvider::class]);
-        }
+        Http::fake();
+        $this->user = User::create(['name' => 'Bagas Setyo', 'email' => 'bagas@meindo.test']);
+        $this->actingAs($this->user);
+    }
 
-        protected function defineEnvironment($app)
-        {
-            parent::defineEnvironment($app);
+    private function csv(string $content, string $name = 'import.csv'): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent($name, $content);
+    }
 
-            $app['config']->set('app.themes', '_tabler');
-            $app['config']->set('view.paths', array_merge([__DIR__.'/../stubs/views'], $app['config']->get('view.paths', [])));
-            $app['config']->set('MasterConfig.senada.active', false);
-            $app['config']->set('MasterCrudConfig.MASTER_COMPANY_ID', 1);
-            $app['config']->set('test.denied_permissions', []);
-        }
+    /** Upload file lalu kembalikan token preview. */
+    private function upload(string $entity, string $content): string
+    {
+        $response = $this->post(route('master.import.preview', $entity), ['file' => $this->csv($content)]);
+        $response->assertRedirect();
 
-        protected function defineDatabaseMigrations()
-        {
-            parent::defineDatabaseMigrations();
+        $this->assertMatchesRegularExpression('#/master/import/'.$entity.'/preview/([0-9a-f-]{36})$#', $response->headers->get('Location'));
 
-            Schema::create('activity_logs', function (Blueprint $table) {
-                $table->id();
-                $table->unsignedBigInteger('user_id')->nullable();
-                $table->string('action');
-                $table->string('model_type')->nullable();
-                $table->unsignedBigInteger('model_id')->nullable();
-                $table->text('description');
-                $table->longText('properties')->nullable();
-                $table->string('ip_address')->nullable();
-                $table->string('user_agent')->nullable();
-                $table->timestamps();
-            });
+        return basename($response->headers->get('Location'));
+    }
 
-            $simple = [
-                'master_category' => ['category_code', 'category_name', 'remark'],
-                'master_uom' => ['uom_code', 'uom_name'],
-                'master_pca' => ['pca_code', 'pca_name'],
-                'master_item_group' => ['item_group_code', 'item_group_name', 'item_group_attributes'],
-            ];
-            foreach ($simple as $name => $columns) {
-                Schema::create($name, function (Blueprint $table) use ($columns) {
-                    $table->id();
-                    foreach ($columns as $column) {
-                        $table->text($column)->nullable();
-                    }
-                    $table->string('app_code', 10)->default('APP03');
-                    $table->timestamps();
-                    $table->softDeletes();
-                });
-            }
+    private function seedCategories(): void
+    {
+        DB::table('master_category')->insert([
+            ['category_code' => 'A01', 'category_name' => 'Lama', 'remark' => 'catatan', 'app_code' => 'APP27'],
+            ['category_code' => 'A02', 'category_name' => 'Sama', 'remark' => null, 'app_code' => 'APP27'],
+            ['category_code' => 'A03', 'category_name' => 'Punya app lain', 'remark' => null, 'app_code' => 'APP03'],
+        ]);
+    }
 
-            Schema::create('master_item_code', function (Blueprint $table) {
-                $table->id();
-                $table->string('item_code', 25)->unique();
-                $table->string('item_name')->nullable();
-                $table->integer('uom_id')->nullable();
-                $table->integer('pca_id')->nullable();
-                $table->integer('category_id')->nullable();
-                $table->integer('group_id')->nullable();
-                $table->text('remarks')->nullable();
-                $table->string('app_code', 10)->default('APP03');
-                $table->longText('attributes')->nullable();
-                $table->integer('company_id')->nullable();
-                $table->timestamps();
-                $table->softDeletes();
-            });
+    private const CATEGORY_CSV = "Category Code,Category Name,Remark\n"
+        ."a01,Baru Diganti,\n"     // update nama, remark kosong tidak menghapus
+        ."A02,Sama,\n"             // tidak berubah
+        ."A03,Diubah,\n"           // milik app lain
+        ."B01,Kategori Baru,ok\n"  // baru
+        .",Tanpa Kode,\n"          // error wajib
+        ."B01,Duplikat,\n";        // duplikat di file
 
-            Schema::create('master_location', function (Blueprint $table) {
-                $table->id();
-                $table->string('loc_code', 15)->nullable();
-                $table->string('loc_name', 50)->nullable();
-                $table->string('group_type')->nullable();
-                $table->timestamps();
-                $table->softDeletes();
-            });
+    public function test_preview_mengklasifikasi_baris_tanpa_menulis_database(): void
+    {
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
 
-            Schema::create('master_company', function (Blueprint $table) {
-                $table->id();
-                $table->string('company_code')->nullable();
-                $table->timestamps();
-                $table->softDeletes();
-            });
+        $response = $this->get(route('master.import.show', ['category', $token]));
 
-            Schema::create('master_project', function (Blueprint $table) {
-                $table->id();
-                $table->string('project_code', 10)->unique();
-                $table->string('project_name', 116)->nullable();
-                $table->string('project_remarks')->nullable();
-                $table->date('project_start_date')->nullable();
-                $table->date('project_complete_date')->nullable();
-                $table->char('internal_external', 1)->nullable();
-                $table->integer('user_id')->nullable();
-                $table->timestamps();
-                $table->softDeletes();
-            });
+        $response->assertOk();
+        $analysis = $response->viewData('analysis');
+        $this->assertSame(['new' => 1, 'update' => 1, 'same' => 1, 'locked' => 1, 'error' => 2], $analysis['summary']);
+        $this->assertSame(['Category Name' => 1], $analysis['update_fields']);
 
-            Schema::create('master_project_detail', function (Blueprint $table) {
-                $table->id();
-                $table->string('project_code_client', 10)->nullable();
-                $table->string('project_name_client', 100)->nullable();
-                $table->integer('company_id')->nullable();
-                $table->integer('project_id')->nullable();
-                $table->integer('user_id')->nullable();
-                $table->timestamps();
-                $table->softDeletes();
-            });
+        $update = collect($analysis['rows'])->firstWhere('status', 'update');
+        $this->assertSame(['category_name'], array_keys($update['changes']));
+        $this->assertSame('Lama', $update['changes']['category_name']['old']);
+        $this->assertSame(2, $update['row']);
 
-            Schema::create('master_vendor', function (Blueprint $table) {
-                $table->id();
-                $table->unsignedBigInteger('loc_id');
-                $table->string('vendor_code', 15)->nullable();
-                $table->string('vendor_description')->nullable();
-                $table->string('vendor_address')->nullable();
-                $table->string('vendor_phone', 100)->nullable();
-                $table->string('vendor_email', 100)->nullable();
-                $table->string('vendor_fax', 100)->nullable();
-                $table->timestamps();
-                $table->softDeletes();
-            });
+        $response->assertSee('Izinkan update');
+        $response->assertSee('duplikat dengan baris 5', false);
 
-            Schema::create('master_vendor_contact', function (Blueprint $table) {
-                $table->id();
-                $table->unsignedBigInteger('vendor_id')->nullable();
-                $table->string('vendor_contact_name', 100)->nullable();
-                $table->string('vendor_contact_phone', 100)->nullable();
-                $table->string('vendor_contact_email', 100)->nullable();
-                $table->string('vendor_contact_fax', 100)->nullable();
-                $table->timestamps();
-                $table->softDeletes();
-            });
-        }
+        $this->assertSame(3, DB::table('master_category')->count());
+        $this->assertSame(0, DB::table('activity_logs')->count());
+    }
 
-        protected function setUp(): void
-        {
-            parent::setUp();
+    public function test_commit_tanpa_izin_update_hanya_membuat_data_baru(): void
+    {
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
 
-            Http::fake();
-            $this->user = User::create(['name' => 'Bagas Setyo', 'email' => 'bagas@meindo.test']);
-            $this->actingAs($this->user);
-        }
+        $this->post(route('master.import.commit', ['category', $token]))
+            ->assertRedirect(route('master.category.index'))
+            ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 0 diupdate, 3 dilewati, 2 gagal'));
 
-        private function csv(string $content, string $name = 'import.csv'): UploadedFile
-        {
-            return UploadedFile::fake()->createWithContent($name, $content);
-        }
+        $this->assertSame('Lama', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
+        $this->assertDatabaseHas('master_category', ['category_code' => 'B01', 'category_name' => 'Kategori Baru', 'remark' => 'ok', 'app_code' => 'APP27']);
 
-        /** Upload file lalu kembalikan token preview. */
-        private function upload(string $entity, string $content): string
-        {
-            $response = $this->post(route('master.import.preview', $entity), ['file' => $this->csv($content)]);
-            $response->assertRedirect();
+        $log = ActivityLog::sole();
+        $this->assertSame('created', $log->action);
+        $this->assertSame('Bagas Setyo created a new Category (via import)', $log->description);
+        $this->assertSame($this->user->id, $log->user_id);
+        $this->assertSame('B01', $log->properties['category_code']);
+        $this->assertSame('import', $log->properties['import']['source']);
+        $this->assertSame(5, $log->properties['import']['row']);
+    }
 
-            $this->assertMatchesRegularExpression('#/master/import/'.$entity.'/preview/([0-9a-f-]{36})$#', $response->headers->get('Location'));
+    public function test_izin_update_wajib_disertai_alasan(): void
+    {
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
 
-            return basename($response->headers->get('Location'));
-        }
+        $this->from(route('master.import.show', ['category', $token]))
+            ->post(route('master.import.commit', ['category', $token]), ['allow_update' => '1', 'update_reason' => ''])
+            ->assertRedirect(route('master.import.show', ['category', $token]))
+            ->assertSessionHasErrors('update_reason');
 
-        private function seedCategories(): void
-        {
-            DB::table('master_category')->insert([
-                ['category_code' => 'A01', 'category_name' => 'Lama', 'remark' => 'catatan', 'app_code' => 'APP27'],
-                ['category_code' => 'A02', 'category_name' => 'Sama', 'remark' => null, 'app_code' => 'APP27'],
-                ['category_code' => 'A03', 'category_name' => 'Punya app lain', 'remark' => null, 'app_code' => 'APP03'],
-            ]);
-        }
+        $this->assertSame(3, DB::table('master_category')->count());
+    }
 
-        private const CATEGORY_CSV = "Category Code,Category Name,Remark\n"
-            ."a01,Baru Diganti,\n"     // update nama, remark kosong tidak menghapus
-            ."A02,Sama,\n"             // tidak berubah
-            ."A03,Diubah,\n"           // milik app lain
-            ."B01,Kategori Baru,ok\n"  // baru
-            .",Tanpa Kode,\n"          // error wajib
-            ."B01,Duplikat,\n";        // duplikat di file
+    public function test_commit_dengan_izin_update_mencatat_alasan_di_activity_log(): void
+    {
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
 
-        public function test_preview_mengklasifikasi_baris_tanpa_menulis_database(): void
-        {
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
+        $this->post(route('master.import.commit', ['category', $token]), [
+            'allow_update' => '1',
+            'update_reason' => 'koreksi nama dari SAP',
+        ])->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate, 2 dilewati, 2 gagal'));
 
-            $response = $this->get(route('master.import.show', ['category', $token]));
+        $a01 = DB::table('master_category')->where('category_code', 'A01')->first();
+        $this->assertSame('Baru Diganti', $a01->category_name);
+        $this->assertSame('catatan', $a01->remark, 'kolom kosong di file tidak mengosongkan data lama');
+        $this->assertSame('Punya app lain', DB::table('master_category')->where('category_code', 'A03')->value('category_name'));
 
-            $response->assertOk();
-            $analysis = $response->viewData('analysis');
-            $this->assertSame(['new' => 1, 'update' => 1, 'same' => 1, 'locked' => 1, 'error' => 2], $analysis['summary']);
-            $this->assertSame(['Category Name' => 1], $analysis['update_fields']);
+        $log = ActivityLog::where('action', 'updated')->sole();
+        $this->assertSame('Bagas Setyo updated Category (via import: koreksi nama dari SAP)', $log->description);
+        $this->assertSame((int) $a01->id, (int) $log->model_id);
+        $this->assertSame(['category_name' => 'Lama'], $log->properties['before']);
+        $this->assertSame('Baru Diganti', $log->properties['after']['category_name']);
+        $this->assertSame('koreksi nama dari SAP', $log->properties['import']['reason']);
+        $this->assertSame(1, ActivityLog::where('action', 'created')->count());
 
-            $update = collect($analysis['rows'])->firstWhere('status', 'update');
-            $this->assertSame(['category_name'], array_keys($update['changes']));
-            $this->assertSame('Lama', $update['changes']['category_name']['old']);
-            $this->assertSame(2, $update['row']);
+        // token preview sekali pakai
+        $this->get(route('master.import.show', ['category', $token]))->assertRedirect(route('master.category.index'));
+    }
 
-            $response->assertSee('Izinkan update');
-            $response->assertSee('duplikat dengan baris 5', false);
+    public function test_commit_ajax_diproses_per_batch_dan_aman_diulang(): void
+    {
+        config(['MasterConfig.import.chunk_size' => 2]);
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
+        $url = route('master.import.commit', ['category', $token]);
+        $form = ['allow_update' => '1', 'update_reason' => 'koreksi nama dari SAP'];
 
-            $this->assertSame(3, DB::table('master_category')->count());
-            $this->assertSame(0, DB::table('activity_logs')->count());
-        }
+        $this->postJson($url, $form + ['offset' => 0])
+            ->assertOk()
+            ->assertJson(['done' => false, 'next_offset' => 2, 'total' => 6, 'updated' => 1, 'skipped' => 1, 'redirect' => null]);
 
-        public function test_commit_tanpa_izin_update_hanya_membuat_data_baru(): void
-        {
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
+        // retry offset lama (mis. koneksi putus) tidak memproses ulang
+        $this->postJson($url, $form + ['offset' => 0])->assertJson(['next_offset' => 2, 'updated' => 1]);
 
-            $this->post(route('master.import.commit', ['category', $token]))
-                ->assertRedirect(route('master.category.index'))
-                ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 0 diupdate, 3 dilewati, 2 gagal'));
+        $this->postJson($url, $form + ['offset' => 2])->assertJson(['done' => false, 'next_offset' => 4, 'created' => 1, 'skipped' => 2]);
 
-            $this->assertSame('Lama', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
-            $this->assertDatabaseHas('master_category', ['category_code' => 'B01', 'category_name' => 'Kategori Baru', 'remark' => 'ok', 'app_code' => 'APP27']);
+        $this->postJson($url, $form + ['offset' => 4])
+            ->assertOk()
+            ->assertJson(['done' => true, 'next_offset' => 6, 'created' => 1, 'updated' => 1, 'skipped' => 2, 'failed' => 2, 'redirect' => route('master.category.index')])
+            ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate, 2 dilewati, 2 gagal'));
 
-            $log = ActivityLog::sole();
-            $this->assertSame('created', $log->action);
-            $this->assertSame('Bagas Setyo created a new Category (via import)', $log->description);
-            $this->assertSame($this->user->id, $log->user_id);
-            $this->assertSame('B01', $log->properties['category_code']);
-            $this->assertSame('import', $log->properties['import']['source']);
-            $this->assertSame(5, $log->properties['import']['row']);
-        }
+        $this->assertSame('Baru Diganti', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
+        $this->assertSame(1, ActivityLog::where('action', 'updated')->count());
+        $this->assertSame(1, ActivityLog::where('action', 'created')->count());
 
-        public function test_izin_update_wajib_disertai_alasan(): void
-        {
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
+        // preview & progress sudah dibersihkan
+        $this->postJson($url, $form + ['offset' => 6])->assertStatus(410)->assertJson(['redirect' => route('master.category.index')]);
+    }
 
-            $this->from(route('master.import.show', ['category', $token]))
-                ->post(route('master.import.commit', ['category', $token]), ['allow_update' => '1', 'update_reason' => ''])
-                ->assertRedirect(route('master.import.show', ['category', $token]))
-                ->assertSessionHasErrors('update_reason');
-
-            $this->assertSame(3, DB::table('master_category')->count());
-        }
-
-        public function test_commit_dengan_izin_update_mencatat_alasan_di_activity_log(): void
-        {
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
-
-            $this->post(route('master.import.commit', ['category', $token]), [
-                'allow_update' => '1',
-                'update_reason' => 'koreksi nama dari SAP',
-            ])->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate, 2 dilewati, 2 gagal'));
-
-            $a01 = DB::table('master_category')->where('category_code', 'A01')->first();
-            $this->assertSame('Baru Diganti', $a01->category_name);
-            $this->assertSame('catatan', $a01->remark, 'kolom kosong di file tidak mengosongkan data lama');
-            $this->assertSame('Punya app lain', DB::table('master_category')->where('category_code', 'A03')->value('category_name'));
-
-            $log = ActivityLog::where('action', 'updated')->sole();
-            $this->assertSame('Bagas Setyo updated Category (via import: koreksi nama dari SAP)', $log->description);
-            $this->assertSame((int) $a01->id, (int) $log->model_id);
-            $this->assertSame(['category_name' => 'Lama'], $log->properties['before']);
-            $this->assertSame('Baru Diganti', $log->properties['after']['category_name']);
-            $this->assertSame('koreksi nama dari SAP', $log->properties['import']['reason']);
-            $this->assertSame(1, ActivityLog::where('action', 'created')->count());
-
-            // token preview sekali pakai
-            $this->get(route('master.import.show', ['category', $token]))->assertRedirect(route('master.category.index'));
-        }
-
-        public function test_commit_ajax_diproses_per_batch_dan_aman_diulang(): void
-        {
-            config(['MasterConfig.import.chunk_size' => 2]);
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
-            $url = route('master.import.commit', ['category', $token]);
-            $form = ['allow_update' => '1', 'update_reason' => 'koreksi nama dari SAP'];
-
-            $this->postJson($url, $form + ['offset' => 0])
-                ->assertOk()
-                ->assertJson(['done' => false, 'next_offset' => 2, 'total' => 6, 'updated' => 1, 'skipped' => 1, 'redirect' => null]);
-
-            // retry offset lama (mis. koneksi putus) tidak memproses ulang
-            $this->postJson($url, $form + ['offset' => 0])->assertJson(['next_offset' => 2, 'updated' => 1]);
-
-            $this->postJson($url, $form + ['offset' => 2])->assertJson(['done' => false, 'next_offset' => 4, 'created' => 1, 'skipped' => 2]);
-
-            $this->postJson($url, $form + ['offset' => 4])
-                ->assertOk()
-                ->assertJson(['done' => true, 'next_offset' => 6, 'created' => 1, 'updated' => 1, 'skipped' => 2, 'failed' => 2, 'redirect' => route('master.category.index')])
-                ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate, 2 dilewati, 2 gagal'));
-
-            $this->assertSame('Baru Diganti', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
-            $this->assertSame(1, ActivityLog::where('action', 'updated')->count());
-            $this->assertSame(1, ActivityLog::where('action', 'created')->count());
-
-            // preview & progress sudah dibersihkan
-            $this->postJson($url, $form + ['offset' => 6])->assertStatus(410)->assertJson(['redirect' => route('master.category.index')]);
-        }
-
-        public function test_opsi_update_dikunci_sejak_batch_pertama(): void
-        {
-            config(['MasterConfig.import.chunk_size' => 1]);
-            $this->seedCategories();
-            $token = $this->upload('category', 'Category Code,Category Name,Remark
+    public function test_opsi_update_dikunci_sejak_batch_pertama(): void
+    {
+        config(['MasterConfig.import.chunk_size' => 1]);
+        $this->seedCategories();
+        $token = $this->upload('category', 'Category Code,Category Name,Remark
 B01,Baru,
 A01,Ganti Nama,
 ');
-            $url = route('master.import.commit', ['category', $token]);
+        $url = route('master.import.commit', ['category', $token]);
 
-            $this->postJson($url, ['offset' => 0])->assertJson(['next_offset' => 1, 'created' => 1]);
-            $this->postJson($url, ['offset' => 1, 'allow_update' => '1', 'update_reason' => 'diubah di tengah jalan'])
-                ->assertJson(['done' => true, 'updated' => 0, 'skipped' => 1]);
+        $this->postJson($url, ['offset' => 0])->assertJson(['next_offset' => 1, 'created' => 1]);
+        $this->postJson($url, ['offset' => 1, 'allow_update' => '1', 'update_reason' => 'diubah di tengah jalan'])
+            ->assertJson(['done' => true, 'updated' => 0, 'skipped' => 1]);
 
-            $this->assertSame('Lama', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
+        $this->assertSame('Lama', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
+    }
+
+    public function test_commit_ajax_validasi_alasan_balas_422(): void
+    {
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
+
+        $this->postJson(route('master.import.commit', ['category', $token]), ['allow_update' => '1', 'offset' => 0])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('update_reason');
+    }
+
+    public function test_file_melebihi_batas_baris_ditolak_sebelum_dibaca(): void
+    {
+        config(['MasterConfig.import.max_rows' => 2]);
+
+        $this->post(route('master.import.preview', 'pca'), ['file' => $this->csv("PCA Code,PCA Name\nP-1,Satu\nP-2,Dua\nP-3,Tiga\n")])
+            ->assertRedirect(route('master.pca.index'))
+            ->assertSessionHas('error_message', fn ($m) => str_contains($m[0], 'File berisi 3 baris, melebihi batas 2 baris'));
+
+        config(['MasterConfig.import.max_rows' => 3]);
+        $this->post(route('master.import.preview', 'pca'), ['file' => $this->csv("PCA Code,PCA Name\nP-1,Satu\nP-2,Dua\nP-3,Tiga\n")])
+            ->assertRedirectContains('/master/import/pca/preview/');
+    }
+
+    public function test_import_mengirim_satu_batch_broadcast_ke_senada(): void
+    {
+        config(['MasterConfig.senada.active' => true, 'MasterConfig.senada.url' => 'http://senada.test', 'MasterConfig.import.chunk_size' => 2]);
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
+        $url = route('master.import.commit', ['category', $token]);
+        $form = ['allow_update' => '1', 'update_reason' => 'koreksi nama dari SAP'];
+
+        foreach ([0, 2, 4] as $offset) {
+            $this->postJson($url, $form + ['offset' => $offset])->assertOk();
         }
 
-        public function test_commit_ajax_validasi_alasan_balas_422(): void
-        {
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
+        $sent = collect(Http::recorded())->map(fn ($pair) => $pair[0]->data()['payload'] ?? []);
+        $this->assertCount(2, $sent, 'satu batch created + satu batch updated, tidak per baris');
+        $this->assertSame(['created', 'updated'], $sent->pluck('action')->all());
+        $this->assertTrue($sent->every(fn ($p) => $p['is_batch'] === true && $p['table'] === 'master_category' && $p['batch_count'] === 1));
+    }
 
-            $this->postJson(route('master.import.commit', ['category', $token]), ['allow_update' => '1', 'offset' => 0])
-                ->assertStatus(422)
-                ->assertJsonValidationErrors('update_reason');
-        }
+    public function test_log_import_tampil_di_halaman_edit(): void
+    {
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
+        $this->post(route('master.import.commit', ['category', $token]), [
+            'allow_update' => '1',
+            'update_reason' => 'koreksi nama dari SAP',
+        ]);
+        $id = DB::table('master_category')->where('category_code', 'A01')->value('id');
 
-        public function test_file_melebihi_batas_baris_ditolak_sebelum_dibaca(): void
-        {
-            config(['MasterConfig.import.max_rows' => 2]);
+        $response = $this->get(route('master.category.edit', $id));
 
-            $this->post(route('master.import.preview', 'pca'), ['file' => $this->csv("PCA Code,PCA Name\nP-1,Satu\nP-2,Dua\nP-3,Tiga\n")])
-                ->assertRedirect(route('master.pca.index'))
-                ->assertSessionHas('error_message', fn ($m) => str_contains($m[0], 'File berisi 3 baris, melebihi batas 2 baris'));
+        $response->assertOk();
+        $logs = $response->viewData('data')['page']['logs'];
+        $this->assertCount(1, $logs);
+        $this->assertSame('Bagas Setyo', $logs[0]->nama_user);
+        $this->assertSame('Category (via import: koreksi nama dari SAP)', $logs[0]->sort_description);
+        $response->assertSee('Log Category');
+        $response->assertSee('Category (via import: koreksi nama dari SAP)');
+        $response->assertSee('Alasan:');
+        $response->assertSee('Baru Diganti');
+    }
 
-            config(['MasterConfig.import.max_rows' => 3]);
-            $this->post(route('master.import.preview', 'pca'), ['file' => $this->csv("PCA Code,PCA Name\nP-1,Satu\nP-2,Dua\nP-3,Tiga\n")])
-                ->assertRedirectContains('/master/import/pca/preview/');
-        }
+    public function test_activity_log_service_memecah_deskripsi(): void
+    {
+        $log = new ActivityLog(['action' => 'created', 'description' => 'Bagas Setyo created a new Uom (via import)']);
+        $log->updated_at = now()->setDate(2026, 10, 21)->setTime(9, 5, 0);
 
-        public function test_log_import_tampil_di_halaman_edit(): void
-        {
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
-            $this->post(route('master.import.commit', ['category', $token]), [
-                'allow_update' => '1',
-                'update_reason' => 'koreksi nama dari SAP',
-            ]);
-            $id = DB::table('master_category')->where('category_code', 'A01')->value('id');
+        $log = app(\Bangsamu\Master\Services\ActivityLogService::class)->decorate($log);
 
-            $response = $this->get(route('master.category.edit', $id));
+        $this->assertSame('Bagas Setyo', $log->nama_user);
+        $this->assertSame('a new Uom (via import)', $log->sort_description);
+        $this->assertSame('21 October 2026', $log->updated_at_formated_date);
+        $this->assertSame('09:05:00', $log->updated_at_formated_time);
+    }
 
-            $response->assertOk();
-            $logs = $response->viewData('data')['page']['logs'];
-            $this->assertCount(1, $logs);
-            $this->assertSame('Bagas Setyo', $logs[0]->nama_user);
-            $this->assertSame('Category (via import: koreksi nama dari SAP)', $logs[0]->sort_description);
-            $response->assertSee('Log Category');
-            $response->assertSee('Category (via import: koreksi nama dari SAP)');
-            $response->assertSee('Alasan:');
-            $response->assertSee('Baru Diganti');
-        }
+    public function test_update_ditolak_tanpa_permission_update(): void
+    {
+        config(['test.denied_permissions' => ['is_admin', 'update_category']]);
+        $this->seedCategories();
+        $token = $this->upload('category', self::CATEGORY_CSV);
 
-        public function test_activity_log_service_memecah_deskripsi(): void
-        {
-            $log = new ActivityLog(['action' => 'created', 'description' => 'Bagas Setyo created a new Uom (via import)']);
-            $log->updated_at = now()->setDate(2026, 10, 21)->setTime(9, 5, 0);
+        $this->get(route('master.import.show', ['category', $token]))->assertOk()->assertDontSee('Izinkan update');
 
-            $log = app(\Bangsamu\Master\Services\ActivityLogService::class)->decorate($log);
+        $this->post(route('master.import.commit', ['category', $token]), ['allow_update' => '1', 'update_reason' => 'coba update'])
+            ->assertForbidden();
+    }
 
-            $this->assertSame('Bagas Setyo', $log->nama_user);
-            $this->assertSame('a new Uom (via import)', $log->sort_description);
-            $this->assertSame('21 October 2026', $log->updated_at_formated_date);
-            $this->assertSame('09:05:00', $log->updated_at_formated_time);
-        }
+    public function test_tanpa_permission_create_tidak_bisa_preview(): void
+    {
+        config(['test.denied_permissions' => ['is_admin', 'create_uom']]);
 
-        public function test_update_ditolak_tanpa_permission_update(): void
-        {
-            config(['test.denied_permissions' => ['is_admin', 'update_category']]);
-            $this->seedCategories();
-            $token = $this->upload('category', self::CATEGORY_CSV);
+        $this->post(route('master.import.preview', 'uom'), ['file' => $this->csv("UOM Code,UOM Name\nPCS,Pieces\n")])
+            ->assertForbidden();
+    }
 
-            $this->get(route('master.import.show', ['category', $token]))->assertOk()->assertDontSee('Izinkan update');
+    public function test_preview_milik_user_lain_tidak_bisa_dibuka(): void
+    {
+        $token = $this->upload('pca', "PCA Code,PCA Name\nP-1,Satu\n");
 
-            $this->post(route('master.import.commit', ['category', $token]), ['allow_update' => '1', 'update_reason' => 'coba update'])
-                ->assertForbidden();
-        }
+        $this->actingAs(User::create(['name' => 'Lain', 'email' => 'lain@meindo.test']));
 
-        public function test_tanpa_permission_create_tidak_bisa_preview(): void
-        {
-            config(['test.denied_permissions' => ['is_admin', 'create_uom']]);
+        $this->get(route('master.import.show', ['pca', $token]))->assertRedirect(route('master.pca.index'));
+        $this->post(route('master.import.commit', ['pca', $token]))->assertRedirect(route('master.pca.index'));
+        $this->assertSame(0, DB::table('master_pca')->count());
+    }
 
-            $this->post(route('master.import.preview', 'uom'), ['file' => $this->csv("UOM Code,UOM Name\nPCS,Pieces\n")])
-                ->assertForbidden();
-        }
+    public function test_uom_nama_yang_dipakai_kode_lain_error(): void
+    {
+        DB::table('master_uom')->insert(['uom_code' => 'PCS', 'uom_name' => 'Pieces', 'app_code' => 'APP27']);
+        $token = $this->upload('uom', "UOM Code,UOM Name\nPC,Pieces\nPCS,Piece\n");
 
-        public function test_preview_milik_user_lain_tidak_bisa_dibuka(): void
-        {
-            $token = $this->upload('pca', "PCA Code,PCA Name\nP-1,Satu\n");
+        $rows = $this->get(route('master.import.show', ['uom', $token]))->viewData('analysis')['rows'];
 
-            $this->actingAs(User::create(['name' => 'Lain', 'email' => 'lain@meindo.test']));
+        $this->assertSame('error', $rows[0]['status']);
+        $this->assertStringContainsString("sudah dipakai UOM Code 'PCS'", $rows[0]['message']);
+        $this->assertSame('update', $rows[1]['status']);
+    }
 
-            $this->get(route('master.import.show', ['pca', $token]))->assertRedirect(route('master.pca.index'));
-            $this->post(route('master.import.commit', ['pca', $token]))->assertRedirect(route('master.pca.index'));
-            $this->assertSame(0, DB::table('master_pca')->count());
-        }
+    public function test_item_code_membuat_referensi_otomatis_dan_update(): void
+    {
+        DB::table('master_uom')->insert(['id' => 1, 'uom_code' => 'BOT', 'uom_name' => 'Bottle', 'app_code' => 'APP27']);
+        DB::table('master_category')->insert(['id' => 1, 'category_code' => 'A04', 'category_name' => 'A04', 'app_code' => 'APP27']);
+        DB::table('master_item_group')->insert(['id' => 1, 'item_group_code' => 'HSE', 'item_group_name' => 'HSE', 'item_group_attributes' => '{"size_1":null}', 'app_code' => 'APP27']);
+        DB::table('master_item_code')->insert([
+            'item_code' => 'HYG-1', 'item_name' => 'Nama Lama', 'uom_id' => 1, 'pca_id' => 0, 'category_id' => 1, 'group_id' => 1,
+            'attributes' => '{"size_1":"10"}', 'app_code' => 'APP27', 'company_id' => 1,
+        ]);
 
-        public function test_uom_nama_yang_dipakai_kode_lain_error(): void
-        {
-            DB::table('master_uom')->insert(['uom_code' => 'PCS', 'uom_name' => 'Pieces', 'app_code' => 'APP27']);
-            $token = $this->upload('uom', "UOM Code,UOM Name\nPC,Pieces\nPCS,Piece\n");
+        $csv = "Item Code,Item Name,UoM Code,PCA Code,Category Code,Item Group Code,Size 1,Unit Weight\n"
+            ."HYG-1,Nama Baru,BOT,,A04,HSE,10,5\n"
+            ."HYG-2,Item Baru,LTR,PCA-1,A04,HSE,,\n";
+        $token = $this->upload('item-code', $csv);
 
-            $rows = $this->get(route('master.import.show', ['uom', $token]))->viewData('analysis')['rows'];
+        $rows = $this->get(route('master.import.show', ['item-code', $token]))->assertOk()->viewData('analysis')['rows'];
+        $this->assertSame('update', $rows[0]['status']);
+        $this->assertSame(['item_name', 'attributes'], array_keys($rows[0]['changes']));
+        $this->assertSame('{"size_1":"10","unit_weight":"5"}', $rows[0]['changes']['attributes']['new']);
+        $this->assertSame('new', $rows[1]['status']);
+        $this->assertContains("UOM 'LTR' belum ada, akan dibuat otomatis.", $rows[1]['notes']);
 
-            $this->assertSame('error', $rows[0]['status']);
-            $this->assertStringContainsString("sudah dipakai UOM Code 'PCS'", $rows[0]['message']);
-            $this->assertSame('update', $rows[1]['status']);
-        }
+        $this->post(route('master.import.commit', ['item-code', $token]), ['allow_update' => '1', 'update_reason' => 'revisi nama item'])
+            ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate'));
 
-        public function test_item_code_membuat_referensi_otomatis_dan_update(): void
-        {
-            DB::table('master_uom')->insert(['id' => 1, 'uom_code' => 'BOT', 'uom_name' => 'Bottle', 'app_code' => 'APP27']);
-            DB::table('master_category')->insert(['id' => 1, 'category_code' => 'A04', 'category_name' => 'A04', 'app_code' => 'APP27']);
-            DB::table('master_item_group')->insert(['id' => 1, 'item_group_code' => 'HSE', 'item_group_name' => 'HSE', 'item_group_attributes' => '{"size_1":null}', 'app_code' => 'APP27']);
-            DB::table('master_item_code')->insert([
-                'item_code' => 'HYG-1', 'item_name' => 'Nama Lama', 'uom_id' => 1, 'pca_id' => 0, 'category_id' => 1, 'group_id' => 1,
-                'attributes' => '{"size_1":"10"}', 'app_code' => 'APP27', 'company_id' => 1,
-            ]);
+        $this->assertSame('Nama Baru', DB::table('master_item_code')->where('item_code', 'HYG-1')->value('item_name'));
+        $new = DB::table('master_item_code')->where('item_code', 'HYG-2')->first();
+        $ltr = DB::table('master_uom')->where('uom_code', 'LTR')->first();
+        $this->assertSame((int) $ltr->id, (int) $new->uom_id);
+        $this->assertSame('APP27', $new->app_code);
+        $this->assertNotNull(DB::table('master_pca')->where('pca_code', 'PCA-1')->first());
+        $this->assertSame(['size_1' => null, 'unit_weight' => null], json_decode(DB::table('master_item_group')->value('item_group_attributes'), true));
 
-            $csv = "Item Code,Item Name,UoM Code,PCA Code,Category Code,Item Group Code,Size 1,Unit Weight\n"
-                ."HYG-1,Nama Baru,BOT,,A04,HSE,10,5\n"
-                ."HYG-2,Item Baru,LTR,PCA-1,A04,HSE,,\n";
-            $token = $this->upload('item-code', $csv);
+        $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo updated ItemCode (via import: revisi nama item)')->count());
+        $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo created a new Uom (via import)')->count());
+        $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo updated ItemGroup (via import: revisi nama item)')->count());
+        $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo created a new ItemCode (via import)')->count());
+    }
 
-            $rows = $this->get(route('master.import.show', ['item-code', $token]))->assertOk()->viewData('analysis')['rows'];
-            $this->assertSame('update', $rows[0]['status']);
-            $this->assertSame(['item_name', 'attributes'], array_keys($rows[0]['changes']));
-            $this->assertSame('{"size_1":"10","unit_weight":"5"}', $rows[0]['changes']['attributes']['new']);
-            $this->assertSame('new', $rows[1]['status']);
-            $this->assertContains("UOM 'LTR' belum ada, akan dibuat otomatis.", $rows[1]['notes']);
+    public function test_location_memakai_kunci_kode_dan_group_type(): void
+    {
+        DB::table('master_location')->insert(['loc_code' => 'JKT', 'loc_name' => 'Jakarta', 'group_type' => 'office']);
+        $token = $this->upload('location', "Location Code,Location Name,Group Type\nJKT,Jakarta Pusat,office\nJKT,Gudang Jakarta,warehouse\nBDG,Bandung,kantor\n");
 
-            $this->post(route('master.import.commit', ['item-code', $token]), ['allow_update' => '1', 'update_reason' => 'revisi nama item'])
-                ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate'));
+        $summary = $this->get(route('master.import.show', ['location', $token]))->viewData('analysis')['summary'];
+        $this->assertSame(['new' => 1, 'update' => 1, 'same' => 0, 'locked' => 0, 'error' => 1], $summary);
 
-            $this->assertSame('Nama Baru', DB::table('master_item_code')->where('item_code', 'HYG-1')->value('item_name'));
-            $new = DB::table('master_item_code')->where('item_code', 'HYG-2')->first();
-            $ltr = DB::table('master_uom')->where('uom_code', 'LTR')->first();
-            $this->assertSame((int) $ltr->id, (int) $new->uom_id);
-            $this->assertSame('APP27', $new->app_code);
-            $this->assertNotNull(DB::table('master_pca')->where('pca_code', 'PCA-1')->first());
-            $this->assertSame(['size_1' => null, 'unit_weight' => null], json_decode(DB::table('master_item_group')->value('item_group_attributes'), true));
+        $this->post(route('master.import.commit', ['location', $token]), ['allow_update' => '1', 'update_reason' => 'nama kantor baru']);
 
-            $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo updated ItemCode (via import: revisi nama item)')->count());
-            $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo created a new Uom (via import)')->count());
-            $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo updated ItemGroup (via import: revisi nama item)')->count());
-            $this->assertSame(1, ActivityLog::where('description', 'Bagas Setyo created a new ItemCode (via import)')->count());
-        }
+        $this->assertSame('Jakarta Pusat', DB::table('master_location')->where(['loc_code' => 'JKT', 'group_type' => 'office'])->value('loc_name'));
+        $this->assertDatabaseHas('master_location', ['loc_code' => 'JKT', 'group_type' => 'warehouse', 'loc_name' => 'Gudang Jakarta']);
+    }
 
-        public function test_location_memakai_kunci_kode_dan_group_type(): void
-        {
-            DB::table('master_location')->insert(['loc_code' => 'JKT', 'loc_name' => 'Jakarta', 'group_type' => 'office']);
-            $token = $this->upload('location', "Location Code,Location Name,Group Type\nJKT,Jakarta Pusat,office\nJKT,Gudang Jakarta,warehouse\nBDG,Bandung,kantor\n");
+    public function test_project_baru_membuat_project_detail_dan_project_lama_bisa_diupdate(): void
+    {
+        DB::table('master_company')->insert(['id' => 7, 'company_code' => 'ME']);
+        DB::table('master_project')->insert(['project_code' => 'P001', 'project_name' => 'Proyek Lama', 'project_start_date' => '2026-01-01']);
 
-            $summary = $this->get(route('master.import.show', ['location', $token]))->viewData('analysis')['summary'];
-            $this->assertSame(['new' => 1, 'update' => 1, 'same' => 0, 'locked' => 0, 'error' => 1], $summary);
+        $token = $this->upload('project', "Project Code,Project Name,Project Type,Project Start Date,Project Complete Date,Project Remarks\n"
+            ."P001,Proyek Lama,Internal,2026-02-01,,\n"
+            ."P002,Proyek Baru,External,2026-03-01,2026-12-31,catatan\n");
 
-            $this->post(route('master.import.commit', ['location', $token]), ['allow_update' => '1', 'update_reason' => 'nama kantor baru']);
+        $rows = $this->get(route('master.import.show', ['project', $token]))->viewData('analysis')['rows'];
+        $this->assertSame(['internal_external', 'project_start_date'], array_keys($rows[0]['changes']));
 
-            $this->assertSame('Jakarta Pusat', DB::table('master_location')->where(['loc_code' => 'JKT', 'group_type' => 'office'])->value('loc_name'));
-            $this->assertDatabaseHas('master_location', ['loc_code' => 'JKT', 'group_type' => 'warehouse', 'loc_name' => 'Gudang Jakarta']);
-        }
+        $this->post(route('master.import.commit', ['project', $token]), ['allow_update' => '1', 'update_reason' => 'jadwal mundur']);
 
-        public function test_project_baru_membuat_project_detail_dan_project_lama_bisa_diupdate(): void
-        {
-            DB::table('master_company')->insert(['id' => 7, 'company_code' => 'ME']);
-            DB::table('master_project')->insert(['project_code' => 'P001', 'project_name' => 'Proyek Lama', 'project_start_date' => '2026-01-01']);
+        $p1 = DB::table('master_project')->where('project_code', 'P001')->first();
+        $this->assertSame('2026-02-01', substr($p1->project_start_date, 0, 10));
+        $this->assertSame('I', $p1->internal_external);
+        $p2 = DB::table('master_project')->where('project_code', 'P002')->first();
+        $this->assertDatabaseHas('master_project_detail', ['project_id' => $p2->id, 'project_code_client' => 'P002', 'company_id' => 7]);
+        $this->assertSame(1, ActivityLog::where('model_type', 'like', '%ProjectDetail')->where('action', 'created')->count());
+    }
 
-            $token = $this->upload('project', "Project Code,Project Name,Project Type,Project Start Date,Project Complete Date,Project Remarks\n"
-                ."P001,Proyek Lama,Internal,2026-02-01,,\n"
-                ."P002,Proyek Baru,External,2026-03-01,2026-12-31,catatan\n");
+    public function test_project_detail_update_nama_client(): void
+    {
+        DB::table('master_company')->insert(['id' => 7, 'company_code' => 'ME']);
+        DB::table('master_project')->insert(['id' => 3, 'project_code' => 'P001', 'project_name' => 'Proyek']);
+        DB::table('master_project_detail')->insert(['project_id' => 3, 'project_code_client' => 'C-1', 'project_name_client' => 'Lama', 'company_id' => 7]);
 
-            $rows = $this->get(route('master.import.show', ['project', $token]))->viewData('analysis')['rows'];
-            $this->assertSame(['internal_external', 'project_start_date'], array_keys($rows[0]['changes']));
+        $token = $this->upload('project-detail', "Project Code,Project Code Client,Project Name Client,Company Code\n"
+            ."P001,C-1,Nama Client Baru,ME\n"
+            ."P999,C-2,Tidak Ada,ME\n");
 
-            $this->post(route('master.import.commit', ['project', $token]), ['allow_update' => '1', 'update_reason' => 'jadwal mundur']);
+        $rows = $this->get(route('master.import.show', ['project-detail', $token]))->viewData('analysis')['rows'];
+        $this->assertSame('update', $rows[0]['status']);
+        $this->assertSame('error', $rows[1]['status']);
 
-            $p1 = DB::table('master_project')->where('project_code', 'P001')->first();
-            $this->assertSame('2026-02-01', substr($p1->project_start_date, 0, 10));
-            $this->assertSame('I', $p1->internal_external);
-            $p2 = DB::table('master_project')->where('project_code', 'P002')->first();
-            $this->assertDatabaseHas('master_project_detail', ['project_id' => $p2->id, 'project_code_client' => 'P002', 'company_id' => 7]);
-            $this->assertSame(1, ActivityLog::where('model_type', 'like', '%ProjectDetail')->where('action', 'created')->count());
-        }
+        $this->post(route('master.import.commit', ['project-detail', $token]), ['allow_update' => '1', 'update_reason' => 'nama dari kontrak']);
 
-        public function test_project_detail_update_nama_client(): void
-        {
-            DB::table('master_company')->insert(['id' => 7, 'company_code' => 'ME']);
-            DB::table('master_project')->insert(['id' => 3, 'project_code' => 'P001', 'project_name' => 'Proyek']);
-            DB::table('master_project_detail')->insert(['project_id' => 3, 'project_code_client' => 'C-1', 'project_name_client' => 'Lama', 'company_id' => 7]);
+        $this->assertSame('Nama Client Baru', DB::table('master_project_detail')->value('project_name_client'));
+    }
 
-            $token = $this->upload('project-detail', "Project Code,Project Code Client,Project Name Client,Company Code\n"
-                ."P001,C-1,Nama Client Baru,ME\n"
-                ."P999,C-2,Tidak Ada,ME\n");
+    public function test_vendor_update_lewat_vendor_service(): void
+    {
+        DB::table('master_location')->insert(['id' => 5, 'loc_code' => 'V001', 'loc_name' => 'Vendor Lama', 'group_type' => 'vendor']);
+        DB::table('master_vendor')->insert(['id' => 9, 'loc_id' => 5, 'vendor_code' => 'V001', 'vendor_description' => 'Vendor Lama', 'vendor_address' => 'Jl. Lama', 'vendor_phone' => '0211']);
+        DB::table('master_vendor_contact')->insert(['vendor_id' => 9, 'vendor_contact_name' => 'Andi']);
 
-            $rows = $this->get(route('master.import.show', ['project-detail', $token]))->viewData('analysis')['rows'];
-            $this->assertSame('update', $rows[0]['status']);
-            $this->assertSame('error', $rows[1]['status']);
+        $header = "Vendor Code,Vendor Name,Vendor Address,Vendor Phone,Vendor Fax,Vendor Email,Vendor Contact Name,Vendor Contact Phone,Vendor Contact Email,Vendor Contact Fax\n";
+        $token = $this->upload('vendor', $header
+            ."V001,Vendor Baru,Jl. Lama,,,,Budi,,,\n"
+            ."V002,Vendor Dua,Jl. Dua,0222,,,,,,\n");
 
-            $this->post(route('master.import.commit', ['project-detail', $token]), ['allow_update' => '1', 'update_reason' => 'nama dari kontrak']);
+        $rows = $this->get(route('master.import.show', ['vendor', $token]))->viewData('analysis')['rows'];
+        $this->assertSame(['vendor_description', 'vendor_contact_name'], array_keys($rows[0]['changes']));
 
-            $this->assertSame('Nama Client Baru', DB::table('master_project_detail')->value('project_name_client'));
-        }
+        $this->post(route('master.import.commit', ['vendor', $token]), ['allow_update' => '1', 'update_reason' => 'ganti PIC']);
 
-        public function test_vendor_update_lewat_vendor_service(): void
-        {
-            DB::table('master_location')->insert(['id' => 5, 'loc_code' => 'V001', 'loc_name' => 'Vendor Lama', 'group_type' => 'vendor']);
-            DB::table('master_vendor')->insert(['id' => 9, 'loc_id' => 5, 'vendor_code' => 'V001', 'vendor_description' => 'Vendor Lama', 'vendor_address' => 'Jl. Lama', 'vendor_phone' => '0211']);
-            DB::table('master_vendor_contact')->insert(['vendor_id' => 9, 'vendor_contact_name' => 'Andi']);
+        $vendor = DB::table('master_vendor')->where('id', 9)->first();
+        $this->assertSame('Vendor Baru', $vendor->vendor_description);
+        $this->assertSame('0211', $vendor->vendor_phone, 'kolom kosong tidak menghapus data lama');
+        $this->assertSame('Budi', DB::table('master_vendor_contact')->where('vendor_id', 9)->value('vendor_contact_name'));
+        $this->assertSame('Vendor Baru', DB::table('master_location')->where('id', 5)->value('loc_name'));
+        $this->assertDatabaseHas('master_vendor', ['vendor_code' => 'V002', 'vendor_phone' => '0222']);
 
-            $header = "Vendor Code,Vendor Name,Vendor Address,Vendor Phone,Vendor Fax,Vendor Email,Vendor Contact Name,Vendor Contact Phone,Vendor Contact Email,Vendor Contact Fax\n";
-            $token = $this->upload('vendor', $header
-                ."V001,Vendor Baru,Jl. Lama,,,,Budi,,,\n"
-                ."V002,Vendor Dua,Jl. Dua,0222,,,,,,\n");
-
-            $rows = $this->get(route('master.import.show', ['vendor', $token]))->viewData('analysis')['rows'];
-            $this->assertSame(['vendor_description', 'vendor_contact_name'], array_keys($rows[0]['changes']));
-
-            $this->post(route('master.import.commit', ['vendor', $token]), ['allow_update' => '1', 'update_reason' => 'ganti PIC']);
-
-            $vendor = DB::table('master_vendor')->where('id', 9)->first();
-            $this->assertSame('Vendor Baru', $vendor->vendor_description);
-            $this->assertSame('0211', $vendor->vendor_phone, 'kolom kosong tidak menghapus data lama');
-            $this->assertSame('Budi', DB::table('master_vendor_contact')->where('vendor_id', 9)->value('vendor_contact_name'));
-            $this->assertSame('Vendor Baru', DB::table('master_location')->where('id', 5)->value('loc_name'));
-            $this->assertDatabaseHas('master_vendor', ['vendor_code' => 'V002', 'vendor_phone' => '0222']);
-
-            $log = ActivityLog::where('action', 'updated')->sole();
-            $this->assertSame('Bagas Setyo updated Vendor (via import: ganti PIC)', $log->description);
-            $this->assertSame(['vendor_description' => 'Vendor Lama', 'vendor_contact_name' => 'Andi'], $log->properties['before']);
-        }
+        $log = ActivityLog::where('action', 'updated')->sole();
+        $this->assertSame('Bagas Setyo updated Vendor (via import: ganti PIC)', $log->description);
+        $this->assertSame(['vendor_description' => 'Vendor Lama', 'vendor_contact_name' => 'Andi'], $log->properties['before']);
     }
 }

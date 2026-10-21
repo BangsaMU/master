@@ -4,14 +4,15 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
-// use App\Imports\Master\ProjectImport;
 use Bangsamu\Master\Exports\Master\ProjectTemplateExport;
+// use App\Imports\Master\ProjectImport;
 use Bangsamu\Master\Imports\Master\ProjectImport;
 use Bangsamu\Master\Models\Company;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -378,6 +379,9 @@ class ProjectController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'project');
+
         $request->validate([
             'project_code' => 'required|string|max:10|unique:master_'.$this->sheet_slug.',project_code'.($request->id ? ','.$request->id : ''),
             'project_name' => 'required|string|max:100',

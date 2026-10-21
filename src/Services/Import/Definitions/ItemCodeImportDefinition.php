@@ -142,7 +142,7 @@ class ItemCodeImportDefinition extends MasterImportDefinition
         }
 
         return [
-            'item_code' => trim((string) ($raw[0] ?? '')),
+            'item_code' => self::upper((string) ($raw[0] ?? '')),
             'item_name' => trim((string) ($raw[1] ?? '')),
             'uom_code' => self::upper((string) ($raw[2] ?? '')),
             'pca_code' => self::upper((string) ($raw[3] ?? '')),
@@ -178,7 +178,7 @@ class ItemCodeImportDefinition extends MasterImportDefinition
     {
         $this->existing = $this->fetchByValues('master_item_code', 'item_code', array_column($rows, 'item_code'),
             ['id', 'item_code', 'item_name', 'uom_id', 'pca_id', 'category_id', 'group_id', 'attributes', 'app_code', 'deleted_at'])
-            ->keyBy('item_code');
+            ->keyBy(fn ($row) => self::upper($row->item_code));
 
         foreach (self::REFS as $ref => [$table, $codeColumn, , , $idColumn]) {
             $select = ['id', $codeColumn, 'deleted_at'];

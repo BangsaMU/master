@@ -9,6 +9,7 @@ use Bangsamu\Master\Imports\Master\CategoryImport;
 use Bangsamu\Master\Models\Category;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -300,6 +301,9 @@ class CategoryController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'category');
+
         $request->validate([
             'category_code' => 'required|unique:master_category,category_code'.($request->id ? ','.$request->id : ''),
             'category_name' => 'required',

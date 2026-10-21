@@ -11,6 +11,7 @@ use Bangsamu\Master\Models\Location;
 use Bangsamu\Master\Models\Setting;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -521,6 +522,8 @@ class LocationController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'location');
 
         // 1. Jalankan validasi dasar terlebih dahulu
         $request->validate([

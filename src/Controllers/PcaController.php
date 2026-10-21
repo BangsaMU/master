@@ -9,6 +9,7 @@ use Bangsamu\Master\Imports\Master\PcaImport;
 use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -297,6 +298,9 @@ class PcaController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'pca');
+
         $request->validate([
             'pca_code' => 'required|unique:master_'.$this->sheet_slug.',pca_code'.($request->id ? ','.$request->id : ''),
             'pca_name' => 'required',

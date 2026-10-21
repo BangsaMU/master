@@ -55,6 +55,9 @@
     @if (isset($data['page']['logs']) && count($data['page']['logs']) > 0)
         @include('master::master.logs_view.list', ['title' => 'Log Item Group', 'logs' => $data['page']['logs']])
     @endif
+
+    {{-- Kode huruf besar + kunci unik (readonly non-admin, konfirmasi admin) --}}
+    @include('master::components.unique-key-guard', ['entity' => 'item-group', 'param' => $param ?? null])
 @stop
 
 @push('js')

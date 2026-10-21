@@ -72,6 +72,9 @@
             </div>
         </div>
     @endif
+
+    {{-- Kode huruf besar + kunci unik (readonly non-admin, konfirmasi admin) --}}
+    @include('master::components.unique-key-guard', ['entity' => 'category', 'param' => $param ?? null])
 @stop
 
 @push('js')

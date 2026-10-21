@@ -9,6 +9,7 @@ use Bangsamu\Master\Imports\Master\ItemGroupImport;
 use Bangsamu\Master\Models\ItemGroup;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -295,6 +296,9 @@ class ItemGroupController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'item-group');
+
         $request->validate([
             'item_group_code' => 'required|unique:master_item_group,item_group_code'.($request->id ? ','.$request->id : ''),
             'item_group_name' => 'required',

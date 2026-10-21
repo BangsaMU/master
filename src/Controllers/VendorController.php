@@ -8,6 +8,7 @@ use Bangsamu\Master\Imports\Master\VendorImport;
 use Bangsamu\Master\Models\Vendor;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Bangsamu\Master\Services\VendorService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -309,6 +310,9 @@ class VendorController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'vendor');
+
         $request->validate([
             'vendor_code' => 'required|unique:master_'.$this->sheet_slug.',vendor_code'.($request->id ? ','.$request->id : ''),
             'vendor_description' => 'required',

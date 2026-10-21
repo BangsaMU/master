@@ -12,6 +12,7 @@ use Bangsamu\Master\Models\ItemCode;
 use Bangsamu\Master\Models\Setting;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -382,6 +383,9 @@ class ItemCodeController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'item-code');
+
         // dd($request->all());
         $request->validate([
             'item_code' => 'required|unique:master_'.$this->sheet_slug.',item_code'.($request->id ? ','.$request->id : ''),
