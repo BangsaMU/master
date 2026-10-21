@@ -8,6 +8,14 @@ namespace {
             return auth()->check() && ! in_array($permission, config('test.denied_permissions', []), true);
         }
     }
+
+    if (! function_exists('configDefAction')) {
+        /** Stub helper app untuk config halaman form master. */
+        function configDefAction($id = null, $data = null)
+        {
+            return $data;
+        }
+    }
 }
 
 namespace Bangsamu\Master\Tests\Feature {
@@ -283,6 +291,42 @@ namespace Bangsamu\Master\Tests\Feature {
 
             // token preview sekali pakai
             $this->get(route('master.import.show', ['category', $token]))->assertRedirect(route('master.category.index'));
+        }
+
+        public function test_log_import_tampil_di_halaman_edit(): void
+        {
+            $this->seedCategories();
+            $token = $this->upload('category', self::CATEGORY_CSV);
+            $this->post(route('master.import.commit', ['category', $token]), [
+                'allow_update' => '1',
+                'update_reason' => 'koreksi nama dari SAP',
+            ]);
+            $id = DB::table('master_category')->where('category_code', 'A01')->value('id');
+
+            $response = $this->get(route('master.category.edit', $id));
+
+            $response->assertOk();
+            $logs = $response->viewData('data')['page']['logs'];
+            $this->assertCount(1, $logs);
+            $this->assertSame('Bagas Setyo', $logs[0]->nama_user);
+            $this->assertSame('Category (via import: koreksi nama dari SAP)', $logs[0]->sort_description);
+            $response->assertSee('Log Category');
+            $response->assertSee('Category (via import: koreksi nama dari SAP)');
+            $response->assertSee('Alasan:');
+            $response->assertSee('Baru Diganti');
+        }
+
+        public function test_activity_log_service_memecah_deskripsi(): void
+        {
+            $log = new ActivityLog(['action' => 'created', 'description' => 'Bagas Setyo created a new Uom (via import)']);
+            $log->updated_at = now()->setDate(2026, 10, 21)->setTime(9, 5, 0);
+
+            $log = app(\Bangsamu\Master\Services\ActivityLogService::class)->decorate($log);
+
+            $this->assertSame('Bagas Setyo', $log->nama_user);
+            $this->assertSame('a new Uom (via import)', $log->sort_description);
+            $this->assertSame('21 October 2026', $log->updated_at_formated_date);
+            $this->assertSame('09:05:00', $log->updated_at_formated_time);
         }
 
         public function test_update_ditolak_tanpa_permission_update(): void

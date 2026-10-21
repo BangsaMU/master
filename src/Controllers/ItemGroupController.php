@@ -7,6 +7,7 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\ItemGroupTemplateExport;
 use Bangsamu\Master\Imports\Master\ItemGroupImport;
 use Bangsamu\Master\Models\ItemGroup;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -398,6 +399,8 @@ class ItemGroupController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_item_group')->where('id', $id)->first();
+
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(ItemGroup::class, $id);
 
         return view('master::master'.config('app.themes').'.item_group.form', compact('data', 'param'));
     }

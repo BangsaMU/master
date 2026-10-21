@@ -7,6 +7,7 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\CategoryTemplateExport;
 use Bangsamu\Master\Imports\Master\CategoryImport;
 use Bangsamu\Master\Models\Category;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -373,6 +374,8 @@ class CategoryController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Category::class, $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

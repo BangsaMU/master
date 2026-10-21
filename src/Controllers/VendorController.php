@@ -5,6 +5,8 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 use Bangsamu\Master\Exports\Master\VendorTemplateExport;
 use Bangsamu\Master\Imports\Master\VendorImport;
+use Bangsamu\Master\Models\Vendor;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\VendorService;
 use Bangsamu\Master\Traits\DynamicFilterable;
@@ -371,6 +373,8 @@ class VendorController extends Controller
             )
             ->leftJoin('master_vendor_contact as mvc', 'mv.id', 'mvc.vendor_id')
             ->where('mv.id', $id)->first();
+
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Vendor::class, $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

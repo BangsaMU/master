@@ -8,6 +8,7 @@ use Bangsamu\Master\Exports\Master\ProjectDetailTemplateExport;
 use Bangsamu\Master\Imports\Master\ProjectDetailImport;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -417,6 +418,8 @@ class ProjectDetailController extends Controller
             ->first();
 
         // dd($param);
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(ProjectDetail::class, $id);
+
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
@@ -656,4 +659,3 @@ class ProjectDetailController extends Controller
         return Excel::download(new ProjectDetailTemplateExport, 'ProjectDetailTemplateImport.xlsx');
     }
 }
-

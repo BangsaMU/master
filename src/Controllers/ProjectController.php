@@ -3,13 +3,14 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
-// use App\Imports\Master\ProjectImport;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+// use App\Imports\Master\ProjectImport;
 use Bangsamu\Master\Exports\Master\ProjectTemplateExport;
 use Bangsamu\Master\Imports\Master\ProjectImport;
 use Bangsamu\Master\Models\Company;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -524,6 +525,8 @@ class ProjectController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Project::class, $id);
+
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param', 'view_form_list', 'view_form_listDetail'));
     }
 
