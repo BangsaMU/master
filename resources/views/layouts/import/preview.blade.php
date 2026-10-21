@@ -145,6 +145,17 @@
                             <p class="text-danger small mt-2 mb-0">{{ $summary['error'] }} baris error akan dilewati.</p>
                         @endif
                     </div>
+                    <div class="card-body border-top d-none" id="importProgress">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span id="importProgressText">Menyiapkan...</span>
+                            <span id="importProgressPercent">0%</span>
+                        </div>
+                        <div class="progress progress-sm">
+                            <div class="progress-bar bg-primary" id="importProgressBar" style="width: 0%" role="progressbar"></div>
+                        </div>
+                        <div class="small text-muted mt-2" id="importProgressStats"></div>
+                        <div class="alert alert-danger mt-2 mb-0 d-none" id="importProgressError"></div>
+                    </div>
                     <div class="card-footer d-flex justify-content-between">
                         <a href="{{ route($definition->indexRoute()) }}" class="btn btn-link">Batal</a>
                         <button type="submit" class="btn btn-primary" {{ $summary['new'] === 0 && ($summary['update'] === 0 || ! $canUpdate) ? 'disabled' : '' }}>
@@ -239,11 +250,118 @@
                 sync();
             }
 
+            // Commit per batch lewat AJAX supaya file besar tidak kena timeout web server.
             var form = document.getElementById('importCommitForm');
-            if (form) {
-                form.addEventListener('submit', function () {
-                    var btn = form.querySelector('button[type=submit]');
-                    if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
+            if (form && window.fetch && window.FormData) {
+                var btn = form.querySelector('button[type=submit]');
+                var box = document.getElementById('importProgress');
+                var bar = document.getElementById('importProgressBar');
+                var text = document.getElementById('importProgressText');
+                var percent = document.getElementById('importProgressPercent');
+                var stats = document.getElementById('importProgressStats');
+                var errorBox = document.getElementById('importProgressError');
+                var nf = new Intl.NumberFormat('id-ID');
+                var nextOffset = 0;
+                var running = false;
+
+                var setLocked = function (locked) {
+                    form.querySelectorAll('input, textarea').forEach(function (el) {
+                        if (el.name !== '_token') el.readOnly = locked;
+                    });
+                    if (allow) allow.disabled = locked;
+                };
+
+                var render = function (res) {
+                    var pct = res.total > 0 ? Math.floor(res.next_offset * 100 / res.total) : 100;
+                    bar.style.width = pct + '%';
+                    percent.textContent = pct + '%';
+                    text.textContent = (res.done ? 'Selesai: ' : 'Memproses ') + nf.format(res.next_offset) + ' / ' + nf.format(res.total) + ' baris';
+                    stats.textContent = nf.format(res.created) + ' dibuat, ' + nf.format(res.updated) + ' diupdate, '
+                        + nf.format(res.skipped) + ' dilewati, ' + nf.format(res.failed) + ' gagal';
+                };
+
+                var fail = function (message) {
+                    running = false;
+                    errorBox.textContent = message + ' Klik "Lanjutkan Import" untuk melanjutkan dari baris terakhir.';
+                    errorBox.classList.remove('d-none');
+                    btn.disabled = false;
+                    btn.textContent = 'Lanjutkan Import';
+                };
+
+                var step = function () {
+                    var body = new FormData(form);
+                    if (allow && allow.checked) body.set('allow_update', '1');
+                    body.set('offset', nextOffset);
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: body,
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    }).then(function (response) {
+                        return response.json().catch(function () { return {}; }).then(function (json) {
+                            return { ok: response.ok, status: response.status, json: json };
+                        });
+                    }).then(function (r) {
+                        if (r.status === 422) {
+                            running = false;
+                            setLocked(false);
+                            box.classList.add('d-none');
+                            btn.disabled = false;
+                            btn.textContent = 'Proses Import';
+                            var errors = r.json.errors || {};
+                            var first = Object.keys(errors).map(function (k) { return errors[k][0]; })[0];
+                            if (reason && errors.update_reason) {
+                                reason.classList.add('is-invalid');
+                                reason.focus();
+                            }
+                            alert(first || r.json.message || 'Data tidak valid.');
+                            return;
+                        }
+                        if (!r.ok) {
+                            if (r.json.redirect) {
+                                running = false;
+                                alert(r.json.message || 'Preview tidak ditemukan.');
+                                window.location.href = r.json.redirect;
+                                return;
+                            }
+                            fail(r.json.message || ('Server error (' + r.status + ').'));
+                            return;
+                        }
+                        nextOffset = r.json.next_offset;
+                        render(r.json);
+                        if (r.json.done) {
+                            running = false;
+                            text.textContent += ', mengalihkan...';
+                            window.location.href = r.json.redirect;
+                        } else {
+                            step();
+                        }
+                    }).catch(function () {
+                        fail('Koneksi terputus.');
+                    });
+                };
+
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    if (running) return;
+                    if (allow && allow.checked && reason && reason.value.trim().length < 5) {
+                        reason.classList.add('is-invalid');
+                        reason.focus();
+                        alert('Alasan update wajib diisi (minimal 5 karakter).');
+                        return;
+                    }
+                    running = true;
+                    setLocked(true);
+                    errorBox.classList.add('d-none');
+                    box.classList.remove('d-none');
+                    btn.disabled = true;
+                    btn.textContent = 'Memproses...';
+                    step();
+                });
+
+                window.addEventListener('beforeunload', function (e) {
+                    if (running) { e.preventDefault(); e.returnValue = ''; }
                 });
             }
 

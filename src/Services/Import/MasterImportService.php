@@ -16,6 +16,7 @@ use Bangsamu\Master\Services\Import\Definitions\UomImportDefinition;
 use Bangsamu\Master\Services\Import\Definitions\VendorImportDefinition;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -24,6 +25,7 @@ use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Throwable;
 
 /**
@@ -54,13 +56,61 @@ class MasterImportService
 
     protected const CACHE_PREFIX = 'master-import-preview:';
 
+    protected const PROGRESS_PREFIX = 'master-import-progress:';
+
+    protected const LOCK_PREFIX = 'master-import-lock:';
+
     protected const CACHE_HOURS = 2;
+
+    /** Default baris per request commit (AJAX) agar tidak melewati timeout nginx/PHP-FPM. */
+    public const CHUNK_SIZE = 250;
+
+    protected const MAX_SUCCESS_MESSAGES = 100;
+
+    protected const MAX_ERROR_MESSAGES = 300;
 
     public function definition(string $entity): MasterImportDefinition
     {
         abort_unless(isset(self::DEFINITIONS[$entity]), 404, "Import master '{$entity}' tidak tersedia.");
 
         return app(self::DEFINITIONS[$entity]);
+    }
+
+    /** Batas baris per file; file dibaca utuh ke memori saat preview (~9MB per 1.000 baris). */
+    public const MAX_ROWS = 40000;
+
+    public function maxRows(): int
+    {
+        return max(1, (int) config('MasterConfig.import.max_rows', self::MAX_ROWS));
+    }
+
+    /**
+     * Jumlah baris sheet pertama tanpa memuat seluruh isi file (null bila tidak bisa dibaca).
+     */
+    public function countRows(UploadedFile|string $file): ?int
+    {
+        try {
+            $path = $file instanceof UploadedFile ? $file->getRealPath() : $file;
+            $extension = strtolower($file instanceof UploadedFile ? $file->getClientOriginalExtension() : pathinfo($path, PATHINFO_EXTENSION));
+            $type = match ($extension) {
+                'xlsx' => 'Xlsx',
+                'xls' => 'Xls',
+                'csv', 'txt' => 'Csv',
+                default => null,
+            };
+            $reader = $type ? IOFactory::createReader($type) : IOFactory::createReaderForFile($path);
+            $info = $reader->listWorksheetInfo($path);
+
+            return isset($info[0]['totalRows']) ? (int) $info[0]['totalRows'] : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** Baris per batch commit; bisa diatur lewat config MasterConfig.import.chunk_size. */
+    public function chunkSize(): int
+    {
+        return max(1, (int) config('MasterConfig.import.chunk_size', self::CHUNK_SIZE));
     }
 
     public function canCreate(MasterImportDefinition $definition): bool
@@ -257,9 +307,9 @@ class MasterImportService
     }
 
     /**
-     * Jalankan import dari preview. Analisis diulang supaya memakai kondisi DB terbaru.
+     * Jalankan seluruh import dalam satu request (fallback tanpa JavaScript).
      *
-     * @return array{created:int, updated:int, skipped:int, failed:int, success:list<string>, errors:list<string>}
+     * @return array<string, mixed> progress akhir (lihat commitChunk)
      */
     public function commit(
         MasterImportDefinition $definition,
@@ -269,69 +319,161 @@ class MasterImportService
         ?string $reason,
         Authenticatable $user,
     ): array {
-        $analysis = $this->analyze($definition, $payload['rows']);
-        $reason = $allowUpdate ? trim((string) $reason) : null;
-        $result = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => 0, 'success' => [], 'errors' => []];
-        $synced = [];
+        return $this->commitChunk($definition, $token, $payload, 0, PHP_INT_MAX, $allowUpdate, $reason, $user);
+    }
 
-        foreach ($analysis['rows'] as $item) {
-            $label = "Baris {$item['row']} [{$item['key']}]";
+    /**
+     * Proses satu batch baris [offset, offset + limit) supaya request tidak melewati timeout web server.
+     *
+     * Opsi update & alasan dikunci saat batch pertama; offset yang tidak sesuai progress (retry/double submit)
+     * tidak memproses ulang, cukup mengembalikan progress terakhir.
+     * Analisis diulang tiap batch supaya memakai kondisi DB terbaru.
+     *
+     * @return array{total:int, next_offset:int, done:bool, created:int, updated:int, skipped:int, failed:int,
+     *               success:list<string>, errors:list<string>, more_success:int, more_errors:int}
+     */
+    public function commitChunk(
+        MasterImportDefinition $definition,
+        string $token,
+        array $payload,
+        int $offset,
+        int $limit,
+        bool $allowUpdate,
+        ?string $reason,
+        Authenticatable $user,
+    ): array {
+        return $this->withLock($token, function () use ($definition, $token, $payload, $offset, $limit, $allowUpdate, $reason, $user) {
+            $progress = Cache::get(self::PROGRESS_PREFIX.$token) ?? [
+                'allow_update' => $allowUpdate,
+                'reason' => $allowUpdate ? trim((string) $reason) : null,
+                'total' => count($payload['rows']),
+                'next_offset' => 0,
+                'done' => false,
+                'created' => 0,
+                'updated' => 0,
+                'skipped' => 0,
+                'failed' => 0,
+                'success' => [],
+                'errors' => [],
+                'more_success' => 0,
+                'more_errors' => 0,
+            ];
 
-            if ($item['status'] === 'error') {
-                $result['failed']++;
-                $result['errors'][] = "{$label}: {$item['message']}";
-
-                continue;
+            if ($progress['done'] || $offset !== $progress['next_offset']) {
+                return $progress;
             }
 
-            if ($item['status'] === 'same' || $item['status'] === 'locked' || ($item['status'] === 'update' && ! $allowUpdate)) {
-                $result['skipped']++;
+            $analysis = $this->analyze($definition, $payload['rows']);
+            $synced = [];
 
-                continue;
+            foreach (array_slice($analysis['rows'], $offset, $limit) as $item) {
+                foreach ($this->processRow($definition, $item, $token, $payload['file_name'], $progress, $user) as $model) {
+                    $synced[] = $model;
+                }
             }
 
-            try {
-                $logs = DB::transaction(function () use ($definition, $item, $token, $payload, $reason, $user) {
-                    $logs = $item['status'] === 'new'
-                        ? $definition->create($item['data'])
-                        : $definition->update((int) $item['id'], $item['changes'], $item['data']);
-
-                    foreach ($logs as $log) {
-                        $this->writeActivityLog($definition, $log, $item, $token, $payload['file_name'], $reason, $user);
-                    }
-
-                    return $logs;
-                });
-            } catch (Throwable $e) {
-                report($e);
-                $result['failed']++;
-                $result['errors'][] = "{$label}: gagal disimpan - {$e->getMessage()}";
-
-                continue;
+            foreach ($synced as $model) {
+                $definition->syncToMaster($model);
             }
 
-            foreach ($logs as $log) {
-                $synced[] = $log['model'];
-            }
+            $progress['next_offset'] = (int) min($progress['total'], $offset + $limit);
+            $progress['done'] = $progress['next_offset'] >= $progress['total'];
 
-            if ($item['status'] === 'new') {
-                $result['created']++;
-                $result['success'][] = "{$label}: berhasil dibuat.";
+            if ($progress['done']) {
+                $this->broadcastSummary($definition, $progress);
+                $this->forget($token);
+                Cache::forget(self::PROGRESS_PREFIX.$token);
             } else {
-                $result['updated']++;
-                $fieldLabels = implode(', ', array_column($item['changes'], 'label'));
-                $result['success'][] = "{$label}: berhasil diupdate ({$fieldLabels}).";
+                Cache::put(self::PROGRESS_PREFIX.$token, $progress, now()->addHours(self::CACHE_HOURS));
             }
+
+            return $progress;
+        });
+    }
+
+    /**
+     * Simpan satu baris hasil analisis dan catat hasilnya di $progress.
+     *
+     * @return list<\Illuminate\Database\Eloquent\Model> model yang perlu disinkron ke DB master
+     */
+    protected function processRow(
+        MasterImportDefinition $definition,
+        array $item,
+        string $token,
+        string $fileName,
+        array &$progress,
+        Authenticatable $user,
+    ): array {
+        $label = "Baris {$item['row']} [{$item['key']}]";
+
+        if ($item['status'] === 'error') {
+            $progress['failed']++;
+            $this->pushMessage($progress, 'errors', "{$label}: {$item['message']}");
+
+            return [];
         }
 
-        foreach ($synced as $model) {
-            $definition->syncToMaster($model);
+        if ($item['status'] === 'same' || $item['status'] === 'locked' || ($item['status'] === 'update' && ! $progress['allow_update'])) {
+            $progress['skipped']++;
+
+            return [];
         }
 
-        $this->broadcastSummary($definition, $result);
-        $this->forget($token);
+        try {
+            $logs = DB::transaction(function () use ($definition, $item, $token, $fileName, $progress, $user) {
+                $logs = $item['status'] === 'new'
+                    ? $definition->create($item['data'])
+                    : $definition->update((int) $item['id'], $item['changes'], $item['data']);
 
-        return $result;
+                foreach ($logs as $log) {
+                    $this->writeActivityLog($definition, $log, $item, $token, $fileName, $progress['reason'], $user);
+                }
+
+                return $logs;
+            });
+        } catch (Throwable $e) {
+            report($e);
+            $progress['failed']++;
+            $this->pushMessage($progress, 'errors', "{$label}: gagal disimpan - {$e->getMessage()}");
+
+            return [];
+        }
+
+        if ($item['status'] === 'new') {
+            $progress['created']++;
+            $this->pushMessage($progress, 'success', "{$label}: berhasil dibuat.");
+        } else {
+            $progress['updated']++;
+            $fieldLabels = implode(', ', array_column($item['changes'], 'label'));
+            $this->pushMessage($progress, 'success', "{$label}: berhasil diupdate ({$fieldLabels}).");
+        }
+
+        return array_column($logs, 'model');
+    }
+
+    /** Simpan pesan detail secukupnya; sisanya hanya dihitung supaya session tidak membengkak. */
+    protected function pushMessage(array &$progress, string $type, string $message): void
+    {
+        $limit = $type === 'errors' ? self::MAX_ERROR_MESSAGES : self::MAX_SUCCESS_MESSAGES;
+
+        if (count($progress[$type]) < $limit) {
+            $progress[$type][] = $message;
+        } else {
+            $progress[$type === 'errors' ? 'more_errors' : 'more_success']++;
+        }
+    }
+
+    /**
+     * Cegah dua batch untuk preview yang sama berjalan bersamaan (double submit / dua tab).
+     */
+    protected function withLock(string $token, callable $callback): mixed
+    {
+        $store = Cache::getStore();
+        if (! $store instanceof LockProvider) {
+            return $callback();
+        }
+
+        return Cache::lock(self::LOCK_PREFIX.$token, 600)->block(30, $callback);
     }
 
     /**

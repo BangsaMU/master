@@ -293,6 +293,76 @@ namespace Bangsamu\Master\Tests\Feature {
             $this->get(route('master.import.show', ['category', $token]))->assertRedirect(route('master.category.index'));
         }
 
+        public function test_commit_ajax_diproses_per_batch_dan_aman_diulang(): void
+        {
+            config(['MasterConfig.import.chunk_size' => 2]);
+            $this->seedCategories();
+            $token = $this->upload('category', self::CATEGORY_CSV);
+            $url = route('master.import.commit', ['category', $token]);
+            $form = ['allow_update' => '1', 'update_reason' => 'koreksi nama dari SAP'];
+
+            $this->postJson($url, $form + ['offset' => 0])
+                ->assertOk()
+                ->assertJson(['done' => false, 'next_offset' => 2, 'total' => 6, 'updated' => 1, 'skipped' => 1, 'redirect' => null]);
+
+            // retry offset lama (mis. koneksi putus) tidak memproses ulang
+            $this->postJson($url, $form + ['offset' => 0])->assertJson(['next_offset' => 2, 'updated' => 1]);
+
+            $this->postJson($url, $form + ['offset' => 2])->assertJson(['done' => false, 'next_offset' => 4, 'created' => 1, 'skipped' => 2]);
+
+            $this->postJson($url, $form + ['offset' => 4])
+                ->assertOk()
+                ->assertJson(['done' => true, 'next_offset' => 6, 'created' => 1, 'updated' => 1, 'skipped' => 2, 'failed' => 2, 'redirect' => route('master.category.index')])
+                ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate, 2 dilewati, 2 gagal'));
+
+            $this->assertSame('Baru Diganti', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
+            $this->assertSame(1, ActivityLog::where('action', 'updated')->count());
+            $this->assertSame(1, ActivityLog::where('action', 'created')->count());
+
+            // preview & progress sudah dibersihkan
+            $this->postJson($url, $form + ['offset' => 6])->assertStatus(410)->assertJson(['redirect' => route('master.category.index')]);
+        }
+
+        public function test_opsi_update_dikunci_sejak_batch_pertama(): void
+        {
+            config(['MasterConfig.import.chunk_size' => 1]);
+            $this->seedCategories();
+            $token = $this->upload('category', 'Category Code,Category Name,Remark
+B01,Baru,
+A01,Ganti Nama,
+');
+            $url = route('master.import.commit', ['category', $token]);
+
+            $this->postJson($url, ['offset' => 0])->assertJson(['next_offset' => 1, 'created' => 1]);
+            $this->postJson($url, ['offset' => 1, 'allow_update' => '1', 'update_reason' => 'diubah di tengah jalan'])
+                ->assertJson(['done' => true, 'updated' => 0, 'skipped' => 1]);
+
+            $this->assertSame('Lama', DB::table('master_category')->where('category_code', 'A01')->value('category_name'));
+        }
+
+        public function test_commit_ajax_validasi_alasan_balas_422(): void
+        {
+            $this->seedCategories();
+            $token = $this->upload('category', self::CATEGORY_CSV);
+
+            $this->postJson(route('master.import.commit', ['category', $token]), ['allow_update' => '1', 'offset' => 0])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('update_reason');
+        }
+
+        public function test_file_melebihi_batas_baris_ditolak_sebelum_dibaca(): void
+        {
+            config(['MasterConfig.import.max_rows' => 2]);
+
+            $this->post(route('master.import.preview', 'pca'), ['file' => $this->csv("PCA Code,PCA Name\nP-1,Satu\nP-2,Dua\nP-3,Tiga\n")])
+                ->assertRedirect(route('master.pca.index'))
+                ->assertSessionHas('error_message', fn ($m) => str_contains($m[0], 'File berisi 3 baris, melebihi batas 2 baris'));
+
+            config(['MasterConfig.import.max_rows' => 3]);
+            $this->post(route('master.import.preview', 'pca'), ['file' => $this->csv("PCA Code,PCA Name\nP-1,Satu\nP-2,Dua\nP-3,Tiga\n")])
+                ->assertRedirectContains('/master/import/pca/preview/');
+        }
+
         public function test_log_import_tampil_di_halaman_edit(): void
         {
             $this->seedCategories();

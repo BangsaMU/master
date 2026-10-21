@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Bangsamu\Master\Requests\MasterImportCommitRequest;
 use Bangsamu\Master\Requests\MasterImportPreviewRequest;
 use Bangsamu\Master\Services\Import\MasterImportService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -28,6 +29,16 @@ class MasterImportController extends Controller
 
         $definition = $this->service->definition($entity);
         $file = $request->file('file');
+
+        $total = $this->service->countRows($file);
+        if ($total !== null && $total - 1 > $this->service->maxRows()) {
+            $max = number_format($this->service->maxRows(), 0, ',', '.');
+
+            return redirect()->route($definition->indexRoute())->with('error_message', [
+                'File berisi '.number_format($total - 1, 0, ',', '.')." baris, melebihi batas {$max} baris per import. Silakan pecah file menjadi beberapa bagian.",
+            ]);
+        }
+
         $rows = $this->service->readFile($definition, $file);
 
         if ($rows === []) {
@@ -66,31 +77,69 @@ class MasterImportController extends Controller
         ]);
     }
 
-    public function commit(MasterImportCommitRequest $request, string $entity, string $token): RedirectResponse
+    /**
+     * AJAX (expectsJson): proses satu batch mulai `offset`, balas progress JSON; batch terakhir menyimpan flash message.
+     * Form biasa: proses semua baris lalu redirect (fallback tanpa JavaScript).
+     */
+    public function commit(MasterImportCommitRequest $request, string $entity, string $token): RedirectResponse|JsonResponse
     {
         set_time_limit(600);
         ini_set('memory_limit', '512M');
 
         $definition = $this->service->definition($entity);
+        $indexUrl = route($definition->indexRoute());
         $payload = $this->service->load($token, $definition, $request->user()->getAuthIdentifier());
+
         if ($payload === null) {
-            return redirect()->route($definition->indexRoute())->with('error_message', ['Preview import tidak ditemukan atau sudah kedaluwarsa, silakan upload ulang.']);
+            $message = 'Preview import tidak ditemukan atau sudah kedaluwarsa, silakan upload ulang.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $message, 'redirect' => $indexUrl], 410)
+                : redirect($indexUrl)->with('error_message', [$message]);
         }
 
-        $result = $this->service->commit(
-            $definition,
-            $token,
-            $payload,
-            $request->boolean('allow_update'),
-            $request->input('update_reason'),
-            $request->user(),
+        $args = [$request->boolean('allow_update'), $request->input('update_reason'), $request->user()];
+
+        if (! $request->expectsJson()) {
+            $progress = $this->service->commit($definition, $token, $payload, ...$args);
+            $this->flashResult($definition->label(), $progress);
+
+            return redirect($indexUrl);
+        }
+
+        $progress = $this->service->commitChunk($definition, $token, $payload, (int) $request->input('offset', 0), $this->service->chunkSize(), ...$args);
+        if ($progress['done']) {
+            $this->flashResult($definition->label(), $progress);
+        }
+
+        return response()->json([
+            'done' => $progress['done'],
+            'next_offset' => $progress['next_offset'],
+            'total' => $progress['total'],
+            'created' => $progress['created'],
+            'updated' => $progress['updated'],
+            'skipped' => $progress['skipped'],
+            'failed' => $progress['failed'],
+            'redirect' => $progress['done'] ? $indexUrl : null,
+        ]);
+    }
+
+    /**
+     * Ringkasan hasil import ke flash session (view index menampilkan pesan tanpa escape, jadi di-escape di sini).
+     */
+    protected function flashResult(string $label, array $progress): void
+    {
+        $success = array_merge(
+            ["Import {$label} selesai: {$progress['created']} dibuat, {$progress['updated']} diupdate, {$progress['skipped']} dilewati, {$progress['failed']} gagal."],
+            $progress['success'],
+            $progress['more_success'] > 0 ? ["... dan {$progress['more_success']} baris berhasil lainnya."] : [],
+        );
+        $errors = array_merge(
+            $progress['errors'],
+            $progress['more_errors'] > 0 ? ["... dan {$progress['more_errors']} baris gagal lainnya."] : [],
         );
 
-        $summary = "Import {$definition->label()} selesai: {$result['created']} dibuat, {$result['updated']} diupdate, {$result['skipped']} dilewati, {$result['failed']} gagal.";
-
-        // view index menampilkan pesan tanpa escape, isi file harus di-escape di sini
-        return redirect()->route($definition->indexRoute())
-            ->with('success_message', array_map('e', array_merge([$summary], $result['success'])))
-            ->with('error_message', array_map('e', $result['errors']));
+        session()->flash('success_message', array_map('e', $success));
+        session()->flash('error_message', array_map('e', $errors));
     }
 }

@@ -29,6 +29,7 @@ class MasterImportCommitRequest extends FormRequest
     {
         return [
             'allow_update' => ['nullable', 'boolean'],
+            'offset' => ['nullable', 'integer', 'min:0'],
             // Rule::requiredIf, bukan required_if_accepted (belum ada di Laravel 8)
             'update_reason' => ['nullable', Rule::requiredIf(fn () => $this->boolean('allow_update')), 'string', 'min:5', 'max:500'],
         ];
