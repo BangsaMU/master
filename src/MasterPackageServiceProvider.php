@@ -98,6 +98,7 @@ class MasterPackageServiceProvider extends ServiceProvider
             $this->commands([
                 \Bangsamu\Master\Commands\MasterCatchUpCommand::class,
                 \Bangsamu\Master\Commands\MasterSyncLockCommand::class,
+                \Bangsamu\Master\Commands\MasterInstallTablesCommand::class,
             ]);
 
             // Auto-register scheduled master sync catch-up if enabled

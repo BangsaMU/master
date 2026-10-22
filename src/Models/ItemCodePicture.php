@@ -32,28 +32,14 @@ class ItemCodePicture extends Model
             if (! Schema::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
-                    $table->id();
-                    $table->string('item_code', 25)->unique()->nullable();
-                    $table->string('item_name')->nullable();
-                    $table->integer('uom_id')->nullable();
-                    $table->integer('pca_id')->nullable();
-                    $table->integer('category_id')->nullable();
-                    $table->integer('group_id')->nullable();
-                    $table->text('remarks')->nullable();
-                    $table->dateTime('created_at')->nullable();
-                    $table->dateTime('updated_at')->nullable();
-                    $table->dateTime('deleted_at')->nullable();
-                    $table->string('app_code', 10)->default('APP03');
-                    $table->longText('attributes')->nullable();
-                    $table->string('nav_code', 25)->nullable();
-
-                    $table->index('app_code', 'index_app_code');
-
+                    // skema sama dengan master_item_code_picture di DB master (bukan salinan master_item_code)
+                    $table->integer('id', true);
                     $table->integer('item_code_id')->nullable();
                     $table->string('folder_url', 255)->nullable();
                     $table->string('thumbnail_url', 255)->nullable();
-                    $table->timestamps(); // created_at & updated_at
-                    $table->softDeletes(); // deleted_at
+                    $table->dateTime('created_at')->nullable();
+                    $table->dateTime('updated_at')->nullable();
+                    $table->dateTime('deleted_at')->nullable();
 
                 });
             }
