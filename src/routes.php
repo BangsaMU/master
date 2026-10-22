@@ -65,6 +65,7 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     Route::post('company/{id}/update-template-json', [\Bangsamu\Master\Controllers\CompanyController::class, 'updateTemplateJson'])->name('company.update_template_json');
 
     // Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
+    Route::get('department/importtemplate', [\Bangsamu\Master\Controllers\DepartmentController::class, 'importtemplate'])->name('department.importtemplate');
     Route::resource('department', \Bangsamu\Master\Controllers\DepartmentController::class);
     Route::post('department/import', [\Bangsamu\Master\Controllers\DepartmentController::class, 'import'])->name('department.import');
 

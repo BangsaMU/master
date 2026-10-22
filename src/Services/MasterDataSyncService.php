@@ -52,7 +52,7 @@ class MasterDataSyncService
             'label' => 'Departemen',
             'identifier' => 'department_code',
             'columns' => [
-                'id', 'department_code', 'department_name',
+                'id', 'department_code', 'department_name', 'app_code',
                 'created_at', 'updated_at', 'deleted_at',
             ],
         ],

@@ -120,6 +120,16 @@ trait CreatesMasterTables
             $table->softDeletes();
         });
 
+        // skema lama master_department (seperti production sebelum migration app_code)
+        Schema::create('master_department', function (Blueprint $table) {
+            $table->id();
+            $table->string('department_code', 15);
+            $table->string('department_name', 100);
+            $table->timestamps();
+            $table->softDeletes();
+            $table->unique('department_code', 'uq_dept_code');
+        });
+
         Schema::create('master_vendor', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('loc_id');
@@ -143,5 +153,11 @@ trait CreatesMasterTables
             $table->timestamps();
             $table->softDeletes();
         });
+    }
+
+    /** Jalankan migration paket app_code + unik (department_code, app_code). */
+    protected function migrateDepartmentAppCode(): void
+    {
+        (require __DIR__.'/../../src/database/migrations/2026_10_22_000001_add_app_code_to_master_department_table.php')->up();
     }
 }

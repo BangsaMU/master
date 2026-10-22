@@ -708,17 +708,23 @@ class ApiController extends Controller
     {
         $search = $request->search;
 
+        // department_code unik per app_code: tampilkan pemilik bila bukan aplikasi ini supaya kode kembar bisa dibedakan
+        $hasAppCode = Schema::hasColumn('master_department', 'app_code');
+        $columns = $hasAppCode ? ['id', 'department_code', 'app_code'] : ['id', 'department_code'];
+
         if ($search == '') {
-            $departments = Department::orderBy('id', 'desc')->select('id', 'department_code')->limit($this->LIMIT)->get();
+            $departments = Department::orderBy('id', 'desc')->select($columns)->limit($this->LIMIT)->get();
         } else {
-            $departments = Department::orderBy('id', 'desc')->select('id', 'department_code')->where('department_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
+            $departments = Department::orderBy('id', 'desc')->select($columns)->where('department_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
+        $appCode = (string) config('SsoConfig.main.APP_CODE');
         $response = [];
         foreach ($departments as $department) {
+            $owner = $hasAppCode ? (string) $department->app_code : $appCode;
             $response[] = [
                 'id' => $department->id,
-                'text' => $department->department_code,
+                'text' => $department->department_code.($owner !== $appCode ? " ({$owner})" : ''),
             ];
         }
 

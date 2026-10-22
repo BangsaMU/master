@@ -4,13 +4,18 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Exports\Master\DepartmentTemplateExport;
 use Bangsamu\Master\Imports\Master\DepartmentImport;
 use Bangsamu\Master\Models\Department;
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DepartmentController extends Controller
@@ -28,6 +33,7 @@ class DepartmentController extends Controller
         // '"action" AS action',
         'md.department_code AS department_code',
         'md.department_name AS department_name',
+        'md.app_code AS app_code',
         '"action" AS action',
     ];
 
@@ -117,9 +123,10 @@ class DepartmentController extends Controller
             $data['datatable']['btn']['export']['url'] = url('master/getmaster_department/export');
         }
 
-        // $data['page']['import']['layout'] = 'layouts.import.form';
-        // $data['page']['import']['post'] = route('master.department.import');
-        // $data['page']['import']['template'] = url('/templates/DepartmentImportTemplate.xlsx');
+        $data['page']['import']['layout'] = 'layouts.import.form';
+        $data['page']['import']['post'] = route('master.import.preview', 'department');
+        $data['page']['import']['label'] = 'Preview Import';
+        $data['page']['import']['template'] = route('master.department.importtemplate');
 
         $page_var = compact('data');
 
@@ -246,13 +253,13 @@ class DepartmentController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_department'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_department')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
 
-                if ((checkPermission('is_admin') || checkPermission('delete_department')) && config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true) {
+                if ((checkPermission('is_admin') || checkPermission('delete_department')) && config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && $row->app_code == config('SsoConfig.main.APP_CODE')) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -293,16 +300,37 @@ class DepartmentController extends Controller
 
     public function store(Request $request)
     {
+        // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
+        app(MasterUniqueKeyGuard::class)->prepare($request, 'department');
+
+        $appCode = (string) config('SsoConfig.main.APP_CODE', 'APP03');
+
+        if ($request->id) {
+            $department = Department::findOrFail($request->id);
+            if ((string) $department->app_code !== $appCode) {
+                throw ValidationException::withMessages([
+                    'department_code' => ["Department ini milik aplikasi {$department->app_code}, tidak dapat diubah dari aplikasi ini."],
+                ]);
+            }
+            $appCode = (string) $department->app_code;
+        }
+
+        // unik per aplikasi: department_code + app_code
         $request->validate([
-            'department_code' => 'required|unique:master_'.$this->sheet_slug.',department_code'.($request->id ? ','.$request->id : ''),
-            'department_name' => 'required',
+            'department_code' => [
+                'required',
+                'max:15',
+                Rule::unique('master_'.$this->sheet_slug, 'department_code')
+                    ->where(fn ($query) => $query->where('app_code', $appCode))
+                    ->ignore($request->id),
+            ],
+            'department_name' => 'required|max:100',
         ]);
 
         if ($request->id) {
             // Update existing department
-            $department = Department::findOrFail($request->id);
             $update = $department->update([
-                'department_code' => strtoupper($request->department_code),
+                'department_code' => $request->department_code,
                 'department_name' => $request->department_name,
             ]);
 
@@ -330,6 +358,7 @@ class DepartmentController extends Controller
             $modelClass::create([
                 'department_code' => $request->department_code,
                 'department_name' => $request->department_name,
+                'app_code' => $appCode,
                 'created_at' => now(),
             ]);
 
@@ -340,6 +369,7 @@ class DepartmentController extends Controller
                 $modelClass::create([
                     'department_code' => $request->department_code,
                     'department_name' => $request->department_name,
+                    'app_code' => $appCode,
                     'created_at' => now(),
                 ]);
             }
@@ -361,6 +391,8 @@ class DepartmentController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+
+        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Department::class, $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
@@ -398,5 +430,10 @@ class DepartmentController extends Controller
 
             return redirect()->route('master.department.index')->with('error_message', $error)->with('success_message', $success);
         }
+    }
+
+    public function importtemplate()
+    {
+        return Excel::download(new DepartmentTemplateExport, 'DepartmentTemplateImport.xlsx');
     }
 }

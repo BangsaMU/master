@@ -31,7 +31,9 @@ class DepartmentImport implements ToCollection, WithChunkReading, WithEvents, Wi
     public function collection(Collection $rows)
     {
         if ($this->existingDepartments === null) {
+            // unik per aplikasi: department_code + app_code
             $this->existingDepartments = DB::table('master_department')
+                ->where('app_code', config('SsoConfig.main.APP_CODE', 'APP03'))
                 ->select('id', 'department_code', 'department_name', 'deleted_at')
                 ->get()
                 ->keyBy(fn ($dept) => strtoupper(trim((string) $dept->department_code)));
@@ -55,6 +57,7 @@ class DepartmentImport implements ToCollection, WithChunkReading, WithEvents, Wi
                         $dept = Department::create([
                             'department_code' => $codeUpper,
                             'department_name' => $name,
+                            'app_code' => config('SsoConfig.main.APP_CODE', 'APP03'),
                         ]);
 
                         $this->existingDepartments->put($codeUpper, (object) [

@@ -54,6 +54,8 @@ class MasterPackageServiceProvider extends ServiceProvider
         //
         $this->loadConfig();
         $this->loadRoutesFrom(__DIR__.'/routes.php');
+        // migration paket (mis. app_code di master_department) ikut `php artisan migrate` app pemasang
+        $this->loadMigrationsFrom(__DIR__.'/database/migrations');
         $this->publishes([
             __DIR__.'/../resources/config/MasterConfig.php' => config_path('MasterConfig.php'),
         ]);

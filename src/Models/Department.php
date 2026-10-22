@@ -32,10 +32,15 @@ class Department extends Model
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->id();
-                    $table->string('department_code', 10)->unique()->nullable();
-                    $table->string('department_name', 50)->nullable();
+                    $table->string('department_code', 15)->nullable();
+                    $table->string('department_name', 100)->nullable();
+                    $table->string('app_code', 10)->default('APP03');
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at
+
+                    // kode department unik per aplikasi (sama seperti kepemilikan app_code di master_item_code)
+                    $table->unique(['department_code', 'app_code'], 'uq_dept_code_app');
+                    $table->index('app_code', 'idx_dept_app_code');
                 });
             }
         }

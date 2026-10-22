@@ -31,6 +31,8 @@ class MasterUniqueKeyGuard
         'project' => ['master_project', ['project_code' => 'Project Code'], ['project_code']],
         'project-detail' => ['master_project_detail', ['project_id' => 'Project', 'project_code_client' => 'Project Code Client', 'company_id' => 'Company'], ['project_code_client']],
         'vendor' => ['master_vendor', ['vendor_code' => 'Vendor Code'], ['vendor_code']],
+        // app_code bagian dari kunci unik tetapi tidak pernah diisi dari form (selalu aplikasi pemilik)
+        'department' => ['master_department', ['department_code' => 'Department Code'], ['department_code']],
     ];
 
     public function canChangeKey(): bool

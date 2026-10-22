@@ -6,6 +6,7 @@ namespace Bangsamu\Master\Services\Import;
 
 use Bangsamu\LibraryClay\Models\ActivityLog;
 use Bangsamu\Master\Services\Import\Definitions\CategoryImportDefinition;
+use Bangsamu\Master\Services\Import\Definitions\DepartmentImportDefinition;
 use Bangsamu\Master\Services\Import\Definitions\ItemCodeImportDefinition;
 use Bangsamu\Master\Services\Import\Definitions\ItemGroupImportDefinition;
 use Bangsamu\Master\Services\Import\Definitions\LocationImportDefinition;
@@ -50,6 +51,7 @@ class MasterImportService
         'project' => ProjectImportDefinition::class,
         'project-detail' => ProjectDetailImportDefinition::class,
         'vendor' => VendorImportDefinition::class,
+        'department' => DepartmentImportDefinition::class,
     ];
 
     public const STATUSES = ['new', 'update', 'same', 'locked', 'error'];
