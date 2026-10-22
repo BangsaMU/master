@@ -81,14 +81,16 @@ class DepartmentImportTest extends TestCase
         $this->assertSame(2, ActivityLog::where('description', 'Bagas Setyo created a new Department (via import)')->count());
     }
 
-    public function test_import_tanpa_migration_memberi_pesan_jelas(): void
+    public function test_import_tanpa_migration_otomatis_upgrade_skema_lama(): void
     {
+        $this->assertFalse(Schema::hasColumn('master_department', 'app_code'));
+
         $file = UploadedFile::fake()->createWithContent('dept.csv', "Department Code,Department Name\nIT,Information Technology\n");
         $token = basename($this->post(route('master.import.preview', 'department'), ['file' => $file])->headers->get('Location'));
 
         $rows = $this->get(route('master.import.show', ['department', $token]))->viewData('analysis')['rows'];
-        $this->assertSame('error', $rows[0]['status']);
-        $this->assertStringContainsString('php artisan migrate', $rows[0]['message']);
+        $this->assertSame('new', $rows[0]['status']);
+        $this->assertTrue(Schema::hasColumn('master_department', 'app_code'));
     }
 
     public function test_form_create_menyimpan_app_code_dan_unik_per_aplikasi(): void

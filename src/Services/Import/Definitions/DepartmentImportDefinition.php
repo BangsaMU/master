@@ -6,6 +6,7 @@ namespace Bangsamu\Master\Services\Import\Definitions;
 
 use Bangsamu\Master\Models\Department;
 use Bangsamu\Master\Services\Import\SimpleCodeImportDefinition;
+use Bangsamu\Master\Services\MasterSchemaUpgrader;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -93,7 +94,7 @@ class DepartmentImportDefinition extends SimpleCodeImportDefinition
     public function check(array $data, ?array $existing): ?string
     {
         if (! $this->hasAppCodeColumn()) {
-            return 'Kolom app_code belum ada di master_department. Jalankan `php artisan migrate` terlebih dahulu.';
+            return 'Kolom app_code belum ada di master_department dan upgrade otomatis gagal (cek hak ALTER user database). Jalankan `php artisan master:install-tables` atau `php artisan migrate`.';
         }
 
         return null;
@@ -110,6 +111,11 @@ class DepartmentImportDefinition extends SimpleCodeImportDefinition
 
     protected function hasAppCodeColumn(): bool
     {
-        return $this->hasAppCode ??= Schema::hasColumn('master_department', 'app_code');
+        if ($this->hasAppCode === null) {
+            app(MasterSchemaUpgrader::class)->ensure('master_department');
+            $this->hasAppCode = Schema::hasColumn('master_department', 'app_code');
+        }
+
+        return $this->hasAppCode;
     }
 }

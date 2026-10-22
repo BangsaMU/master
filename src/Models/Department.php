@@ -42,6 +42,9 @@ class Department extends Model
                     $table->unique(['department_code', 'app_code'], 'uq_dept_code_app');
                     $table->index('app_code', 'idx_dept_app_code');
                 });
+            } else {
+                // tabel lama (dibuat sebelum app_code) ikut di-upgrade
+                app(\Bangsamu\Master\Services\MasterSchemaUpgrader::class)->ensure((new static)->getTable());
             }
         }
     }

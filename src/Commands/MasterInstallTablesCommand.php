@@ -21,7 +21,7 @@ class MasterInstallTablesCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Buat tabel master_* lokal yang belum ada (skema dari model package master, isi lewat sync)';
+    protected $description = 'Buat tabel master_* lokal yang belum ada & upgrade skema tabel lama (skema dari model package master, isi lewat sync)';
 
     /**
      * Execute the console command.
@@ -34,11 +34,15 @@ class MasterInstallTablesCommand extends Command
             $this->line("  <info>created</info> {$table}");
         }
 
+        foreach ($result['upgraded'] as $table => $changes) {
+            $this->line("  <comment>upgraded</comment> {$table}: ".implode(', ', $changes));
+        }
+
         foreach ($result['failed'] as $table => $message) {
             $this->error("  gagal {$table}: {$message}");
         }
 
-        $this->info(count($result['created']).' tabel master dibuat, '.count($result['failed']).' gagal.');
+        $this->info(count($result['created']).' tabel master dibuat, '.count($result['upgraded']).' di-upgrade, '.count($result['failed']).' gagal.');
 
         return $result['failed'] === [] ? self::SUCCESS : self::FAILURE;
     }

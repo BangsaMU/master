@@ -13,8 +13,13 @@ use Throwable;
  */
 class MasterTableInstaller
 {
+    public function __construct(protected ?MasterSchemaUpgrader $upgrader = null)
+    {
+        $this->upgrader ??= new MasterSchemaUpgrader;
+    }
+
     /**
-     * @return array{created: list<string>, failed: array<string, string>}
+     * @return array{created: list<string>, failed: array<string, string>, upgraded: array<string, list<string>>}
      */
     public function install(): array
     {
@@ -42,7 +47,10 @@ class MasterTableInstaller
             }
         }
 
-        return ['created' => $created, 'failed' => $failed];
+        // tabel yang sudah ada: samakan dengan blueprint terbaru (tambah kolom/index, tanpa hapus data)
+        $upgraded = $this->upgrader->upgradeAll();
+
+        return ['created' => $created, 'failed' => $failed, 'upgraded' => $upgraded];
     }
 
     /**

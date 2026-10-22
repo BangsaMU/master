@@ -9,6 +9,7 @@ use Bangsamu\Master\Imports\Master\DepartmentImport;
 use Bangsamu\Master\Models\Department;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\MasterSchemaUpgrader;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -78,6 +79,8 @@ class DepartmentController extends Controller
 
     public function index(Request $request)
     {
+        $this->ensureSchema();
+
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -137,6 +140,8 @@ class DepartmentController extends Controller
 
     public function dataJson(Request $request)
     {
+        $this->ensureSchema();
+
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -300,6 +305,8 @@ class DepartmentController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureSchema();
+
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'department');
 
@@ -382,6 +389,8 @@ class DepartmentController extends Controller
 
     public function edit($id)
     {
+        $this->ensureSchema();
+
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $data = self::config();
@@ -435,5 +444,11 @@ class DepartmentController extends Controller
     public function importtemplate()
     {
         return Excel::download(new DepartmentTemplateExport, 'DepartmentTemplateImport.xlsx');
+    }
+
+    /** Tabel department lama (tanpa app_code) di-upgrade otomatis sebelum dipakai. */
+    protected function ensureSchema(): void
+    {
+        app(MasterSchemaUpgrader::class)->ensure('master_'.$this->sheet_slug);
     }
 }

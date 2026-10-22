@@ -120,6 +120,9 @@ trait CreatesMasterTables
             $table->softDeletes();
         });
 
+        // DB in-memory baru tiap test: lupakan memo upgrade skema proses sebelumnya
+        \Bangsamu\Master\Services\MasterSchemaUpgrader::flush();
+
         // skema lama master_department (seperti production sebelum migration app_code)
         Schema::create('master_department', function (Blueprint $table) {
             $table->id();

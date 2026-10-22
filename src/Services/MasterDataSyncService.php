@@ -410,6 +410,9 @@ class MasterDataSyncService
             ];
         }
 
+        // tabel lokal lama di-upgrade dulu (mis. app_code master_department) agar kolom baru ikut tersinkron
+        app(MasterSchemaUpgrader::class)->ensure($table);
+
         $config = self::TABLES[$table];
         $localColumns = Schema::getColumnListing($table);
         $allowedColumns = array_values(array_intersect($config['columns'], $localColumns));
