@@ -17,17 +17,34 @@ use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\UoM;
 use Bangsamu\Master\Models\Vendor;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ApiController extends Controller
 {
+    use DynamicFilterable;
+
     protected $LIMIT;
 
     public function __construct()
     {
         $this->LIMIT = 5;
+    }
+
+    /**
+     * Batasi hasil get{tabel}byparams untuk tabel master_* ke baris yang lolos filter Setting (kategori = nama tabel,
+     * fallback DashboardSettings group), sama dengan list master (DynamicFilterable: kolom => nilai, digabung OR).
+     * Aktif bila config MasterCrudConfig.SELECT2_SETTING_FILTER true.
+     */
+    protected function applySelect2SettingFilter($query, string $tabel, string $alias): void
+    {
+        if (! config('MasterCrudConfig.SELECT2_SETTING_FILTER') || ! str_starts_with($tabel, 'master_')) {
+            return;
+        }
+
+        $this->applyDynamicFilter($query, $tabel, $this->getSettingsForTable($tabel), $alias);
     }
 
     public function getSelect($field, $tabel, $data_var)
@@ -288,6 +305,9 @@ class ApiController extends Controller
                 $data_array = $data_array->having('id', $id);
                 // $data_array = $data_array->find($id);
             } else {
+                /* pilihan dropdown master_* ikut filter Setting/DashboardSettings seperti list master (lookup by id tidak) */
+                $this->applySelect2SettingFilter($data_array, $tabel, $alias_tabel);
+
                 /* buang array by value */
                 $del_val = 'id';
                 if (($key = array_search($del_val, $select)) !== false) {
@@ -882,4 +902,3 @@ class ApiController extends Controller
         return response()->json($response);
     }
 }
-
