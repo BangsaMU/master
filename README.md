@@ -57,6 +57,13 @@ Link viewer annotation tanpa token statis `md5(email)` dan tanpa cek cookie lint
 (perilaku lama). Pakai helper `annotation_launch_url($fileUrl, $callback)` di app. Detail dan langkah
 aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
 
+## Filter Dropdown Master dari Setting (opt-in)
+
+`MASTER_SELECT2_SETTING_FILTER=true` (config `MasterCrudConfig.SELECT2_SETTING_FILTER`, default `false`) membuat
+`api/getmaster_*byparams` (sumber dropdown select2) memakai filter yang sama dengan list master: baris tabel
+`setting` dengan `category` = nama tabel (fallback `dashboard_settings.group`), `name`/`key` = kolom, `value` = daftar
+nilai dipisah koma; antar setting digabung OR. Lookup nilai terpilih (`?id=`) tidak difilter, jadi data lama tetap tampil.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
