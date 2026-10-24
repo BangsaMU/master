@@ -19,6 +19,6 @@ class AnnotationLaunchController extends Controller
         $fileUrl = $request->fileUrl();
         $token = $tokens->issue($request->user(), $fileUrl, $request->session()->getId(), Auth::getDefaultDriver());
 
-        return redirect()->away($tokens->viewerUrl($fileUrl, $token, $request->callbackUrl()));
+        return redirect()->away($tokens->viewerUrl($fileUrl, $token, $request->callbackUrl(), $request->page()));
     }
 }

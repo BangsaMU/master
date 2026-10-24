@@ -10,6 +10,7 @@ use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class AnnotationLaunchTokenTest extends TestCase
@@ -187,6 +188,31 @@ class AnnotationLaunchTokenTest extends TestCase
         $this->assertSame($sessionId, $payload['sid']);
         $this->assertSame($user->id, $payload['uid']);
         $this->assertSame(self::FILE_URL, $payload['f']);
+    }
+
+    public function test_open_forwards_selected_page_to_viewer(): void
+    {
+        $this->enableLaunchMode();
+        $sessionId = $this->loggedInSession($this->makeUser());
+
+        $location = $this->withCookie(config('session.cookie'), $sessionId)
+            ->get('/annotation/open?file_url='.urlencode(self::FILE_URL).'&page=3')
+            ->assertStatus(302)
+            ->headers->get('Location');
+
+        parse_str(parse_url($location, PHP_URL_QUERY), $query);
+        $this->assertSame('3', $query['page']);
+        $this->assertSame(self::FILE_URL, base64_decode($query['file_url']));
+    }
+
+    public function test_open_rejects_invalid_page(): void
+    {
+        $this->enableLaunchMode();
+        $sessionId = $this->loggedInSession($this->makeUser());
+
+        $this->withCookie(config('session.cookie'), $sessionId)
+            ->get('/annotation/open?file_url='.urlencode(self::FILE_URL).'&page=0')
+            ->assertStatus(422);
     }
 
     public function test_open_rejects_file_url_on_other_host(): void
@@ -409,7 +435,7 @@ class AnnotationLaunchTokenTest extends TestCase
     public function test_signature_and_paraf_without_user_details_table_return_403_not_500(): void
     {
         $user = $this->makeUser();
-        \Illuminate\Support\Facades\Schema::drop('user_details');
+        Schema::drop('user_details');
 
         $this->get('/api/getSignature?token='.md5($user->email))->assertStatus(403);
         $this->get('/api/getParaf?token='.md5($user->email))->assertStatus(403);

@@ -18,6 +18,7 @@ class AnnotationOpenRequest extends FormRequest
         return [
             'file_url' => ['required', 'string', 'max:2048'],
             'callback' => ['nullable', 'string', 'max:2048'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -47,6 +48,14 @@ class AnnotationOpenRequest extends FormRequest
     public function callbackUrl(): string
     {
         return $this->filled('callback') ? $this->absolute('callback') : url('api/setAnnotationId');
+    }
+
+    /**
+     * Halaman yang dipilih (popup "Pilih Page" di app), diteruskan ke viewer.
+     */
+    public function page(): ?int
+    {
+        return $this->filled('page') ? (int) $this->input('page') : null;
     }
 
     protected function absolute(string $field): string

@@ -216,15 +216,17 @@ class AnnotationLaunchTokenService
 
     /**
      * URL viewer di service annotation, format sama dengan link lama.
+     * $page: hanya halaman itu yang dibuka (sama dengan &page=N di link lama).
      */
-    public function viewerUrl(string $fileUrl, string $token, ?string $callback = null): string
+    public function viewerUrl(string $fileUrl, string $token, ?string $callback = null, ?int $page = null): string
     {
-        $query = http_build_query([
+        $query = http_build_query(array_filter([
             'app_id' => config('SsoConfig.main.APP_CODE'),
             'file_url' => base64_encode($fileUrl),
             'token' => $token,
             'callback' => base64_encode($callback ?? url('api/setAnnotationId')),
-        ]);
+            'page' => $page,
+        ], fn ($value) => $value !== null));
 
         return rtrim((string) config('AnnotationConfig.main.URL'), '/').'/viewer?'.$query;
     }
