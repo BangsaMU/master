@@ -261,8 +261,8 @@ API ini disediakan untuk menerima webhook/cURL dari aplikasi master (`master-dat
 | `GET` / `POST` | `/api/user/set-status` | Endpoint alias |
 | `GET` / `POST` | `/api/setUser.php` | Kompatibilitas URL legacy API |
 | `GET` / `POST` | `/setUser.php` | Kompatibilitas URL legacy root |
-| `GET` | `/api/users` | Daftar user lokal (Cursor Paginated) |
-| `GET` | `/api/users/{id}` | Detail user lokal |
+| `GET` | `/api/users` | Daftar user lokal (Cursor Paginated). Wajib login (middleware `web` + `auth`) |
+| `GET` | `/api/users/{id}` | Detail user lokal (id atau email). Wajib login (middleware `web` + `auth`) |
 
 ### Parameter Request
 | Parameter | Tipe | Wajib | Keterangan |

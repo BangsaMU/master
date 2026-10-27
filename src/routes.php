@@ -213,13 +213,15 @@ Route::prefix('api')
         Route::match(['get', 'post'], 'setUser.php', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
             ->name('api.user.set_user_legacy');
 
-        /* local user resource */
-        Route::get('users', [\Bangsamu\Master\Controllers\UserController::class, 'index'])
-            ->name('api.user.index');
-        Route::get('users/{id}', [\Bangsamu\Master\Controllers\UserController::class, 'show'])
-            ->name('api.user.show');
-
     });
+
+/* local user resource: respons berisi email + api_token user, jadi wajib login (dulu di grup api tanpa auth) */
+Route::prefix('api')->middleware(['web', 'auth'])->group(function () {
+    Route::get('users', [\Bangsamu\Master\Controllers\UserController::class, 'index'])
+        ->name('api.user.index');
+    Route::get('users/{id}', [\Bangsamu\Master\Controllers\UserController::class, 'show'])
+        ->name('api.user.show');
+});
 
 Route::match(['get', 'post'], 'setUser.php', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
     ->name('user.set_user_root_legacy');
