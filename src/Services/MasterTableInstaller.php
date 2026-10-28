@@ -50,6 +50,11 @@ class MasterTableInstaller
         // tabel yang sudah ada: samakan dengan blueprint terbaru (tambah kolom/index, tanpa hapus data)
         $upgraded = $this->upgrader->upgradeAll();
 
+        // tabel baru langsung ikut whitelist sinkron, tidak menunggu cache cek tabel kedaluwarsa
+        if ($created !== []) {
+            MasterDataSyncService::flushSchemaCache();
+        }
+
         return ['created' => $created, 'failed' => $failed, 'upgraded' => $upgraded];
     }
 

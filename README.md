@@ -38,6 +38,7 @@ Paket terpusat Master Data untuk ekosistem aplikasi berbasis Laravel.
     - **value**: JSON array daftar tabel `master_*` yang diizinkan untuk disinkronkan (misal: `["master_category","master_company","master_department","master_employee","master_item_code", ...]`).
     - **options**: JSON array seluruh tabel `master_*` yang terdeteksi di database lokal.
     - *Auto-Discovery*: Jika konfigurasi belum ada, sistem secara otomatis memindai database lokal dan menginisialisasi tabel-tabel `master_*` yang valid ke `dashboard_settings`.
+    - *Cache cek tabel (sejak v2.4.6)*: `getAllowedSyncTables()` dipanggil `<x-master::broadcast-listener />` di setiap halaman. Hasil cek keberadaan tabel (`information_schema`) di-cache `MasterDataSyncService::SCHEMA_CACHE_TTL` (1 jam) per database; isi `value` yang diubah langsung dihitung ulang, `master:install-tables` yang membuat tabel baru mengosongkan cache. Kosongkan manual: `MasterDataSyncService::flushSchemaCache()` atau `php artisan cache:clear`.
   - **Silent Ignore (Tanpa Popup Toast)**: Jika event broadcast diterima dari Senada untuk tabel yang tidak ada di database lokal klien atau tidak diaktifkan di `dashboard_settings`, klien mengabaikan event tersebut secara hening tanpa memunculkan popup toast notifikasi dan tanpa request fetch yang sia-sia karena tidak berdampak pada aplikasi klien.
   - **Respon Backend Aman**: Endpoint sinkronisasi mengembalikan `200 OK` dengan flag `skipped: true` (bukan error 422).
 - **Built-in Endpoints**:

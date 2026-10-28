@@ -19,6 +19,12 @@ class MasterDataSyncService
     public const SETTING_GROUP_SENADA_SYNC = 'senada_sync';
 
     /**
+     * Lama cache hasil cek tabel (information_schema). getAllowedSyncTables() dipanggil komponen broadcast-listener di
+     * setiap halaman; tanpa cache tiap render = 1 + jumlah tabel whitelist query information_schema.
+     */
+    public const SCHEMA_CACHE_TTL = 3600;
+
+    /**
      * Supported Master Tables configuration registry.
      */
     public const TABLES = [
@@ -270,12 +276,7 @@ class MasterDataSyncService
             if ($setting && ! empty($setting->value)) {
                 $decoded = json_decode($setting->value, true);
                 if (is_array($decoded)) {
-                    // Filter only existing tables with master_ prefix
-                    return array_values(array_filter($decoded, function ($table) {
-                        return is_string($table)
-                            && Str::startsWith($table, 'master_')
-                            && Schema::hasTable($table);
-                    }));
+                    return self::existingAllowedTables($decoded);
                 }
             }
 
@@ -293,6 +294,72 @@ class MasterDataSyncService
             Log::warning('[MasterDataSyncService] Failed to read allowed sync tables: '.$e->getMessage());
 
             return [];
+        }
+    }
+
+    /**
+     * Filter only existing tables with master_ prefix. Hasil cek tabel di-cache per isi whitelist (setting berubah =
+     * dihitung ulang) selama SCHEMA_CACHE_TTL; tabel baru dari MasterTableInstaller mengosongkan cache.
+     *
+     * @param  array<int|string, mixed>  $tables
+     * @return array<int, string>
+     */
+    private static function existingAllowedTables(array $tables): array
+    {
+        $source = md5((string) json_encode($tables));
+        $cached = self::getSchemaCache('allowed_tables');
+        if (is_array($cached) && ($cached['source'] ?? null) === $source && is_array($cached['tables'] ?? null)) {
+            return $cached['tables'];
+        }
+
+        $existing = array_values(array_filter($tables, function ($table) {
+            return is_string($table)
+                && Str::startsWith($table, 'master_')
+                && Schema::hasTable($table);
+        }));
+        self::putSchemaCache('allowed_tables', ['source' => $source, 'tables' => $existing]);
+
+        return $existing;
+    }
+
+    /**
+     * Kosongkan cache cek tabel (dipanggil setelah tabel master_* atau dashboard_settings dibuat).
+     */
+    public static function flushSchemaCache(): void
+    {
+        foreach (['allowed_tables', 'dashboard_settings'] as $name) {
+            try {
+                Cache::forget(self::schemaCacheKey($name));
+            } catch (Throwable $e) {
+            }
+        }
+    }
+
+    /**
+     * Kunci per database supaya beberapa koneksi/DB (mis. DB test) tidak berbagi hasil.
+     */
+    private static function schemaCacheKey(string $name): string
+    {
+        return 'master_sync:schema:'.DB::connection()->getDatabaseName().':'.$name;
+    }
+
+    /**
+     * Store cache yang tidak tersedia tidak boleh mematikan halaman: anggap belum ada cache.
+     */
+    private static function getSchemaCache(string $name): mixed
+    {
+        try {
+            return Cache::get(self::schemaCacheKey($name));
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    private static function putSchemaCache(string $name, mixed $value): void
+    {
+        try {
+            Cache::put(self::schemaCacheKey($name), $value, self::SCHEMA_CACHE_TTL);
+        } catch (Throwable $e) {
         }
     }
 
@@ -590,6 +657,11 @@ class MasterDataSyncService
      */
     public static function ensureDashboardSettingsTable(): void
     {
+        // hanya "sudah ada" yang di-cache: tabel yang belum ada selalu dicek ulang sebelum dibuat
+        if (self::getSchemaCache('dashboard_settings') === true) {
+            return;
+        }
+
         if (! Schema::hasTable('dashboard_settings')) {
             Schema::create('dashboard_settings', function (\Illuminate\Database\Schema\Blueprint $table) {
                 $table->id();
@@ -603,6 +675,8 @@ class MasterDataSyncService
                 $table->timestamps();
             });
         }
+
+        self::putSchemaCache('dashboard_settings', true);
     }
 
     /**
