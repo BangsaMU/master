@@ -64,6 +64,29 @@ aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
 `setting` dengan `category` = nama tabel (fallback `dashboard_settings.group`), `name`/`key` = kolom, `value` = daftar
 nilai dipisah koma; antar setting digabung OR. Lookup nilai terpilih (`?id=`) tidak difilter, jadi data lama tetap tampil.
 
+## Keamanan API Generik (sejak v2.4.5)
+
+Sebelumnya `api/get{tabel}byparams` dan `api/get*byparams` ada di grup `api` tanpa auth: tamu bisa membaca tabel apa
+pun, termasuk `password` + `api_token` `master_user` (`set[field][]=password`), dan `POST api/sync-master` menimpa
+tabel master lokal dari isi request tanpa token.
+
+- **Select2 wajib login**: route `api/get*byparams` memakai `MasterCrudConfig.SELECT2_MIDDLEWARE` (default `web` + `auth`;
+  tamu dapat 401 JSON / redirect login). Dropdown yang dipanggil lintas aplikasi (tanpa session) perlu diatur sendiri,
+  mis. `['api']` = publik lagi, batas tabel/kolom di bawah tetap berlaku.
+- **Kolom rahasia** (`TableAccessPolicy`): `password`, `remember_token`, `api_token` + `SELECT2_HIDDEN_COLUMNS` tidak
+  pernah keluar, dan dipakai di parameter apa pun (`set`, `search`, `where`, `find_in_set`, `not_null`, `order`,
+  `group`, `join`) langsung 403. `set[field]=*` = semua kolom kecuali kolom rahasia.
+- **Tabel**: `sessions`, `*token*`, `password_reset*`, `jobs`, `failed_jobs`, `cache*`, `migrations`, `telescope_*`, dll.
+  selalu ditolak (+ `SELECT2_DENY_TABLES`). `SELECT2_TABLES` (pola `Str::is`, mis. `['master_*', 'terms']`) membatasi
+  tabel select2 dan tabel `join[...]`; kosong = semua tabel lain boleh. Disarankan diisi di app.
+- Pemisah `set[text][<pemisah>]` sekarang dikutip PDO (dulu ditempel mentah ke SQL).
+- `api/get-{tabel}/{id}` dan `api/getMaster-{tabel}/{id}`: token `md5("{id}:{SsoConfig.main.KEY}")` dicek `hash_equals`,
+  `KEY` kosong selalu ditolak, kolom rahasia dibuang, tabel daftar tolak tidak bisa dibaca.
+- `POST api/sync-master/{tabel}/{id}`: rows dari request hanya dipakai bila header `X-Master-Sync-Token` = `MASTER_SYNC_TOKEN`
+  (config `MasterConfig.SYNC_TOKEN`). Tanpa token valid, webhook hanya menarik ulang baris `{id}` dari `db_master`
+  (seperti `api/master-{tabel}/{id}`); tabel wajib di `MASTER_TABEL`, id wajib angka. App tanpa koneksi `db_master`
+  wajib memasang token di app dan di pengirim webhook.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

@@ -15,6 +15,9 @@ return [
         'CALL_BACK' => '',
     ],
     'MASTER_TABEL' => ['location', 'project', 'project_detail', 'employee', 'item_code', 'uom', 'company'],
+    /* webhook POST api/sync-master: rows dari request hanya dipakai bila header X-Master-Sync-Token = token ini;
+       tanpa token valid webhook hanya menarik ulang baris {id} dari DB master */
+    'SYNC_TOKEN' => env('MASTER_SYNC_TOKEN'),
     'master' => [
         'company' => [
             'MODEL' => env('TABEL_MASTER_COMPANY', 'MasterCompany'),

@@ -2,6 +2,7 @@
 
 namespace Bangsamu\Master\Tests\Feature;
 
+use App\Models\User;
 use Bangsamu\Master\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,9 @@ class Select2SettingFilterTest extends TestCase
         }
 
         config(['MasterCrudConfig.SELECT2_SETTING_FILTER' => true]);
+
+        // api/get{tabel}byparams wajib login sejak v2.4.5
+        $this->actingAs(User::create(['name' => 'Budi', 'email' => 'budi@meindo.test']));
     }
 
     /** @return list<string> */

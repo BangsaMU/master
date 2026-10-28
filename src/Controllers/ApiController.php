@@ -17,10 +17,13 @@ use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\UoM;
 use Bangsamu\Master\Models\Vendor;
+use Bangsamu\Master\Services\TableAccessPolicy;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ApiController extends Controller
 {
@@ -45,6 +48,46 @@ class ApiController extends Controller
         }
 
         $this->applyDynamicFilter($query, $tabel, $this->getSettingsForTable($tabel), $alias);
+    }
+
+    /**
+     * Tolak (403) tabel/tabel join di luar whitelist MasterCrudConfig.SELECT2_TABLES atau di daftar tolak, dan kolom rahasia
+     * (TableAccessPolicy) yang diminta lewat parameter apa pun: set, search, where, find_in_set, not_null, order, group, join.
+     */
+    protected function authorizeSelect2Request(Request $request, string $tabel): void
+    {
+        $policy = app(TableAccessPolicy::class);
+
+        if (! $policy->isSelect2Table($tabel)) {
+            abort(403, 'tabel tidak diizinkan');
+        }
+
+        $join = (array) $request->input('join', []);
+        foreach (array_keys($join) as $tabelJoin) {
+            if (! $policy->isSelect2Table(Str::before((string) $tabelJoin, '.'))) {
+                abort(403, 'tabel join tidak diizinkan');
+            }
+        }
+
+        $search = $request->input('search');
+        $set = (array) $request->input('set', []);
+        $columns = array_merge(
+            Arr::flatten([$set['id'] ?? null, $set['text'] ?? null, $set['field'] ?? null]),
+            is_array($search) ? array_keys($search) : [$search],
+            array_keys((array) $request->input('where', [])),
+            array_keys((array) $request->input('find_in_set', [])),
+            Arr::flatten((array) $request->input('not_null', [])),
+            Arr::flatten([Arr::get((array) $request->input('order', []), 'column')]),
+            Arr::flatten((array) $request->input('group', [])),
+            Arr::flatten($join),
+            array_keys($join),
+        );
+
+        foreach ($columns as $column) {
+            if ($policy->isHiddenColumn($column)) {
+                abort(403, 'kolom tidak diizinkan');
+            }
+        }
     }
 
     public function getSelect($field, $tabel, $data_var)
@@ -108,6 +151,8 @@ class ApiController extends Controller
         // contoh group multi text dari group http://clay.localhost/api/getmaster_userbyparams?order[column]=name&search[is_active]=1&set[id]=id&set[text][|]=name&set[text][|]=position_name&ap_token=f40623ee66142fb3e0ae10c5bfc9165b&join[master_user_position.id]=position_id&set[field][]=email&set[field][]=position_code&set[field][]=position_name&debug=1&set[text][]=email&set[text][|]=id&group[]=mu.id&group[]=mup.position_code
         // contoh cek not null http://clay.localhost/api/getmaster_locationbyparams?set[field][]=loc_code&set[field][]=loc_name&set[text][|]=loc_code&set[text][]=loc_name&ap_token=a86a41aabe5fdc9ee11e1cd27af1a920&_token=Gtg1LbQL1yTmkR79Yjc4rHfaPRfeop2JjhorSzmg&not_null[]=loc_code
         // filter join baru bisa di param search
+        $this->authorizeSelect2Request($request, $tabel);
+
         /* Param serch support array dan string data yg diambil param terakhir */
         $search = $request->search;
         $alias_tabel = array_reduce(str_word_count("$tabel", 1), function ($res, $w) {
@@ -131,9 +176,6 @@ class ApiController extends Controller
         $id = $request->id;
         // dd($field);
         $data_lokal = DB::table($tabel.' as '.$alias_tabel);
-        $key = md5($id.':'.config('SsoConfig.main.KEY'));
-        // $token = $key == $request->input('api_token');
-        $token = true; // bypass test
 
         if (is_array($set)) {
             $change_id = @$set['id'];
@@ -206,8 +248,10 @@ class ApiController extends Controller
             // $field = @$set['field'];
 
             if ($field == '*') {
-                // dd($field);
-                $select[] = "$tabel.*";
+                /* semua kolom kecuali kolom rahasia (dulu "$tabel.*" ikut password, dan error karena tabel memakai alias) */
+                foreach (app(TableAccessPolicy::class)->visibleColumns($tabel) as $kolom) {
+                    $select[] = "$alias_tabel.$kolom";
+                }
             } else {
                 // dd($field);
                 if (is_array($field)) {
@@ -233,9 +277,10 @@ class ApiController extends Controller
                         if ($last_key == $keyText) {
                             $sparator = '';
                         }
+                        /* pemisah dari key set[text][...] wajib dikutip PDO (dulu ditempel mentah ke SQL: celah injeksi) */
+                        $sparator = $sparator !== '' ? ','.DB::getPdo()->quote((string) $sparator).',' : '';
                         // dd(array_key_last($text),$text,$sparator,$last,$field_text);
                         if (Schema::hasColumn($tabel, $field_text)) {
-                            $sparator = $sparator !== '' ? ',\''.$sparator.'\',' : '';
                             $text_concat .= 'coalesce('.$alias_tabel.'.'.$field_text.',"")'.$sparator;
                             // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
                         } else {
@@ -245,8 +290,7 @@ class ApiController extends Controller
                                     // dd($join_val['tabel']);
                                     if (Schema::hasColumn($join_val['tabel'], $field_text)) {
                                         // jik pakek joint
-                                        $sparatorjoin = $sparator !== '' ? ',\''.$sparator.'\',' : '';
-                                        $text_concat .= 'coalesce('.$field_text.',"")'.$sparatorjoin;
+                                        $text_concat .= 'coalesce('.$field_text.',"")'.$sparator;
                                     } else {
                                         // buang last sparator
                                         // $lastCommaPos = strrpos($text_concat, ',');
@@ -284,8 +328,7 @@ class ApiController extends Controller
         }
 
         $tabel_exist = Schema::hasTable($tabel);
-        // dd($token ,$tabel_exist);
-        if ($token && $tabel_exist) {
+        if ($tabel_exist) {
             $select_text = implode(',', $select);
             $list_select = ! empty($selectRaw) ? $selectRaw.','.$select_text : $select_text;
             // $select=DB::raw($selectRaw);

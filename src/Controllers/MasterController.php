@@ -5,9 +5,12 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Telegram;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Services\TableAccessPolicy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Response;
 
@@ -24,12 +27,6 @@ class MasterController extends Controller
 
     public function tabel(Request $request, $tabel, $id = null)
     {
-        // Prevent execution timeout on large table syncs
-        set_time_limit(300);
-
-        $log = [];
-        $sync_insert = []; /* list insert array id */
-        $sync_update = []; /* list update array id */
         $_token = $request->_token;
         // $token = LibraryClayController::api_token(null);
         $validate_token = LibraryClayController::validate_token(null, $_token);
@@ -42,6 +39,21 @@ class MasterController extends Controller
 
             return LibraryClayController::setOutput($respon);
         }
+
+        return $this->pullTabel($request, $tabel, $id);
+    }
+
+    /**
+     * Tarik data tabel master dari DB master (model Master*) ke tabel lokal: satu {id} atau seluruh tabel.
+     */
+    protected function pullTabel(Request $request, $tabel, $id = null)
+    {
+        // Prevent execution timeout on large table syncs
+        set_time_limit(300);
+
+        $log = [];
+        $sync_insert = []; /* list insert array id */
+        $sync_update = []; /* list update array id */
 
         $key_lokal = config(ucfirst($this->pkgPrefix).'Config.lokal.'.$tabel.'.FIELD');
         $key_master = config(ucfirst($this->pkgPrefix).'Config.master.'.$tabel.'.FIELD');
@@ -189,12 +201,11 @@ class MasterController extends Controller
 
     public function getTabel(Request $request, $tabel, $id = null)
     {
-        $data_sync_lokal = DB::table($tabel);
-        $key = md5($id.':'.config('SsoConfig.main.KEY'));
-        $token = $key == $request->input('api_token');
-        // dd($data_sync_lokal,$key);
-        if ($token) {
-            $data_array = $data_sync_lokal->where('id', $id)->get()->toArray();
+        $policy = app(TableAccessPolicy::class);
+
+        if ($this->validIdToken($request, $id) && $policy->isReadableTable($tabel) && Schema::hasTable($tabel)) {
+            $data_array = DB::table($tabel)->where('id', $id)->get()
+                ->map(fn ($row) => $policy->withoutHiddenColumns($row))->all();
             $respon['data'] = $data_array;
         } else {
             $respon['data']['message'] = 'Data Not Found';
@@ -205,18 +216,42 @@ class MasterController extends Controller
 
     public function getMaster(Request $request, $tabel, $id = null)
     {
-        $data_sync_lokal = 'Bangsamu\Master\Models\\'.$tabel;
-        $key = md5($id.':'.config('SsoConfig.main.KEY'));
-        $token = $key == $request->input('api_token');
-        // dd($key);
-        if ($token) {
-            $data_array = $data_sync_lokal::where('id', $id)->get()->toArray();
+        $policy = app(TableAccessPolicy::class);
+        $model = 'Bangsamu\Master\Models\\'.$tabel;
+
+        if ($this->validIdToken($request, $id) && $policy->isValidTableName($tabel) && is_subclass_of($model, Model::class)
+            && $policy->isReadableTable((new $model)->getTable())) {
+            $data_array = $model::where('id', $id)->get()
+                ->map(fn ($row) => $policy->withoutHiddenColumns($row->toArray()))->all();
             $respon['data'] = $data_array;
         } else {
             $respon['data']['message'] = 'Data Not Found';
         }
 
         return LibraryClayController::setOutput($respon);
+    }
+
+    /**
+     * Token api/get-{tabel}/{id} dan api/getMaster-{tabel}/{id}: md5("{id}:{SsoConfig.main.KEY}"); KEY kosong selalu ditolak.
+     */
+    protected function validIdToken(Request $request, $id): bool
+    {
+        $key = (string) config('SsoConfig.main.KEY');
+        $token = $request->input('api_token');
+
+        return $key !== '' && is_string($token) && hash_equals(md5($id.':'.$key), $token);
+    }
+
+    /**
+     * Token webhook sync-master: header X-Master-Sync-Token (atau input token) = MasterConfig.SYNC_TOKEN.
+     * SYNC_TOKEN kosong berarti tidak ada token yang valid.
+     */
+    protected function validSyncToken(Request $request): bool
+    {
+        $expected = (string) config(ucfirst($this->pkgPrefix).'Config.SYNC_TOKEN');
+        $given = $request->header('X-Master-Sync-Token') ?? $request->input('token');
+
+        return $expected !== '' && is_string($given) && hash_equals($expected, $given);
     }
 
     /**
@@ -227,6 +262,13 @@ class MasterController extends Controller
         $data = $request->all();
         $tabel = empty($tabel) ? @$data['tabel'] : $tabel;
         $id = empty($id) ? @$data['rows'][0]['id'] : $id;
+
+        /* tanpa token valid isi rows dari request tidak dipercaya (dulu siapa saja bisa menimpa tabel master lokal):
+           webhook hanya memicu tarik ulang baris {id} dari DB master */
+        if (! $this->validSyncToken($request)) {
+            return $this->pullRowFromMaster($request, $tabel, $id);
+        }
+
         $validate_tabel = @$data['tabel'] ? $data['tabel'] : $tabel;
         $validate_tabel = @$data['tabel'] == $tabel;
         $master_tabel = config(ucfirst($this->pkgPrefix).'Config.MASTER_TABEL');
@@ -303,6 +345,41 @@ class MasterController extends Controller
         $respon = LibraryClayController::syncLog(compact('log', 'data_array_map_master'));
 
         return LibraryClayController::setOutput($respon);
+    }
+
+    /**
+     * sync-master tanpa token: abaikan rows dari request, tarik baris {id} langsung dari DB master (seperti api/master-{tabel}/{id}).
+     * Tabel wajib di MASTER_TABEL dan id wajib angka (tidak ada sync seluruh tabel tanpa token).
+     */
+    protected function pullRowFromMaster(Request $request, $tabel, $id)
+    {
+        $master_tabel = (array) config(ucfirst($this->pkgPrefix).'Config.MASTER_TABEL');
+
+        if (! in_array($tabel, $master_tabel, true) || ! ctype_digit((string) $id)) {
+            return LibraryClayController::setOutput([
+                'status' => 'gagal',
+                'code' => 400,
+                'data' => '',
+                'message' => 'Data not valid: tabel harus di MASTER_TABEL dan id wajib angka',
+            ]);
+        }
+
+        try {
+            return $this->pullTabel($request, $tabel, (int) $id);
+        } catch (\Throwable $e) {
+            Log::warning('sync-master tanpa token: gagal menarik data dari DB master', [
+                'tabel' => $tabel,
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return LibraryClayController::setOutput([
+                'status' => 'gagal',
+                'code' => 503,
+                'data' => '',
+                'message' => 'Gagal menarik data dari DB master',
+            ]);
+        }
     }
 
     // function uom(Request $request, $id = null)

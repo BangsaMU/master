@@ -164,6 +164,22 @@ Route::prefix('api')
         Route::get('/getMaster-{tabel}/{id?}', [\Bangsamu\Master\Controllers\MasterController::class, 'getMaster'])
             ->name('get-Mastertabel');
 
+        /* user status sync from master-data UserStatusSyncService */
+        Route::match(['get', 'post'], 'user/status', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
+            ->name('api.user.sync_status');
+        Route::match(['get', 'post'], 'user/set-status', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
+            ->name('api.user.set_status');
+        Route::match(['get', 'post'], 'setUser.php', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
+            ->name('api.user.set_user_legacy');
+    });
+
+/*
+ * dropdown select2 / list data master: wajib login (dulu grup api tanpa auth, siapa saja bisa membaca tabel apa pun
+ * termasuk password + api_token master_user). Middleware bisa diganti lewat MasterCrudConfig.SELECT2_MIDDLEWARE;
+ * batas tabel/kolom (TableAccessPolicy) tetap berlaku.
+ */
+Route::prefix('api')
+    ->middleware(config('MasterCrudConfig.SELECT2_MIDDLEWARE', ['web', 'auth']))->group(function () {
         /* list data master */
         Route::get('getitemcodebyparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getItemCodeByParams'])
             ->name('getitemcodebyparams');
@@ -204,15 +220,6 @@ Route::prefix('api')
         /* global select2 dari tabel */
         Route::get('get{tabel}byparams', [\Bangsamu\Master\Controllers\ApiController::class, 'getTabelByParams'])
             ->name('get{tabel}byparams');
-
-        /* user status sync from master-data UserStatusSyncService */
-        Route::match(['get', 'post'], 'user/status', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
-            ->name('api.user.sync_status');
-        Route::match(['get', 'post'], 'user/set-status', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
-            ->name('api.user.set_status');
-        Route::match(['get', 'post'], 'setUser.php', [\Bangsamu\Master\Controllers\UserController::class, 'syncStatus'])
-            ->name('api.user.set_user_legacy');
-
     });
 
 /* local user resource: respons berisi email + api_token user, jadi wajib login (dulu di grup api tanpa auth) */
