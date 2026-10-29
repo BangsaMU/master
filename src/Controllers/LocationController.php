@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\Master\Services\MasterEditLink;
 
 class LocationController extends Controller
 {
@@ -179,6 +180,9 @@ class LocationController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('location')";
         }
 
+        if (MasterEditLink::allowed()) {
+            $data['datatable']['btn']['create'] = MasterEditLink::createButton('location');
+        }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_location'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
@@ -349,10 +353,11 @@ class LocationController extends Controller
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_location'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_location')))) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
+                $btn .= MasterEditLink::rowButton('location', $row->No);
                 $nestedData['action'] = $btn;
 
                 $data[] = $nestedData;

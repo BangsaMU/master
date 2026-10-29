@@ -270,6 +270,7 @@
                                             data-stisla-dialog-trigger="importItemDiv"
                                         @endif
                                         @isset($item['url']) href="{!! $item['url'] !!}" @endisset
+                                        @isset($item['target']) target="{{ $item['target'] }}" rel="noopener" @endisset
                                         @isset($item['act']) onclick="{!! $item['act'] !!}" @endisset
                                         class="{{ $btnClass }}">
                                         {{ $item['title'] }}
@@ -316,6 +317,7 @@
                                 @endif
                                 <a id="{{ $item['id'] }}"
                                     @isset($item['url']) href="{!! $item['url'] !!}" @endisset
+                                    @isset($item['target']) target="{{ $item['target'] }}" rel="noopener" @endisset
                                     @isset($item['act']) onclick="{!! $item['act'] !!}" @endisset
                                     class="btn btn-sm {{ $item['icon'] }} mb-3">
                                     {{ $item['title'] }}

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Bangsamu\Master\Services\MasterEditLink;
 
 class CompanyController extends Controller
 {
@@ -84,6 +85,9 @@ class CompanyController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('company,gallery')";
         }
 
+        if (MasterEditLink::allowed()) {
+            $data['datatable']['btn']['create'] = MasterEditLink::createButton('company');
+        }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {
             // company hanya ada 3 di lock ga usah add
             // $data['datatable']['btn']['create']['id'] = 'create';
@@ -241,10 +245,11 @@ class CompanyController extends Controller
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_company'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_company')))) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
+                $btn .= MasterEditLink::rowButton('company', $row->No);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;

@@ -1,0 +1,77 @@
+<?php
+
+namespace Bangsamu\Master\Tests\Feature;
+
+use App\Models\User;
+use Bangsamu\Master\Services\MasterEditLink;
+use Bangsamu\Master\Tests\TestCase;
+use Illuminate\Support\Facades\Gate;
+
+/**
+ * MASTER_DIRECT_EDIT=false + MASTER_EDIT_URL: tombol Edit/Tambah di daftar master membuka aplikasi Master Data, hanya
+ * untuk is_admin atau MASTER_EDIT_PERMISSION (default update_master_data).
+ */
+class MasterEditLinkTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['MasterCrudConfig.MASTER_DIRECT_EDIT' => false, 'MasterCrudConfig.MASTER_EDIT_URL' => 'http://192.168.20.187:9002/']);
+    }
+
+    /**
+     * @param  list<string>  $abilities
+     */
+    private function actingWith(array $abilities): void
+    {
+        foreach (['is_admin', 'update_master_data'] as $ability) {
+            Gate::define($ability, fn () => in_array($ability, $abilities, true));
+        }
+        $this->actingAs(User::create(['name' => 'Penguji', 'email' => uniqid('edit', true).'@meindo.test']));
+    }
+
+    public function test_urls_point_to_master_data_app_with_same_route_path(): void
+    {
+        $this->assertSame('http://192.168.20.187:9002/master/item-code/5944/edit', MasterEditLink::url('item-code', 5944));
+        $this->assertSame('http://192.168.20.187:9002/master/category/create', MasterEditLink::url('category'));
+        $this->assertSame(['id' => 'create', 'title' => 'Tambah di Master Data', 'icon' => 'btn-primary',
+            'url' => 'http://192.168.20.187:9002/master/uom/create', 'target' => '_blank'], MasterEditLink::createButton('uom'));
+    }
+
+    public function test_row_button_only_for_permitted_user(): void
+    {
+        $this->actingWith(['update_master_data']);
+        $button = MasterEditLink::rowButton('item-code', 5944);
+        $this->assertStringContainsString('href="http://192.168.20.187:9002/master/item-code/5944/edit"', $button);
+        $this->assertStringContainsString('target="_blank"', $button);
+
+        $this->actingWith(['is_admin']);
+        $this->assertTrue(MasterEditLink::allowed());
+
+        $this->actingWith([]);
+        $this->assertFalse(MasterEditLink::allowed());
+        $this->assertSame('', MasterEditLink::rowButton('item-code', 5944));
+    }
+
+    public function test_no_button_when_direct_edit_is_on_or_url_is_empty(): void
+    {
+        $this->actingWith(['is_admin']);
+
+        config(['MasterCrudConfig.MASTER_DIRECT_EDIT' => true]);
+        $this->assertFalse(MasterEditLink::enabled());
+        $this->assertSame('', MasterEditLink::rowButton('category', 1));
+
+        config(['MasterCrudConfig.MASTER_DIRECT_EDIT' => false, 'MasterCrudConfig.MASTER_EDIT_URL' => null]);
+        $this->assertFalse(MasterEditLink::enabled());
+    }
+
+    public function test_permission_name_is_configurable(): void
+    {
+        config(['MasterCrudConfig.MASTER_EDIT_PERMISSION' => 'edit_master_external']);
+        Gate::define('edit_master_external', fn () => true);
+        $this->actingWith([]);
+
+        $this->assertTrue(MasterEditLink::allowed());
+    }
+}

@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\Master\Services\MasterEditLink;
 
 class ItemCodeController extends Controller
 {
@@ -115,6 +116,9 @@ class ItemCodeController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('category,uom,pca,item-group,item_code')";
         }
 
+        if (MasterEditLink::allowed()) {
+            $data['datatable']['btn']['create'] = MasterEditLink::createButton('item-code');
+        }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_item_code'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
@@ -331,7 +335,7 @@ class ItemCodeController extends Controller
                 } else {
                     $btn .= '<a href="'.route('master.item-code.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
                     $btn .= '<a href="'.route('master.item-code.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -345,6 +349,7 @@ class ItemCodeController extends Controller
                     }, array_keys($attributesArray), $attributesArray))
                     : '';
 
+                $btn .= MasterEditLink::rowButton('item-code', $row->No);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -700,6 +705,7 @@ class ItemCodeController extends Controller
                     }, array_keys(json_decode($nestedData['attributes'], true)), json_decode($nestedData['attributes'], true)))
                     : '';
 
+                $btn .= MasterEditLink::rowButton('item-code', $row->No);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\Master\Services\MasterEditLink;
 
 class DepartmentController extends Controller
 {
@@ -106,6 +107,9 @@ class DepartmentController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('department')";
         }
 
+        if (MasterEditLink::allowed()) {
+            $data['datatable']['btn']['create'] = MasterEditLink::createButton('department');
+        }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_department'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
@@ -268,6 +272,7 @@ class DepartmentController extends Controller
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
+                $btn .= MasterEditLink::rowButton('department', $row->No);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;

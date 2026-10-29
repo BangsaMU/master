@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
+use Bangsamu\Master\Services\MasterEditLink;
 
 class UomController extends Controller
 {
@@ -102,6 +103,9 @@ class UomController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('uom')";
         }
 
+        if (MasterEditLink::allowed()) {
+            $data['datatable']['btn']['create'] = MasterEditLink::createButton('uom');
+        }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_uom'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
@@ -257,10 +261,11 @@ class UomController extends Controller
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_uom')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_uom')) && $row->app_code == config('SsoConfig.main.APP_CODE'))) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
+                $btn .= MasterEditLink::rowButton('uom', $row->No);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
