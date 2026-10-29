@@ -103,7 +103,7 @@ class PcaController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('pca')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('pca', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('pca');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_pca'))) {

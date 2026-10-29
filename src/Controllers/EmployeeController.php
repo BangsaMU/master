@@ -310,7 +310,7 @@ class EmployeeController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('employee,status,location,job_position,department,vendor')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('employee', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('employee');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_employee'))) {

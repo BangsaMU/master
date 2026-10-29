@@ -96,7 +96,7 @@ class ProjectDetailController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('project,company,project_detail')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('project-detail', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('project-detail');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project_detail') || checkPermission('create_project'))) {

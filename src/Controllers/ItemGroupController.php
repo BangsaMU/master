@@ -102,7 +102,7 @@ class ItemGroupController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('item_group')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('item-group', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('item-group');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_itemgroup'))) {

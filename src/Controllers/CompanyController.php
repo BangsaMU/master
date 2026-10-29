@@ -85,7 +85,7 @@ class CompanyController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('company,gallery')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('company', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('company');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {

@@ -180,7 +180,7 @@ class LocationController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('location')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('location', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('location');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_location'))) {

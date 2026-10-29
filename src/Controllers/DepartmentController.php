@@ -107,7 +107,7 @@ class DepartmentController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('department')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('department', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('department');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_department'))) {

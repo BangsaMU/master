@@ -14,8 +14,11 @@ return [
     // MASTER_DIRECT_EDIT=false: tombol "Edit/Tambah di Master Data" di daftar master membuka aplikasi Master Data (base URL
     // tanpa slash akhir, mis. http://192.168.20.187:9002); kosong = tanpa tombol. Path: master/{slug}/{id}/edit
     'MASTER_EDIT_URL' => env('MASTER_EDIT_URL'),
-    // permission yang melihat tombol itu (is_admin selalu)
-    'MASTER_EDIT_PERMISSION' => env('MASTER_EDIT_PERMISSION', 'update_master_data'),
+    // siapa melihat tombol: is_admin, atau per modul create_{akhiran} (Tambah) / update_{akhiran} (Edit) dengan nama
+    // permission aplikasi Master Data (item code = update_item); override akhiran per slug, mis. ['item-code' => 'item_code']
+    'MASTER_EDIT_PERMISSIONS' => [],
+    // opsional: satu permission untuk semua modul (kosong = tidak ada)
+    'MASTER_EDIT_PERMISSION' => env('MASTER_EDIT_PERMISSION'),
     'MASTER_COMPANY_ID' => env('MASTER_COMPANY_ID', 1), // default ke id 1
     // dropdown api/getmaster_*byparams ikut filter Setting/DashboardSettings (kategori = nama tabel) seperti list master
     'SELECT2_SETTING_FILTER' => env('MASTER_SELECT2_SETTING_FILTER', false),

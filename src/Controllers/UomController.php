@@ -103,7 +103,7 @@ class UomController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('uom')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('uom', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('uom');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_uom'))) {

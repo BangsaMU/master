@@ -116,7 +116,7 @@ class ItemCodeController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('category,uom,pca,item-group,item_code')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('item-code', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('item-code');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_item_code'))) {

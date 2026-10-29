@@ -105,7 +105,7 @@ class VendorController extends Controller
             $data['datatable']['btn']['sync']['act'] = "syncFn('vendor,vendor_contact')";
         }
 
-        if (MasterEditLink::allowed()) {
+        if (MasterEditLink::allowed('vendor', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('vendor');
         }
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_vendor'))) {

@@ -70,8 +70,13 @@ nilai dipisah koma; antar setting digabung OR. Lookup nilai terpilih (`?id=`) ti
 Bila `MASTER_DIRECT_EDIT=false` (data master hanya dibaca, hasil sync hub) dan `MASTER_EDIT_URL` diisi (base URL
 aplikasi Master Data, mis. `http://192.168.20.187:9002`), daftar master menampilkan tombol **Tambah di Master Data**
 dan **Edit di Master Data** per baris yang membuka tab baru ke `{MASTER_EDIT_URL}/master/{slug}/create` dan
-`/master/{slug}/{id}/edit` (path route paket sama, id baris = id DB master). Tombol hanya untuk `is_admin` atau
-permission `MASTER_EDIT_PERMISSION` (default `update_master_data`). Helper: `Bangsamu\Master\Services\MasterEditLink`.
+`/master/{slug}/{id}/edit` (path route paket sama, id baris = id DB master). Helper:
+`Bangsamu\Master\Services\MasterEditLink`.
+
+Sejak v2.4.8 izinnya per modul: tombol Tambah butuh `create_{akhiran}`, tombol Edit butuh `update_{akhiran}`, dengan
+nama permission aplikasi Master Data (`meindo_master`): item code `item`, item group `itemgroup`, lainnya sama dengan
+slug (`category`, `uom`, `pca`, `company`, ...). `is_admin` selalu boleh. Override akhiran per slug lewat
+`MasterCrudConfig.MASTER_EDIT_PERMISSIONS`; `MASTER_EDIT_PERMISSION` (opsional) = satu permission untuk semua modul.
 Tombol Delete lokal hanya tampil bila `MASTER_DIRECT_EDIT=true`. Tombol hanya menyembunyikan aksi; route tulis tetap
 perlu dikunci di app (lihat pola `MasterDataPermission`).
 
