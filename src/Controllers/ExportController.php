@@ -16,6 +16,8 @@ class ExportController extends Controller
 {
     public function export($table)
     {
+        $this->authorizeExport(str_starts_with($table, 'GO-') ? substr($table, 3) : $table);
+
         $table_name = ucwords(str_replace('_', ' ', $table));
         $report = 'Maatwebsite'; // Maatwebsite,goReport
 
@@ -64,6 +66,23 @@ class ExportController extends Controller
     }
 
 
+
+    /**
+     * Dulu nama tabel dari URL langsung dibaca dari db_master (semua kolom), sehingga user login mana pun bisa mengunduh
+     * master_user lengkap dengan password/api_token. Kini hanya tabel MasterCrudConfig.EXPORT_TABLES (lainnya 404) dan
+     * user is_admin atau ber-permission baca tabel itu (lainnya 403).
+     */
+    protected function authorizeExport(string $table): void
+    {
+        $exportTables = (array) config('MasterCrudConfig.EXPORT_TABLES', []);
+        abort_unless(array_key_exists($table, $exportTables), 404);
+
+        $user = Auth::user();
+        $allowed = $user !== null && ($user->can('is_admin')
+            || collect((array) $exportTables[$table])->contains(fn ($permission) => $user->can($permission)));
+
+        abort_unless($allowed, 403, 'Anda tidak punya izin export '.$table.'.');
+    }
 
     public function exportExcel($request)
     {
