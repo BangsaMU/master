@@ -72,15 +72,35 @@ class CrudTabelController extends Controller
         'null AS action',
     ];
 
+    /**
+     * Jangan query di sini: controller dibuat sebelum middleware auth jalan, dan dulu nama tabel dari URL tamu masuk
+     * query information_schema Schema::getColumnListing() tanpa escape (injeksi SQL tanpa login). Cek tabel + kolom di
+     * authorizeTable() pada tiap aksi.
+     */
     public function __construct(Request $request)
     {
         $this->table = $request->route('table'); // table dari URL
         $this->sheet_slug = $request->route('table'); // table dari URL
+    }
+
+    /**
+     * Dulu tabel apa pun bisa dibaca/ditulis user login mana pun (mis. insert model_has_roles = jadi admin). Kini hanya
+     * tabel MasterCrudConfig.CRUD_TABLES (default kosong = semua 404) dan hanya is_admin.
+     */
+    protected function authorizeTable(): void
+    {
+        // dari request yang sedang jalan: instance controller disimpan di route dan bisa dipakai ulang antar request
+        $this->table = $this->sheet_slug = request()->route('table');
+
+        abort_unless(is_string($this->table) && in_array($this->table, (array) config('MasterCrudConfig.CRUD_TABLES', []), true), 404);
+        abort_unless(checkPermission('is_admin'), 403);
+
         $this->columns = Schema::getColumnListing($this->table);
     }
 
     public function indexX()
     {
+        $this->authorizeTable();
         $data = DB::table($this->table)->get();
 
         return view('master::crud.index', ['table' => $this->table, 'data' => $data]);
@@ -259,6 +279,7 @@ class CrudTabelController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeTable();
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -344,6 +365,7 @@ class CrudTabelController extends Controller
 
     public function dataJson(Request $request)
     {
+        $this->authorizeTable();
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -545,11 +567,13 @@ class CrudTabelController extends Controller
 
     public function create()
     {
+        $this->authorizeTable();
         return view('master::crud.create', ['table' => $this->table]);
     }
 
     public function store(Request $request)
     {
+        $this->authorizeTable();
         $input = $request->except(['_token']);
         DB::table($this->table)->insert($input);
 
@@ -568,6 +592,7 @@ class CrudTabelController extends Controller
 
     public function edit(Request $request, $tabel, $id)
     {
+        $this->authorizeTable();
         if (empty($this->table) || empty($id)) {
             abort(404, 'Tabel tidak ditemukan');
         }
@@ -601,6 +626,7 @@ class CrudTabelController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeTable();
         $input = $request->except(['_token', '_method']);
         DB::table($this->table)->where('id', $id)->update($input);
 
@@ -609,6 +635,7 @@ class CrudTabelController extends Controller
 
     public function destroy($id)
     {
+        $this->authorizeTable();
         DB::table($this->table)->where('id', $id)->delete();
 
         return redirect()->route('master::crud.index', ['table' => $this->table]);

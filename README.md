@@ -105,6 +105,20 @@ tabel master lokal dari isi request tanpa token.
   (seperti `api/master-{tabel}/{id}`); tabel wajib di `MASTER_TABEL`, id wajib angka. App tanpa koneksi `db_master`
   wajib memasang token di app dan di pengirim webhook.
 
+## Export Tabel & CRUD Generik (sejak v2.4.10)
+
+Sebelumnya `master/get{table}/export` (`master.table.export`) membaca tabel apa pun dari `db_master` semua kolom untuk
+user login mana pun (termasuk `password` + `api_token` `master_user`), dan `crud/{table}` membaca/menulis tabel apa pun
+(insert `model_has_roles` = jadi admin); constructor `CrudTabelController` bahkan menjalankan query information_schema
+dengan nama tabel dari URL sebelum middleware `auth` (injeksi SQL tanpa login).
+
+- **Export**: hanya tabel `MasterCrudConfig.EXPORT_TABLES` (nama tabel => daftar permission baca, salah satu cukup);
+  tabel lain 404, user tanpa `is_admin` / permission itu 403. Default = tabel master yang punya halaman list dengan
+  permission `read_{modul}`. App yang mengekspor tabel lain lewat route ini wajib menambahkannya, mis.
+  `'mcu_matrix' => ['read_mcu']`; override di app mengganti seluruh daftar. Kolom rahasia `TableAccessPolicy` tidak ikut.
+- **CRUD generik**: hanya tabel `MasterCrudConfig.CRUD_TABLES` dan hanya `is_admin`; default kosong = semua route `crud/*`
+  404.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

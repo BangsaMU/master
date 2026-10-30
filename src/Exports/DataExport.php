@@ -2,9 +2,10 @@
 
 namespace Bangsamu\Master\Exports;
 
-use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\TableAccessPolicy;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -20,26 +21,13 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
         $this->table = $table;
     }
 
-    public function collection()
+    public function collection(): Collection
     {
         $databaseConfig = 'db_master'; // Sesuaikan dengan konfigurasi database Anda
-        $headers = [];
-        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table, $databaseConfig));
-
-        foreach ($table_columns as $key => $col) {
-            if (
-                $key != 'id' &&
-                $key != 'created_at' &&
-                $key != 'updated_at' &&
-                $key != 'deleted_at'
-            ) {
-                array_push($headers, $key);
-            }
-        }
 
         $query = DB::connection($databaseConfig)
             ->table($this->table)
-            ->select($headers)
+            ->select($this->exportColumns($databaseConfig))
             ->whereNull('deleted_at');
 
         $filters = $this->getDynamicFilters($databaseConfig);
@@ -57,21 +45,23 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
 
     public function headings(): array
     {
-        $headers = [];
-        $table_columns = json_decode(LibraryClayController::get_filed_toJson($this->table, 'db_master'));
+        return $this->exportColumns('db_master');
+    }
 
-        foreach ($table_columns as $key => $col) {
-            if (
-                $key != 'id' &&
-                $key != 'created_at' &&
-                $key != 'updated_at' &&
-                $key != 'deleted_at'
-            ) {
-                array_push($headers, $key);
-            }
-        }
+    /**
+     * Semua kolom tabel kecuali id/timestamp dan kolom rahasia TableAccessPolicy (password, remember_token, api_token,
+     * MasterCrudConfig.SELECT2_HIDDEN_COLUMNS).
+     *
+     * @return list<string>
+     */
+    protected function exportColumns(string $databaseConfig): array
+    {
+        $policy = app(TableAccessPolicy::class);
 
-        return $headers;
+        return array_values(array_filter(
+            Schema::connection($databaseConfig)->getColumnListing($this->table),
+            fn ($column) => ! in_array($column, ['id', 'created_at', 'updated_at', 'deleted_at'], true) && ! $policy->isHiddenColumn($column)
+        ));
     }
 
     protected function getDynamicFilters(string $databaseConfig): array
