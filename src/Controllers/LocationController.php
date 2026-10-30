@@ -12,6 +12,7 @@ use Bangsamu\Master\Models\Setting;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,8 @@ use Bangsamu\Master\Services\MasterEditLink;
 
 class LocationController extends Controller
 {
+    use DynamicFilterable;
+
     protected $readonly = false;
 
     protected $sheet_name = 'Master - location'; // nama label untuk FE
@@ -247,43 +250,30 @@ class LocationController extends Controller
 
         $array_data_maping = $view_tabel_index;
 
-        $list_location = Setting::where('name', 'group_type')
-            ->where('category', 'master_location')
-            ->value('value'); // Ambil langsung satu nilai
+        // filter Setting/DashboardSettings kategori master_location (kolom apa pun, mis. loc_code / group_type), sama
+        // dengan dropdown api/getmaster_locationbyparams; dulu hanya group_type sehingga setting loc_code diabaikan
+        $tableName = 'master_location';
+        $settings = $this->getSettingsForTable($tableName);
 
-        // dashboard_settings
-        if (empty($list_location)) {
-            $list_location = DashboardSettings::where('key', 'group_type')
-                ->where('group', 'master_location')
-                ->value('value');
-        }
+        $query = DB::table($tableName.' as ml')
+            ->whereNull('ml.deleted_at');
 
-        // Konversi string ke array, lalu filter elemen kosong
-        $list_location = array_filter(explode(',', $list_location));
+        $this->applyDynamicFilter($query, $tableName, $settings, 'ml');
 
-        // Jika array kosong setelah difilter, set ke null
-        $list_location = ! empty($list_location) ? $list_location : null;
-
-        $totalData = DB::table('master_location as ml')
-            ->whereNull('ml.deleted_at')
-            ->when($list_location, function ($query, $group_type) {
-                return $query->whereIn('ml.group_type', $group_type);
-            })
-            ->count();
+        $totalData = $query->count();
 
         $totalFiltered = $totalData;
         if ($request_columns || $search) {
             $view_tabel = $view_tabel_index;
 
-            $data_tabel = DB::table('master_location as ml')
+            $data_tabel = DB::table($tableName.' as ml')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('ml.deleted_at')
-                ->when($list_location, function ($query, $group_type) {
-                    return $query->whereIn('ml.group_type', $group_type);
-                })
-                ->groupby('ml.id');
+                ->whereNull('ml.deleted_at');
+
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'ml');
+            $data_tabel->groupby('ml.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -297,15 +287,15 @@ class LocationController extends Controller
 
             $data_tabel = $data_tabel->get();
         } else {
-            $datatb_request = DB::table('master_location as ml')
+            $datatb_request = DB::table($tableName.' as ml')
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('ml.deleted_at')
-                ->when($list_location, function ($query, $group_type) {
-                    return $query->whereIn('ml.group_type', $group_type);
-                })
-                ->groupby('ml.id')
+                ->whereNull('ml.deleted_at');
+
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'ml');
+
+            $datatb_request = $datatb_request->groupby('ml.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);

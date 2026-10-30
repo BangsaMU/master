@@ -64,6 +64,8 @@ aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
 `api/getmaster_*byparams` (sumber dropdown select2) memakai filter yang sama dengan list master: baris tabel
 `setting` dengan `category` = nama tabel (fallback `dashboard_settings.group`), `name`/`key` = kolom, `value` = daftar
 nilai dipisah koma; antar setting digabung OR. Lookup nilai terpilih (`?id=`) tidak difilter, jadi data lama tetap tampil.
+List master selalu memakai filter ini (tanpa config). Sejak v2.4.9 list Location ikut membaca kolom apa pun (mis.
+`loc_code`); sebelumnya hanya setting `group_type`.
 
 ## Edit di Aplikasi Master Data (sejak v2.4.7, opt-in)
 
