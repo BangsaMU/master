@@ -49,6 +49,22 @@ Paket terpusat Master Data untuk ekosistem aplikasi berbasis Laravel.
 
 ---
 
+## Export Tabel & CRUD Generik (sejak v1.2.14, backport v2.4.10)
+
+Sebelumnya `master/get{table}/export` (`master.table.export`) membaca tabel apa pun dari `db_master` semua kolom untuk
+user login mana pun (termasuk `password` + `api_token` `master_user`), dan `crud/{table}` membaca/menulis tabel apa pun
+(insert `model_has_roles` = jadi admin); constructor `CrudTabelController` bahkan menjalankan query information_schema
+dengan nama tabel dari URL sebelum middleware `auth` (injeksi SQL tanpa login di Laravel 11+).
+
+- **Export**: hanya tabel `MasterCrudConfig.EXPORT_TABLES` (nama tabel => daftar permission baca, salah satu cukup);
+  tabel lain 404, user tanpa `is_admin` / permission itu 403. App yang mengekspor tabel lain lewat route ini wajib
+  menambahkannya, mis. `'mcu_matrix' => ['is_medic']`; override di app mengganti seluruh daftar. Kolom `password`,
+  `remember_token`, `api_token` + `SELECT2_HIDDEN_COLUMNS` tidak ikut.
+- **CRUD generik**: hanya tabel `MasterCrudConfig.CRUD_TABLES` dan hanya `is_admin`; default kosong = semua route `crud/*`
+  404.
+
+---
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
