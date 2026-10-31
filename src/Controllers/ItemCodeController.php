@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\ItemCodeExport;
@@ -13,6 +15,7 @@ use Bangsamu\Master\Models\Setting;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +26,8 @@ use Bangsamu\Master\Services\MasterEditLink;
 
 class ItemCodeController extends Controller
 {
+    use DynamicFilterable;
+
     protected $readonly = false;
 
     protected $sheet_name = 'Master - Item Code'; // nama label untuk FE
@@ -109,7 +114,7 @@ class ItemCodeController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_item_code')) {
+        if (app(MasterAccess::class)->can('item-code', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -119,7 +124,7 @@ class ItemCodeController extends Controller
         if (MasterEditLink::allowed('item-code', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('item-code');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_item_code'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('item-code', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -132,7 +137,7 @@ class ItemCodeController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if (checkPermission('is_admin') || checkPermission('read_item_code')) {
+        if (app(MasterAccess::class)->can('item-code', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -211,18 +216,8 @@ class ItemCodeController extends Controller
 
         $query = DB::table($tableName.' as mic')
             ->whereNull('mic.deleted_at');
-        // 2. Tambahkan grup filter dengan logika OR di dalamnya
-        $query->where(function ($q) use ($settings, $tableName) {
-            foreach ($settings as $setting) {
-                $column = $setting->name ?? $setting->key;
-                $values = array_filter(explode(',', $setting->value));
-                // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
-                if (Schema::hasColumn($tableName, $column) && ! empty($values)) {
-                    // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
-                    $q->orWhereIn("mic.$column", $values);
-                }
-            }
-        });
+        // filter setting aplikasi (DynamicFilterable: format kolom lama + baris scope)
+        $this->applyDynamicFilter($query, $tableName, $settings, 'mic');
         $totalData = $query->count();
 
         $totalFiltered = $totalData;
@@ -238,18 +233,8 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
                 ->whereNull('mic.deleted_at');
-            $data_tabel->where(function ($q) use ($settings, $tableName) {
-                foreach ($settings as $setting) {
-                    $column = $setting->name ?? $setting->key;
-                    $values = array_filter(explode(',', $setting->value));
-                    // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
-                    if (Schema::hasColumn($tableName, $column) && ! empty($values)) {
-                        // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
-                        $q->orWhereIn("mic.$column", $values);
-                    }
-                }
-            })
-                ->groupby('mic.id');
+            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mic');
+            $data_tabel->groupby('mic.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
 
@@ -272,18 +257,8 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
                 ->whereNull('mic.deleted_at');
-            $datatb_request->where(function ($q) use ($settings, $tableName) {
-                foreach ($settings as $setting) {
-                    $column = $setting->name ?? $setting->key;
-                    $values = array_filter(explode(',', $setting->value));
-                    // VALIDASI: Cek apakah field ada di tabel & values tidak kosong
-                    if (Schema::hasColumn($tableName, $column) && ! empty($values)) {
-                        // Menggunakan orWhereIn agar antar parameter menggunakan logika OR
-                        $q->orWhereIn("mic.$column", $values);
-                    }
-                }
-            })
-                ->groupby('mic.id')
+            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mic');
+            $datatb_request->groupby('mic.id')
                 ->orderBy($order, $dir)
                 ->limit($limit)
                 ->offset($start);
@@ -330,12 +305,12 @@ class ItemCodeController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('item-code', 'update', $row)) {
                     $btn .= '<a href="'.route('master.item-code.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.item-code.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_item_code')) && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('item-code', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.item-code.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -349,7 +324,7 @@ class ItemCodeController extends Controller
                     }, array_keys($attributesArray), $attributesArray))
                     : '';
 
-                $btn .= MasterEditLink::rowButton('item-code', $row->No);
+                $btn .= MasterEditLink::rowButton('item-code', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -391,15 +366,20 @@ class ItemCodeController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'item-code');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('item-code', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_item_code', $existing) : app(MasterScope::class)->ownerForNew('master_item_code');
+
         // dd($request->all());
         $request->validate([
-            'item_code' => 'required|unique:master_'.$this->sheet_slug.',item_code'.($request->id ? ','.$request->id : ''),
+            'item_code' => ['required', app(MasterScope::class)->uniqueRule('master_item_code', 'item_code', $owner, $request->id)],
             'item_name' => 'required',
             'uom_id' => 'required',
             // 'pca_id' => 'required',
             // 'category_id' => 'required',
             'group_id' => 'required',
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_item_code', 'item_code', $request->input('item_code'), $owner, $request->id);
         $item_group_attributes = DB::table('master_item_group as mig')
             ->where('id', $request->group_id)
             ->select('item_group_attributes')
@@ -430,7 +410,7 @@ class ItemCodeController extends Controller
 
             $item_code = ItemCode::findOrFail($request->id);
             // dd($request->all());
-            $update = $item_code->update([
+            $update = $item_code->update(app(MasterScope::class)->stamp('master_item_code', [
                 'item_code' => $request->item_code,
                 'item_name' => $request->item_name,
                 'uom_id' => $request->uom_id,
@@ -439,7 +419,7 @@ class ItemCodeController extends Controller
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
                 'remarks' => $request->remarks,
-            ]);
+            ], $owner));
 
             if ($update && $item_code->wasChanged()) {
                 /* sync callback */
@@ -475,7 +455,7 @@ class ItemCodeController extends Controller
 
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
 
-            $createdItem = $modelClass::create([
+            $createdItem = $modelClass::create(app(MasterScope::class)->stamp('master_item_code', [
                 'item_code' => $request->item_code,
                 'item_name' => $request->item_name,
                 'uom_id' => $request->uom_id,
@@ -484,16 +464,14 @@ class ItemCodeController extends Controller
                 'group_id' => $request->group_id,
                 'attributes' => $item_code_attributes,
                 'remarks' => $request->remarks,
-                'app_code' => config('SsoConfig.main.APP_CODE'),
-                'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
                 'created_at' => now(),
-            ]); // ini akan trigger Loggable
+            ], $owner)); // ini akan trigger Loggable
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new item code
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_item_code', [
                     'item_code' => $request->item_code,
                     'item_name' => $request->item_name,
                     'uom_id' => $request->uom_id,
@@ -501,10 +479,8 @@ class ItemCodeController extends Controller
                     'category_id' => $request->category_id,
                     'group_id' => $request->group_id,
                     'attributes' => $item_code_attributes,
-                    'app_code' => config('SsoConfig.main.APP_CODE'),
-                    'company_id' => config('MasterCrudConfig.MASTER_COMPANY_ID'),
                     'created_at' => now(),
-                ]);
+                ], $owner));
             }
 
             $message = $this->sheet_name.' created successfully';
@@ -531,6 +507,10 @@ class ItemCodeController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('item-code', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         $param->uom_name = DB::table('master_uom')->where('id', $param->uom_id)->value('uom_name');
         $param->pca_name = DB::table('master_pca')->where('id', $param->pca_id)->value('pca_name');
@@ -545,6 +525,7 @@ class ItemCodeController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('item-code', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 
@@ -690,12 +671,12 @@ class ItemCodeController extends Controller
 
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('item-code', 'update', $row)) {
                     $btn .= '<a href="'.route('master.item-code.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.item-code.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('delete_item_code') && ($row->app_code == config('SsoConfig.main.APP_CODE') || $row->company_id == config('MasterCrudConfig.MASTER_COMPANY_ID')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('item-code', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.item-code.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -705,7 +686,7 @@ class ItemCodeController extends Controller
                     }, array_keys(json_decode($nestedData['attributes'], true)), json_decode($nestedData['attributes'], true)))
                     : '';
 
-                $btn .= MasterEditLink::rowButton('item-code', $row->No);
+                $btn .= MasterEditLink::rowButton('item-code', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;

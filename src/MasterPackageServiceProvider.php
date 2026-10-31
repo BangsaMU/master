@@ -38,6 +38,10 @@ class MasterPackageServiceProvider extends ServiceProvider
         $this->app->singleton(\Bangsamu\Master\Services\MasterDataSyncService::class, function ($app) {
             return new \Bangsamu\Master\Services\MasterDataSyncService;
         });
+
+        // pemilik data (app_code + company_id) dan aturan izin master per baris
+        $this->app->singleton(\Bangsamu\Master\Services\MasterScope::class);
+        $this->app->singleton(\Bangsamu\Master\Services\MasterAccess::class);
     }
 
     /**
@@ -101,6 +105,9 @@ class MasterPackageServiceProvider extends ServiceProvider
                 \Bangsamu\Master\Commands\MasterCatchUpCommand::class,
                 \Bangsamu\Master\Commands\MasterSyncLockCommand::class,
                 \Bangsamu\Master\Commands\MasterInstallTablesCommand::class,
+                \Bangsamu\Master\Commands\MasterPermissionsCommand::class,
+                \Bangsamu\Master\Commands\MasterScopeUpgradeCommand::class,
+                \Bangsamu\Master\Commands\MasterLaunchKeyCommand::class,
             ]);
 
             // Auto-register scheduled master sync catch-up if enabled

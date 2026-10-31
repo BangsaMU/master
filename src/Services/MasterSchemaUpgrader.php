@@ -96,7 +96,9 @@ class MasterSchemaUpgrader
 
         $indexes = $this->uniqueIndexes($table);
         $drop = array_keys(array_filter($indexes, fn ($columns) => $columns === ['department_code']));
-        $add = ! isset($indexes['uq_dept_code_app']);
+        // index unik apa pun yang sudah memuat department_code + app_code (termasuk hasil master:scope-upgrade yang
+        // menambah company_id) dianggap cukup; jangan dikembalikan ke (department_code, app_code)
+        $add = array_filter($indexes, fn ($columns) => in_array('department_code', $columns, true) && in_array('app_code', $columns, true)) === [];
 
         if ($drop !== [] || $add) {
             Schema::table($table, function (Blueprint $blueprint) use ($drop, $add) {

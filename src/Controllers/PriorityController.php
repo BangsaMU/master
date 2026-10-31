@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Priority;
@@ -88,14 +90,14 @@ class PriorityController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_priority')) {
+        if (app(MasterAccess::class)->can('priority', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
             $data['datatable']['btn']['sync']['act'] = "syncFn('priority')";
         }
 
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_priority'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('priority', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -108,7 +110,7 @@ class PriorityController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_priority'))) {
+        if (app(MasterAccess::class)->can('priority', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -240,12 +242,12 @@ class PriorityController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_priority'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('priority', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if ((checkPermission('is_admin') || checkPermission('delete_priority'))) {
+                if (app(MasterAccess::class)->allows('priority', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
@@ -286,18 +288,23 @@ class PriorityController extends Controller
 
     public function store(Request $request)
     {
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('priority', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_priority', $existing) : app(MasterScope::class)->ownerForNew('master_priority');
+
         $request->validate([
-            'priority_code' => 'required|unique:master_'.$this->sheet_slug.',priority_code'.($request->id ? ','.$request->id : ''),
+            'priority_code' => ['required', app(MasterScope::class)->uniqueRule('master_priority', 'priority_code', $owner, $request->id)],
             'priority_name' => 'required',
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_priority', 'priority_code', $request->input('priority_code'), $owner, $request->id);
 
         if ($request->id) {
             // Update existing priority
             $priority = Priority::findOrFail($request->id);
-            $update = $priority->update([
+            $update = $priority->update(app(MasterScope::class)->stamp('master_priority', [
                 'priority_code' => strtoupper($request->priority_code),
                 'priority_name' => $request->priority_name,
-            ]);
+            ], $owner));
 
             if ($update && $priority->wasChanged()) {
                 /* sync callback */
@@ -319,21 +326,21 @@ class PriorityController extends Controller
             // Create new priority
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
 
-            $modelClass::create([
+            $modelClass::create(app(MasterScope::class)->stamp('master_priority', [
                 'priority_code' => strtoupper($request->priority_code),
                 'priority_name' => $request->priority_name,
                 'created_at' => now(),
-            ]); // ini akan trigger Loggable
+            ], $owner)); // ini akan trigger Loggable
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new priority di master DB
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_priority', [
                     'priority_code' => strtoupper($request->priority_code),
                     'priority_name' => $request->priority_name,
                     'created_at' => now(),
-                ]);
+                ], $owner));
             }
 
             // DB::table('master_' . $this->sheet_slug)->insert([
@@ -366,12 +373,17 @@ class PriorityController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('priority', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('priority', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 

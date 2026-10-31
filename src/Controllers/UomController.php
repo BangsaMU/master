@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\UomTemplateExport;
@@ -96,7 +98,7 @@ class UomController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_uom')) {
+        if (app(MasterAccess::class)->can('uom', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -106,7 +108,7 @@ class UomController extends Controller
         if (MasterEditLink::allowed('uom', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('uom');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_uom'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('uom', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -119,7 +121,7 @@ class UomController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_uom'))) {
+        if (app(MasterAccess::class)->can('uom', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -256,16 +258,16 @@ class UomController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_uom')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('uom', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_uom')) && $row->app_code == config('SsoConfig.main.APP_CODE'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('uom', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('uom', $row->No);
+                $btn .= MasterEditLink::rowButton('uom', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -306,10 +308,15 @@ class UomController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'uom');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('uom', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_uom', $existing) : app(MasterScope::class)->ownerForNew('master_uom');
+
         $request->validate([
-            'uom_code' => 'required|unique:master_'.$this->sheet_slug.',uom_code'.($request->id ? ','.$request->id : ''),
-            'uom_name' => 'required',
+            'uom_code' => ['required', app(MasterScope::class)->uniqueRule('master_uom', 'uom_code', $owner, $request->id)],
+            'uom_name' => ['required', app(MasterScope::class)->uniqueRule('master_uom', 'uom_name', $owner, $request->id)],
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_uom', 'uom_code', $request->input('uom_code'), $owner, $request->id);
 
         if ($request->id) {
             // Update existing model
@@ -317,11 +324,11 @@ class UomController extends Controller
             $model = $modelClass::find($request->id);
 
             if ($model) {
-                $update = $model->update([
+                $update = $model->update(app(MasterScope::class)->stamp('master_uom', [
                     'uom_code' => strtoupper($request->uom_code),
                     'uom_name' => $request->uom_name,
                     'updated_at' => now(),
-                ]); // ini akan trigger Loggable
+                ], $owner)); // ini akan trigger Loggable
             } else {
                 abort(404, 'Model not found');
             }
@@ -356,21 +363,21 @@ class UomController extends Controller
             // Create new uom
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
 
-            $modelClass::create([
+            $modelClass::create(app(MasterScope::class)->stamp('master_uom', [
                 'uom_code' => strtoupper($request->uom_code),
                 'uom_name' => $request->uom_name,
                 'created_at' => now(),
-            ]); // ini akan trigger Loggable
+            ], $owner)); // ini akan trigger Loggable
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new uom
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_uom', [
                     'uom_code' => strtoupper($request->uom_code),
                     'uom_name' => $request->uom_name,
                     'created_at' => now(),
-                ]);
+                ], $owner));
             }
 
             // DB::table('master_' . $this->sheet_slug)->insert([
@@ -403,6 +410,10 @@ class UomController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('uom', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(Uom::class, $id);
 
@@ -411,6 +422,7 @@ class UomController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('uom', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 

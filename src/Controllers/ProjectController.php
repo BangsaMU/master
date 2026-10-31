@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\ProjectTemplateExport;
@@ -177,7 +179,7 @@ class ProjectController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_project') == true) {
+        if (app(MasterAccess::class)->can('project', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -187,7 +189,7 @@ class ProjectController extends Controller
         if (MasterEditLink::allowed('project', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('project');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('project', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -200,7 +202,7 @@ class ProjectController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_project'))) {
+        if (app(MasterAccess::class)->can('project', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -337,16 +339,16 @@ class ProjectController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_project'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('project', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_project')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('project', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('project', $row->No);
+                $btn .= MasterEditLink::rowButton('project', $row->No, $row);
                 $nestedData['action'] = $btn;
 
                 $data[] = $nestedData;
@@ -387,22 +389,27 @@ class ProjectController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'project');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('project', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_project', $existing) : app(MasterScope::class)->ownerForNew('master_project');
+
         $request->validate([
-            'project_code' => 'required|string|max:10|unique:master_'.$this->sheet_slug.',project_code'.($request->id ? ','.$request->id : ''),
+            'project_code' => ['required', 'string', 'max:10', app(MasterScope::class)->uniqueRule('master_project', 'project_code', $owner, $request->id)],
             'project_name' => 'required|string|max:100',
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_project', 'project_code', $request->input('project_code'), $owner, $request->id);
 
         if ($request->id) {
             // Update existing Project
             $project = Project::findOrFail($request->id);
-            $update = $project->update([
+            $update = $project->update(app(MasterScope::class)->stamp('master_project', [
                 'project_code' => $request->project_code,
                 'project_name' => $request->project_name,
                 'internal_external' => $request->internal_external,
                 'project_remarks' => $request->project_remarks,
                 'project_start_date' => $request->project_start_date,
                 'project_complete_date' => $request->project_complete_date,
-            ]);
+            ], $owner));
 
             if ($update && $project->wasChanged()) {
                 /* sync callback */
@@ -422,25 +429,25 @@ class ProjectController extends Controller
             }
         } else {
             // Create new Project
-            $project = Project::create([
+            $project = Project::create(app(MasterScope::class)->stamp('master_project', [
                 'project_code' => $request->project_code,
                 'project_name' => $request->project_name,
                 'internal_external' => $request->internal_external,
                 'project_remarks' => $request->project_remarks,
                 'project_start_date' => $request->project_start_date,
                 'project_complete_date' => $request->project_complete_date,
-            ]);
+            ], $owner));
 
             // auto add project detail
             $company = Company::where('company_code', 'ME')->first() ?? Company::first();
             if ($company) {
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('project_detail');
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_project', [
                     'project_id' => $project->id,
                     'project_code_client' => $request->project_code,
                     'project_name_client' => $request->project_name,
                     'company_id' => $company->id,
-                ]); // ini akan trigger Loggable
+                ], $owner)); // ini akan trigger Loggable
             }
 
             // DB::table('master_project_detail')->insert([
@@ -475,6 +482,10 @@ class ProjectController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('project', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         /**
          * formdata
@@ -541,6 +552,7 @@ class ProjectController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('project', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 

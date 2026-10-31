@@ -36,6 +36,7 @@
                             <label for="remark">Remark</label>
                             <textarea {{ $data['page']['readonly'] ? 'readonly' : '' }} name="remark" id="remark" class="form-control">{{ $param ? $param->remark : old('remark') }}</textarea>
                         </div>
+                        @include('master::partials.master-owner', ['table' => 'master_category', 'param' => $param, 'readonly' => $data['page']['readonly']])
                         @if ($data['page']['readonly']==false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif

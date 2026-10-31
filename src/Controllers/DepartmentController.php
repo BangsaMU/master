@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterAccess;
+use Bangsamu\Master\Services\MasterScope;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\DepartmentTemplateExport;
@@ -15,8 +17,6 @@ use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
 
@@ -100,7 +100,7 @@ class DepartmentController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_department')) {
+        if (app(MasterAccess::class)->can('department', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -110,7 +110,7 @@ class DepartmentController extends Controller
         if (MasterEditLink::allowed('department', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('department');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_department'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('department', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -123,7 +123,7 @@ class DepartmentController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_department'))) {
+        if (app(MasterAccess::class)->can('department', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -262,17 +262,17 @@ class DepartmentController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_department')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('department', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
 
-                if ((checkPermission('is_admin') || checkPermission('delete_department')) && config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('department', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('department', $row->No);
+                $btn .= MasterEditLink::rowButton('department', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -315,36 +315,29 @@ class DepartmentController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'department');
 
-        $appCode = (string) config('SsoConfig.main.APP_CODE', 'APP03');
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id).
+        // Dulu baris milik aplikasi lain ditolak dengan pesan validasi; kini 403 kecuali tim master / delegasi pemiliknya.
+        $existing = app(MasterAccess::class)->authorizeStore('department', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_department', $existing) : app(MasterScope::class)->ownerForNew('master_department');
+        $department = $existing ? Department::findOrFail($request->id) : null;
 
-        if ($request->id) {
-            $department = Department::findOrFail($request->id);
-            if ((string) $department->app_code !== $appCode) {
-                throw ValidationException::withMessages([
-                    'department_code' => ["Department ini milik aplikasi {$department->app_code}, tidak dapat diubah dari aplikasi ini."],
-                ]);
-            }
-            $appCode = (string) $department->app_code;
-        }
-
-        // unik per aplikasi: department_code + app_code
+        // unik berpasangan dengan pemilik: department_code + app_code (+ company_id bila kolomnya ada)
         $request->validate([
             'department_code' => [
                 'required',
                 'max:15',
-                Rule::unique('master_'.$this->sheet_slug, 'department_code')
-                    ->where(fn ($query) => $query->where('app_code', $appCode))
-                    ->ignore($request->id),
+                app(MasterScope::class)->uniqueRule('master_'.$this->sheet_slug, 'department_code', $owner, $request->id),
             ],
             'department_name' => 'required|max:100',
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_department', 'department_code', $request->input('department_code'), $owner, $request->id);
 
         if ($request->id) {
             // Update existing department
-            $update = $department->update([
+            $update = $department->update(app(MasterScope::class)->stamp('master_department', [
                 'department_code' => $request->department_code,
                 'department_name' => $request->department_name,
-            ]);
+            ], $owner));
 
             if ($update && $department->wasChanged()) {
                 /* sync callback */
@@ -367,23 +360,21 @@ class DepartmentController extends Controller
             // Create new department
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
 
-            $modelClass::create([
+            $modelClass::create(app(MasterScope::class)->stamp('master_department', [
                 'department_code' => $request->department_code,
                 'department_name' => $request->department_name,
-                'app_code' => $appCode,
                 'created_at' => now(),
-            ]);
+            ], $owner));
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new department
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_department', [
                     'department_code' => $request->department_code,
                     'department_name' => $request->department_name,
-                    'app_code' => $appCode,
                     'created_at' => now(),
-                ]);
+                ], $owner));
             }
 
             $message = $this->sheet_name.' created successfully';
@@ -405,6 +396,10 @@ class DepartmentController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('department', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(Department::class, $id);
 
@@ -413,6 +408,7 @@ class DepartmentController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('department', 'delete', $id);
         // lewat model: soft delete + broadcast perubahan (dulu DB::table menghapus permanen tanpa broadcast)
         Department::findOrFail($id)->delete();
 

@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\LocationTemplateExport;
@@ -176,7 +178,7 @@ class LocationController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_location') == true) {
+        if (app(MasterAccess::class)->can('location', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -186,7 +188,7 @@ class LocationController extends Controller
         if (MasterEditLink::allowed('location', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('location');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_location'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('location', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -199,7 +201,7 @@ class LocationController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_location'))) {
+        if (app(MasterAccess::class)->can('location', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -338,16 +340,16 @@ class LocationController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_location'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('location', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_location')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('location', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('location', $row->No);
+                $btn .= MasterEditLink::rowButton('location', $row->No, $row);
                 $nestedData['action'] = $btn;
 
                 $data[] = $nestedData;
@@ -520,6 +522,10 @@ class LocationController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'location');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('location', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_location', $existing) : app(MasterScope::class)->ownerForNew('master_location');
+
         // 1. Jalankan validasi dasar terlebih dahulu
         $request->validate([
             'loc_code' => 'required',
@@ -551,11 +557,11 @@ class LocationController extends Controller
         if ($request->id) {
             // Update existing location
             $location = Location::findOrFail($request->id);
-            $update = $location->update([
+            $update = $location->update(app(MasterScope::class)->stamp('master_location', [
                 'loc_code' => strtoupper($request->loc_code),
                 'loc_name' => $request->loc_name,
                 'group_type' => $request->group_type,
-            ]);
+            ], $owner));
 
             if ($update) {
                 $this->syncLocationToRelatedMaster($location);
@@ -582,12 +588,12 @@ class LocationController extends Controller
             // Create new location
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug);
 
-            $location = $modelClass::create([
+            $location = $modelClass::create(app(MasterScope::class)->stamp('master_location', [
                 'loc_code' => strtoupper($request->loc_code),
                 'loc_name' => $request->loc_name,
                 'group_type' => $request->group_type,
                 'created_at' => now(),
-            ]);
+            ], $owner));
 
             $this->syncLocationToRelatedMaster($location);
             $this->syncLocationToMasterMirror($location);
@@ -654,6 +660,10 @@ class LocationController extends Controller
         }
 
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('location', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         /**
          * formdata
@@ -689,6 +699,7 @@ class LocationController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('location', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 

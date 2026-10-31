@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\ItemGroupTemplateExport;
@@ -95,7 +97,7 @@ class ItemGroupController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_itemgroup')) {
+        if (app(MasterAccess::class)->can('item-group', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -105,7 +107,7 @@ class ItemGroupController extends Controller
         if (MasterEditLink::allowed('item-group', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('item-group');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_itemgroup'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('item-group', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -118,7 +120,7 @@ class ItemGroupController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_itemgroup'))) {
+        if (app(MasterAccess::class)->can('item-group', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -254,16 +256,16 @@ class ItemGroupController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_itemgroup')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('item-group', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_itemgroup')) && $row->app_code == config('SsoConfig.main.APP_CODE'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('item-group', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('item-group', $row->No);
+                $btn .= MasterEditLink::rowButton('item-group', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -304,11 +306,16 @@ class ItemGroupController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'item-group');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('item-group', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_item_group', $existing) : app(MasterScope::class)->ownerForNew('master_item_group');
+
         $request->validate([
-            'item_group_code' => 'required|unique:master_item_group,item_group_code'.($request->id ? ','.$request->id : ''),
+            'item_group_code' => ['required', app(MasterScope::class)->uniqueRule('master_item_group', 'item_group_code', $owner, $request->id)],
             'item_group_name' => 'required',
             'item_group_attributes' => 'nullable',
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_item_group', 'item_group_code', $request->input('item_group_code'), $owner, $request->id);
 
         $transformedAttributes = collect($request->item_group_attributes)
             ->filter(function ($item) {
@@ -328,12 +335,12 @@ class ItemGroupController extends Controller
             // Update existing item group
             $item_group = ItemGroup::findOrFail($request->id);
             // dd($request->all());
-            $update = $item_group->update([
+            $update = $item_group->update(app(MasterScope::class)->stamp('master_item_group', [
                 'item_group_code' => $request->item_group_code,
                 'item_group_name' => $request->item_group_name,
                 'item_group_attributes' => $item_group_attributes,
 
-            ]);
+            ], $owner));
 
             if ($update && $item_group->wasChanged()) {
                 /* sync callback */
@@ -355,25 +362,23 @@ class ItemGroupController extends Controller
             // Create new item group
             $modelClass = LibraryClayController::resolveModelFromSheetSlug('item_group');
 
-            $modelClass::create([
+            $modelClass::create(app(MasterScope::class)->stamp('master_item_group', [
                 'item_group_code' => $request->item_group_code,
                 'item_group_name' => $request->item_group_name,
                 'item_group_attributes' => $item_group_attributes,
-                'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
-            ]); // ini akan trigger Loggable
+            ], $owner)); // ini akan trigger Loggable
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new Group
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_item_group');
 
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_item_group', [
                     'item_group_code' => $request->item_group_code,
                     'item_group_name' => $request->item_group_name,
                     'item_group_attributes' => $item_group_attributes,
-                    'app_code' => config('SsoConfig.main.APP_CODE'),
                     'created_at' => now(),
-                ]);
+                ], $owner));
             }
 
             // DB::table('master_item_group')->insert([
@@ -408,6 +413,10 @@ class ItemGroupController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_item_group')->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('item-group', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(ItemGroup::class, $id);
 
@@ -416,6 +425,7 @@ class ItemGroupController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('item-group', 'delete', $id);
         // lewat model: soft delete + broadcast perubahan (dulu DB::table menghapus permanen tanpa broadcast)
         ItemGroup::findOrFail($id)->delete();
 

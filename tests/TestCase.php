@@ -41,6 +41,8 @@ abstract class TestCase extends Orchestra
 
     protected function defineDatabaseMigrations()
     {
+        \Bangsamu\Master\Services\MasterScope::flush();
+
         // database sqlite in-memory khusus test, bukan database app
         $pdo = DB::connection()->getPdo();
         // query legacy memakai MD5(email) milik MySQL

@@ -63,7 +63,8 @@ class MasterHapusDataTest extends TestCase
     public function test_hapus_data_master_soft_delete_dan_kembali_ke_daftar(string $slug, string $tabel, array $baris): void
     {
         $this->login();
-        $id = DB::table($tabel)->insertGetId($baris);
+        // baris milik aplikasi ini (APP27 di TestCase): sejak v2.5 baris aplikasi lain tidak bisa dihapus dari klien
+        $id = DB::table($tabel)->insertGetId(Schema::hasColumn($tabel, 'app_code') ? $baris + ['app_code' => 'APP27'] : $baris);
 
         $this->delete("/master/$slug/$id")->assertRedirect(route("master.$slug.index"));
 

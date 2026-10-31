@@ -111,8 +111,9 @@ class DepartmentImportTest extends TestCase
         $this->migrateDepartmentAppCode();
         $id = DB::table('master_department')->insertGetId(['department_code' => 'HR', 'department_name' => 'Human Resource', 'app_code' => 'APP09']);
 
+        // sejak v2.5 (MasterAccess): baris milik aplikasi lain ditolak 403, termasuk untuk is_admin aplikasi klien
         $this->post(route('master.department.store'), ['id' => $id, 'department_code' => 'HR', 'department_name' => 'Diubah'])
-            ->assertSessionHasErrors(['department_code' => 'Department ini milik aplikasi APP09, tidak dapat diubah dari aplikasi ini.']);
+            ->assertForbidden();
 
         $this->assertSame('Human Resource', DB::table('master_department')->where('id', $id)->value('department_name'));
     }

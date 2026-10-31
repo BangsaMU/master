@@ -20,6 +20,25 @@ return [
     // opsional: satu permission untuk semua modul (kosong = tidak ada)
     'MASTER_EDIT_PERMISSION' => env('MASTER_EDIT_PERMISSION'),
     'MASTER_COMPANY_ID' => env('MASTER_COMPANY_ID', 1), // default ke id 1
+
+    // --- pemilik data (scope app_code + company_id), lihat Services\MasterScope & docs/scope-multi-company.md ---
+    // true hanya di aplikasi Master Data (hub): menerima launch token dari aplikasi lain, tim master boleh semua pemilik
+    'MASTER_HUB' => env('MASTER_HUB', false),
+    // app_code data bersama (dipakai semua aplikasi)
+    'GLOBAL_APP_CODE' => env('MASTER_GLOBAL_APP_CODE', 'APP03'),
+    // company user login: nama fungsi / class invokable ($user) => master_company.id; kosong = resolve_user_company_id()
+    // bila ada, lalu user_details / master_user_details (field_key company_id), lalu MASTER_COMPANY_ID
+    'USER_COMPANY_RESOLVER' => env('MASTER_USER_COMPANY_RESOLVER'),
+    // permission yang boleh mengelola baris company 0 (berlaku semua company) milik aplikasi sendiri
+    'ALL_COMPANY_PERMISSION' => env('MASTER_ALL_COMPANY_PERMISSION', 'is_admin'),
+
+    // --- launch token "Edit di Master Data" (login otomatis + delegasi izin), lihat Services\MasterLaunchToken ---
+    // klien: kunci privat Ed25519 base64 (php artisan master:launch-key); kosong = tombol memakai link lama tanpa token
+    'LAUNCH_PRIVATE_KEY' => env('MASTER_LAUNCH_PRIVATE_KEY'),
+    // masa berlaku token (detik)
+    'LAUNCH_TTL' => (int) env('MASTER_LAUNCH_TTL', 120),
+    // hub: masa berlaku session delegasi (menit)
+    'LAUNCH_SESSION_MINUTES' => (int) env('MASTER_LAUNCH_SESSION_MINUTES', 120),
     // dropdown api/getmaster_*byparams ikut filter Setting/DashboardSettings (kategori = nama tabel) seperti list master
     'SELECT2_SETTING_FILTER' => env('MASTER_SELECT2_SETTING_FILTER', false),
 

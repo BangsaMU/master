@@ -122,6 +122,8 @@ trait CreatesMasterTables
 
         // DB in-memory baru tiap test: lupakan memo upgrade skema proses sebelumnya
         \Bangsamu\Master\Services\MasterSchemaUpgrader::flush();
+        // memo kolom app_code/company_id per proses, database in-memory dibuat ulang tiap test
+        \Bangsamu\Master\Services\MasterScope::flush();
 
         // skema lama master_department (seperti production sebelum migration app_code)
         Schema::create('master_department', function (Blueprint $table) {
@@ -155,6 +157,25 @@ trait CreatesMasterTables
             $table->string('vendor_contact_fax', 100)->nullable();
             $table->timestamps();
             $table->softDeletes();
+        });
+    }
+
+    /** Tabel dashboard_settings (DashboardSettings hanya membuatnya sekali per proses, DB test dibuat ulang). */
+    protected function createDashboardSettings(): void
+    {
+        if (Schema::hasTable('dashboard_settings')) {
+            return;
+        }
+        Schema::create('dashboard_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('key')->unique();
+            $table->text('value')->nullable();
+            $table->string('group')->default('general');
+            $table->string('type')->default('text');
+            $table->string('label');
+            $table->text('options')->nullable();
+            $table->integer('order')->default(0);
+            $table->timestamps();
         });
     }
 

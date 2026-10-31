@@ -42,7 +42,7 @@ class MasterDataSyncService
             'identifier' => 'category_code',
             'columns' => [
                 'id', 'category_code', 'category_name', 'remark',
-                'created_at', 'updated_at', 'deleted_at', 'app_code',
+                'created_at', 'updated_at', 'deleted_at', 'app_code', 'company_id',
             ],
         ],
         'master_company' => [
@@ -58,7 +58,7 @@ class MasterDataSyncService
             'label' => 'Departemen',
             'identifier' => 'department_code',
             'columns' => [
-                'id', 'department_code', 'department_name', 'app_code',
+                'id', 'department_code', 'department_name', 'app_code', 'company_id',
                 'created_at', 'updated_at', 'deleted_at',
             ],
         ],
@@ -165,6 +165,27 @@ class MasterDataSyncService
     /**
      * Check if a given table is supported for auto-sync.
      */
+    /** @var array<string, list<string>> kolom tabel di db_master per proses */
+    protected static array $masterColumnCache = [];
+
+    /**
+     * Kolom tabel di koneksi db_master; kosong bila tidak bisa dibaca (tanpa pembatasan).
+     *
+     * @return list<string>
+     */
+    public static function masterColumns(string $table): array
+    {
+        if (! array_key_exists($table, self::$masterColumnCache)) {
+            try {
+                self::$masterColumnCache[$table] = Schema::connection('db_master')->getColumnListing($table);
+            } catch (Throwable $e) {
+                self::$masterColumnCache[$table] = [];
+            }
+        }
+
+        return self::$masterColumnCache[$table];
+    }
+
     public function isTableSupported(string $table): bool
     {
         return isset(self::TABLES[$table]);
@@ -482,7 +503,15 @@ class MasterDataSyncService
 
         $config = self::TABLES[$table];
         $localColumns = Schema::getColumnListing($table);
-        $allowedColumns = array_values(array_intersect($config['columns'], $localColumns));
+        // kolom pemilik data (MasterScope) selalu ikut bila ada di kedua sisi, termasuk tabel yang baru dinaikkan
+        // master:scope-upgrade (mis. location)
+        $allowedColumns = array_values(array_intersect(array_unique(array_merge($config['columns'], ['app_code', 'company_id'])), $localColumns));
+        // kolom yang belum ada di DB master (mis. company_id sebelum master:scope-upgrade di hub) tidak ikut, supaya
+        // tidak menulis NULL ke kolom NOT NULL lokal
+        $masterColumns = self::masterColumns($table);
+        if ($masterColumns !== []) {
+            $allowedColumns = array_values(array_intersect($allowedColumns, $masterColumns));
+        }
         $updateColumns = array_values(array_diff($allowedColumns, ['id']));
 
         $localMaxId = (int) (DB::table($table)->max('id') ?? 0);

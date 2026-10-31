@@ -87,6 +87,8 @@
                         </div>
                         <div id="form-attributes"></div>
 
+                        @include('master::partials.master-owner', ['table' => 'master_item_code', 'param' => $param, 'readonly' => $data['page']['readonly']])
+
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif

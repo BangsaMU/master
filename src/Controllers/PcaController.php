@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\PcaTemplateExport;
@@ -96,7 +98,7 @@ class PcaController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_pca')) {
+        if (app(MasterAccess::class)->can('pca', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -106,7 +108,7 @@ class PcaController extends Controller
         if (MasterEditLink::allowed('pca', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('pca');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_pca'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('pca', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -119,7 +121,7 @@ class PcaController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_pca'))) {
+        if (app(MasterAccess::class)->can('pca', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -256,16 +258,16 @@ class PcaController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_pca')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('pca', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_pca')) && $row->app_code == config('SsoConfig.main.APP_CODE'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('pca', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('pca', $row->No);
+                $btn .= MasterEditLink::rowButton('pca', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -306,18 +308,23 @@ class PcaController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'pca');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('pca', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_pca', $existing) : app(MasterScope::class)->ownerForNew('master_pca');
+
         $request->validate([
-            'pca_code' => 'required|unique:master_'.$this->sheet_slug.',pca_code'.($request->id ? ','.$request->id : ''),
+            'pca_code' => ['required', app(MasterScope::class)->uniqueRule('master_pca', 'pca_code', $owner, $request->id)],
             'pca_name' => 'required',
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_pca', 'pca_code', $request->input('pca_code'), $owner, $request->id);
 
         if ($request->id) {
             // Update existing pca
             $pca = Pca::findOrFail($request->id);
-            $update = $pca->update([
+            $update = $pca->update(app(MasterScope::class)->stamp('master_pca', [
                 'pca_code' => $request->pca_code,
                 'pca_name' => $request->pca_name,
-            ]);
+            ], $owner));
 
             if ($update && $pca->wasChanged()) {
                 /* sync callback */
@@ -339,23 +346,21 @@ class PcaController extends Controller
             // Create new pca
             $modelClass = LibraryClayController::resolveModelFromSheetSlug($this->sheet_slug); // misalnya "Vendor"
 
-            $modelClass::create([
+            $modelClass::create(app(MasterScope::class)->stamp('master_pca', [
                 'pca_code' => $request->pca_code,
                 'pca_name' => $request->pca_name,
-                'app_code' => config('SsoConfig.main.APP_CODE'),
                 'created_at' => now(),
-            ]); // ini akan trigger Loggable
+            ], $owner)); // ini akan trigger Loggable
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new location
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_pca', [
                     'pca_code' => $request->pca_code,
                     'pca_name' => $request->pca_name,
-                    'app_code' => config('SsoConfig.main.APP_CODE'),
                     'created_at' => now(),
-                ]);
+                ], $owner));
             }
 
             // DB::table('master_' . $this->sheet_slug)->insert([
@@ -389,6 +394,10 @@ class PcaController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('pca', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(Pca::class, $id);
 
@@ -397,6 +406,7 @@ class PcaController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('pca', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 

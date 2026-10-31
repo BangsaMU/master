@@ -37,6 +37,8 @@
                             @enderror
                         </div>
 
+                        @include('master::partials.master-owner', ['table' => 'master_priority', 'param' => $param, 'readonly' => $data['page']['readonly']])
+
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif

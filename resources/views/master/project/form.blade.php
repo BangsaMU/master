@@ -112,6 +112,7 @@
                                 id="project_name" class="form-control"
                                 value="{{ $param ? $param->project_name : old('project_name') }}" required>
                         </div> --}}
+                        @include('master::partials.master-owner', ['table' => 'master_project', 'param' => $param, 'readonly' => $data['page']['readonly']])
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif

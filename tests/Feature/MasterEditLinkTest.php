@@ -30,6 +30,7 @@ class MasterEditLinkTest extends TestCase
     private function actingWith(array $abilities): void
     {
         $this->abilities = $abilities;
+        config(['test.allowed_permissions' => $abilities]);
         $this->actingAs(User::create(['name' => 'Penguji', 'email' => uniqid('edit', true).'@meindo.test']));
     }
 

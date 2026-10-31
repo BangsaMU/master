@@ -45,6 +45,26 @@ Route::middleware(['web', 'auth'])->prefix('api/master-sync')->name('api.master.
     Route::get('allowed-tables', [\Bangsamu\Master\Controllers\MasterSyncController::class, 'allowedTables']);
 });
 
+/*
+ * "Edit di Master Data" tanpa login ulang (Services\MasterLaunchToken). Nama route sengaja bukan master.* supaya tidak
+ * ikut middleware izin tulis master di aplikasi.
+ *  - klien: master-launch/go/{slug}/{id?} membuat token dan POST otomatis ke hub;
+ *  - hub (MASTER_HUB=true): POST master-launch menerima token. Tanpa CSRF karena dikirim dari aplikasi lain; token
+ *    bertanda tangan Ed25519, berlaku singkat, sekali pakai.
+ */
+Route::middleware(['web', 'auth'])->get('master-launch/go/{slug}/{id?}', [\Bangsamu\Master\Controllers\MasterLaunchController::class, 'go'])
+    ->where('slug', '[a-z-]+')->name('master-launch.go');
+Route::middleware(['web', 'throttle:30,1'])->post('master-launch', [\Bangsamu\Master\Controllers\MasterLaunchController::class, 'receive'])
+    ->withoutMiddleware(array_values(array_filter([
+        'Illuminate\Foundation\Http\Middleware\PreventRequestForgery',
+        'Illuminate\Foundation\Http\Middleware\VerifyCsrfToken',
+        'Illuminate\Foundation\Http\Middleware\ValidateCsrfToken',
+        'App\Http\Middleware\VerifyCsrfToken',
+    ], 'class_exists')))
+    ->name('master-launch.receive');
+Route::middleware(['web', 'auth'])->get('master-launch/back', [\Bangsamu\Master\Controllers\MasterLaunchController::class, 'back'])
+    ->name('master-launch.back');
+
 Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(function () {
     // Route::get('user', [\Bangsamu\Master\Controllers\UserController::class, 'index'])->name('user.index');
 

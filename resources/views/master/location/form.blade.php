@@ -57,6 +57,7 @@
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
+                        @include('master::partials.master-owner', ['table' => 'master_location', 'param' => $param, 'readonly' => $data['page']['readonly']])
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif

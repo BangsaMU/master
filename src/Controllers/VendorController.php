@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\Master\Exports\Master\VendorTemplateExport;
 use Bangsamu\Master\Imports\Master\VendorImport;
@@ -98,7 +100,7 @@ class VendorController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_vendor')) {
+        if (app(MasterAccess::class)->can('vendor', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -108,7 +110,7 @@ class VendorController extends Controller
         if (MasterEditLink::allowed('vendor', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('vendor');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_vendor'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('vendor', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -121,7 +123,7 @@ class VendorController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_vendor'))) {
+        if (app(MasterAccess::class)->can('vendor', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -258,16 +260,16 @@ class VendorController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_vendor'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('vendor', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_vendor')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('vendor', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('vendor', $row->No);
+                $btn .= MasterEditLink::rowButton('vendor', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -318,11 +320,16 @@ class VendorController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'vendor');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('vendor', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_vendor', $existing) : app(MasterScope::class)->ownerForNew('master_vendor');
+
         $request->validate([
-            'vendor_code' => 'required|unique:master_'.$this->sheet_slug.',vendor_code'.($request->id ? ','.$request->id : ''),
+            'vendor_code' => ['required', app(MasterScope::class)->uniqueRule('master_vendor', 'vendor_code', $owner, $request->id)],
             'vendor_description' => 'required',
             'vendor_address' => 'required',
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_vendor', 'vendor_code', $request->input('vendor_code'), $owner, $request->id);
 
         $vendorData = [
             'vendor_code' => $request->vendor_code,
@@ -390,6 +397,7 @@ class VendorController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('vendor', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 

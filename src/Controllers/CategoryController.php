@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\CategoryTemplateExport;
@@ -98,7 +100,7 @@ class CategoryController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_category')) {
+        if (app(MasterAccess::class)->can('category', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -108,7 +110,7 @@ class CategoryController extends Controller
         if (MasterEditLink::allowed('category', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('category');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_category'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('category', 'create')) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -121,7 +123,7 @@ class CategoryController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_category'))) {
+        if (app(MasterAccess::class)->can('category', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -259,16 +261,16 @@ class CategoryController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_category')) && $row->app_code == config('SsoConfig.main.APP_CODE')) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('category', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_category')) && $row->app_code == config('SsoConfig.main.APP_CODE'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('category', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('category', $row->No);
+                $btn .= MasterEditLink::rowButton('category', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -309,19 +311,24 @@ class CategoryController extends Controller
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'category');
 
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('category', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_category', $existing) : app(MasterScope::class)->ownerForNew('master_category');
+
         $request->validate([
-            'category_code' => 'required|unique:master_category,category_code'.($request->id ? ','.$request->id : ''),
-            'category_name' => 'required',
+            'category_code' => ['required', app(MasterScope::class)->uniqueRule('master_category', 'category_code', $owner, $request->id)],
+            'category_name' => ['required', app(MasterScope::class)->uniqueRule('master_category', 'category_name', $owner, $request->id)],
         ]);
+        app(MasterScope::class)->assertNoCompanyConflict('master_category', 'category_code', $request->input('category_code'), $owner, $request->id);
 
         if ($request->id) {
             // Update existing category
             $category = Category::findOrFail($request->id);
-            $update = $category->update([
+            $update = $category->update(app(MasterScope::class)->stamp('master_category', [
                 'category_code' => $request->category_code,
                 'category_name' => $request->category_name,
                 'remark' => $request->remark,
-            ]);
+            ], $owner));
 
             if ($update && $category->wasChanged()) {
                 /* sync callback */
@@ -341,22 +348,22 @@ class CategoryController extends Controller
             }
         } else {
             // Create new category
-            $category = Category::create([
+            $category = Category::create(app(MasterScope::class)->stamp('master_category', [
                 'category_code' => $request->category_code,
                 'category_name' => $request->category_name,
                 'remark' => $request->remark,
-            ]);
+            ], $owner));
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new category
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
 
-                $modelClass::create([
+                $modelClass::create(app(MasterScope::class)->stamp('master_category', [
                     'category_code' => strtoupper($request->category_code),
                     'category_name' => $request->category_name,
                     'remark' => $request->remark,
                     'created_at' => now(),
-                ]);
+                ], $owner));
             }
 
             $message = $this->sheet_name.' created successfully';
@@ -383,6 +390,10 @@ class CategoryController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
+        if ($param && ! app(MasterAccess::class)->allows('category', 'update', $param)) {
+            $data['page']['readonly'] = true;
+        }
 
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(Category::class, $id);
 
@@ -391,6 +402,7 @@ class CategoryController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('category', 'delete', $id);
         // DB::table('master_' . $this->sheet_slug)->where('id', $id)->delete();
         $modelClass = 'Bangsamu\\Master\\Models\\Master'.Str::studly($this->sheet_slug);
 

@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\Company;
@@ -78,7 +80,7 @@ class CompanyController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_company')) {
+        if (app(MasterAccess::class)->can('company', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -88,7 +90,7 @@ class CompanyController extends Controller
         if (MasterEditLink::allowed('company', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('company');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_company'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->can('company', 'create')) {
             // company hanya ada 3 di lock ga usah add
             // $data['datatable']['btn']['create']['id'] = 'create';
             // $data['datatable']['btn']['create']['title'] = 'Create';
@@ -102,7 +104,7 @@ class CompanyController extends Controller
             // $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_company'))) {
+        if (app(MasterAccess::class)->can('company', 'read')) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -240,16 +242,16 @@ class CompanyController extends Controller
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_company'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('company', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_company')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('company', 'delete', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('company', $row->No);
+                $btn .= MasterEditLink::rowButton('company', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -287,6 +289,10 @@ class CompanyController extends Controller
 
     public function store(Request $request)
     {
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('company', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_company', $existing) : app(MasterScope::class)->ownerForNew('master_company');
+
         $request->validate([
             'company_code' => 'required|unique:master_company,company_code,'.($request->id ?? 'NULL'),
             'company_name' => 'required',
@@ -883,6 +889,7 @@ class CompanyController extends Controller
 
     public function destroy(Request $request, $id = null)
     {
+        app(MasterAccess::class)->authorize('company', 'delete', $id);
         $company = Company::findOrFail($id);
 
         $gallery = Gallery::find($company->company_logo_id);

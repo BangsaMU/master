@@ -2,6 +2,8 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\ProjectDetailTemplateExport;
@@ -89,7 +91,7 @@ class ProjectDetailController extends Controller
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
 
-        if (checkPermission('is_admin') || checkPermission('read_project_detail') || checkPermission('read_project')) {
+        if ((app(MasterAccess::class)->can('project-detail', 'read') || app(MasterAccess::class)->can('project', 'read'))) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
             $data['datatable']['btn']['sync']['icon'] = 'btn-warning';
@@ -99,7 +101,7 @@ class ProjectDetailController extends Controller
         if (MasterEditLink::allowed('project-detail', 'create')) {
             $data['datatable']['btn']['create'] = MasterEditLink::createButton('project-detail');
         }
-        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('create_project_detail') || checkPermission('create_project'))) {
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (app(MasterAccess::class)->can('project-detail', 'create') || app(MasterAccess::class)->can('project', 'create'))) {
             $data['datatable']['btn']['create']['id'] = 'create';
             $data['datatable']['btn']['create']['title'] = 'Create';
             $data['datatable']['btn']['create']['icon'] = 'btn-primary';
@@ -112,7 +114,7 @@ class ProjectDetailController extends Controller
             $data['datatable']['btn']['import']['act'] = 'importFn()';
         }
 
-        if ((checkPermission('is_admin') || checkPermission('read_project_detail') || checkPermission('read_project'))) {
+        if ((app(MasterAccess::class)->can('project-detail', 'read') || app(MasterAccess::class)->can('project', 'read'))) {
             $data['datatable']['btn']['export']['id'] = 'exportdata';
             $data['datatable']['btn']['export']['title'] = 'Export';
             $data['datatable']['btn']['export']['icon'] = 'btn-primary';
@@ -265,16 +267,16 @@ class ProjectDetailController extends Controller
                         break;
                 }
 
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (checkPermission('is_admin') || checkPermission('update_project_detail') || checkPermission('update_project'))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (app(MasterAccess::class)->allows('project-detail', 'update', $row) || app(MasterAccess::class)->allows('project', 'update', $row))) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';
                 } else {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.show', $row->No).'" class="btn btn-primary btn-sm">View</a>';
                 }
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && ((checkPermission('is_admin') || checkPermission('delete_project_detail') || checkPermission('delete_project')))) {
+                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && (app(MasterAccess::class)->allows('project-detail', 'delete', $row) || app(MasterAccess::class)->allows('project', 'delete', $row))) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $btn .= MasterEditLink::rowButton('project-detail', $row->No);
+                $btn .= MasterEditLink::rowButton('project-detail', $row->No, $row);
                 $nestedData['action'] = @$btn;
 
                 $data[] = $nestedData;
@@ -313,6 +315,10 @@ class ProjectDetailController extends Controller
     {
         // kode huruf besar & kunci unik hanya boleh diubah is_admin (dengan konfirmasi)
         app(MasterUniqueKeyGuard::class)->prepare($request, 'project-detail');
+
+        // izin modul + pemilik baris (MasterAccess); pemilik data baru/lama (MasterScope: app_code + company_id)
+        $existing = app(MasterAccess::class)->authorizeStore('project-detail', $request);
+        $owner = $existing ? app(MasterScope::class)->ownerForUpdate('master_project_detail', $existing) : app(MasterScope::class)->ownerForNew('master_project_detail');
 
         $request->validate([
             'project_id' => 'required',
@@ -637,6 +643,7 @@ class ProjectDetailController extends Controller
 
     public function destroy($id)
     {
+        app(MasterAccess::class)->authorize('project-detail', 'delete', $id);
         // Route::resource mendaftarkan DELETE master/project-detail/{id}; dulu method ini tidak ada -> 500
         ProjectDetail::findOrFail($id)->delete(); // soft delete
 
