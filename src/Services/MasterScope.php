@@ -33,6 +33,9 @@ class MasterScope
 
     public const OWNER_COMPANY_FIELD = 'owner_company_id';
 
+    /** tabel yang sebelum v3 sudah unik per app_code (index unik lokal aplikasi lama juga per app_code) */
+    public const LEGACY_UNIQUE_PER_APP = ['master_department'];
+
     /** @var array<string, array{app_code: bool, company_id: bool}> */
     protected static array $columns = [];
 
@@ -287,13 +290,30 @@ class MasterScope
     }
 
     /**
-     * Rule unik kolom kode berpasangan dengan pemiliknya (kode JKT boleh sama di dua aplikasi / company).
+     * Kode tabel ini unik per pemilik (MasterCrudConfig.UNIQUE_PER_OWNER berisi tabel itu atau "*"). Selama transisi
+     * (default kosong) kode tetap unik global (department: per app_code seperti v2.4), supaya salinan lokal aplikasi
+     * lama yang masih ber-index unik global tidak saling menimpa saat sinkron.
+     */
+    public function uniquePerOwner(string $table): bool
+    {
+        $tables = (array) config('MasterCrudConfig.UNIQUE_PER_OWNER', []);
+
+        return $this->hasAppCode($table) && (in_array('*', $tables, true) || in_array($table, $tables, true));
+    }
+
+    /**
+     * Rule unik kolom kode: berpasangan dengan pemiliknya bila uniquePerOwner() (kode JKT boleh sama di dua aplikasi /
+     * company), selain itu unik global.
      *
      * @param  array{app_code?: ?string, company_id?: int}  $owner
      */
     public function uniqueRule(string $table, string $column, array $owner, int|string|null $ignoreId = null): Unique
     {
         $owner = $this->onlyExistingColumns($table, $owner);
+        if (! $this->uniquePerOwner($table)) {
+            // transisi: unik global, kecuali tabel yang sejak v2.4 sudah unik per aplikasi (department)
+            $owner = in_array($table, self::LEGACY_UNIQUE_PER_APP, true) ? array_intersect_key($owner, ['app_code' => true]) : [];
+        }
 
         return Rule::unique($table, $column)
             ->where(function ($query) use ($owner) {
@@ -315,8 +335,8 @@ class MasterScope
     public function assertNoCompanyConflict(string $table, string $column, ?string $value, array $owner, int|string|null $ignoreId = null, ?string $field = null): void
     {
         $owner = $this->onlyExistingColumns($table, $owner);
-        if ($value === null || $value === '' || ! isset($owner['app_code'], $owner['company_id'])) {
-            return;
+        if ($value === null || $value === '' || ! isset($owner['app_code'], $owner['company_id']) || ! $this->uniquePerOwner($table)) {
+            return; // unik global sudah mencakup bentrok company 0 / company N
         }
 
         $conflict = DB::table($table)

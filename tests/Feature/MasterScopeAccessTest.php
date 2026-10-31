@@ -85,8 +85,33 @@ class MasterScopeAccessTest extends TestCase
         $this->assertDatabaseHas('master_category', ['category_code' => 'C01', 'app_code' => 'APP27', 'company_id' => 647]);
     }
 
+    public function test_masa_transisi_kode_tetap_unik_global(): void
+    {
+        // UNIQUE_PER_OWNER kosong (default): kode sama di aplikasi lain ditolak supaya salinan lokal lama aman
+        $this->category('C01', 'APP03', 0);
+        $this->post(route('master.category.store'), ['category_code' => 'C01', 'category_name' => 'Milik APP27'])
+            ->assertSessionHasErrors('category_code');
+        $this->assertSame(0, DB::table('master_category')->where('app_code', 'APP27')->count());
+    }
+
+    public function test_masa_transisi_department_tetap_unik_per_aplikasi_seperti_v2_4(): void
+    {
+        $this->migrateDepartmentAppCode();
+        Artisan::call('master:scope-upgrade', ['--table' => ['master_department']]);
+        DB::table('master_department')->insert(['department_code' => 'HRD', 'department_name' => 'HRD Bersama', 'app_code' => 'APP03', 'company_id' => 0]);
+        DB::table('master_department')->insert(['department_code' => 'IT', 'department_name' => 'IT MEB', 'app_code' => 'APP27', 'company_id' => 648]);
+
+        // kode sama di aplikasi lain tetap boleh (sudah begitu sejak v2.4)
+        $this->post(route('master.department.store'), ['department_code' => 'HRD', 'department_name' => 'HRD APP27'])
+            ->assertSessionHasNoErrors();
+        // company lain di aplikasi yang sama: ditolak selama transisi
+        $this->post(route('master.department.store'), ['department_code' => 'IT', 'department_name' => 'IT 647'])
+            ->assertSessionHasErrors('department_code');
+    }
+
     public function test_kode_unik_berpasangan_dengan_pemilik(): void
     {
+        config(['MasterCrudConfig.UNIQUE_PER_OWNER' => ['master_category']]);
         $this->category('C01', 'APP03', 0); // data bersama: kode sama boleh di aplikasi lain
         $this->post(route('master.category.store'), ['category_code' => 'C01', 'category_name' => 'Milik APP27'])
             ->assertSessionHasNoErrors();
@@ -99,6 +124,7 @@ class MasterScopeAccessTest extends TestCase
 
     public function test_kode_company_0_dan_company_tertentu_tidak_boleh_bersamaan(): void
     {
+        config(['MasterCrudConfig.UNIQUE_PER_OWNER' => ['*']]);
         $this->category('C02', 'APP27', 0);
 
         $this->post(route('master.category.store'), ['category_code' => 'C02', 'category_name' => 'Khusus MEB'])

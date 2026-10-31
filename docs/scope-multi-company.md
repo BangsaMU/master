@@ -1,4 +1,4 @@
-# Pemilik data master (app_code + company_id), permission seragam, dan Edit di Master Data (v2.5)
+# Pemilik data master (app_code + company_id), permission seragam, dan Edit di Master Data (v3.0)
 
 ## Konsep
 
@@ -10,9 +10,31 @@
 
 - **Scope ditentukan kolom.** Tabel yang punya `app_code` (dan `company_id`) otomatis ber-scope. Tabel tanpa kolom
   itu tetap global.
-- **Kode unik berpasangan dengan pemiliknya.** Kode JKT boleh ada di APP03 dan APP32.
+- **Kode unik berpasangan dengan pemiliknya.** Kode JKT boleh ada di APP03 dan APP32, setelah tabelnya diaktifkan
+  di saklar transisi (lihat di bawah).
 - **Company 0 tidak boleh bersamaan dengan company N.** Dalam satu aplikasi, kode yang sama tidak boleh ada di
   company 0 dan company N sekaligus (`MasterScope::assertNoCompanyConflict`).
+
+### Saklar transisi unik per pemilik (`MASTER_UNIQUE_PER_OWNER`)
+
+Unik per pemilik (kode sama boleh di aplikasi/company lain) baru aktif untuk tabel yang tercantum di
+`MASTER_UNIQUE_PER_OWNER` (dipisah koma, `*` = semua tabel ber-scope). Defaultnya kosong:
+
+| Tabel | Selama saklar kosong |
+|---|---|
+| `master_department` | unik per `app_code`, sama seperti v2.4 |
+| tabel ber-scope lain | kode tetap unik global |
+
+Alasan: aplikasi lama (v2.x) menyalin tabel master ke DB lokal yang index uniknya masih global (`uom_code`,
+`item_code`, ...), dan sinkronnya memakai upsert per id. Di MySQL, upsert juga bentrok di index unik lain. Bila
+`meindo_master` berisi dua baris berkode sama, baris kedua **menimpa diam-diam** baris pertama di salinan lokal, tanpa
+error.
+
+Aktifkan per tabel di aplikasi Master Data (hub) hanya setelah **semua** aplikasi yang menyalin tabel itu:
+1. Memakai v3.
+2. Menjalankan `php artisan master:scope-upgrade` di DB lokalnya.
+
+Contoh: `MASTER_UNIQUE_PER_OWNER=master_department,master_uom`.
 
 ## Menaikkan tabel
 
@@ -117,12 +139,31 @@ scope.app     : {"app_code": ["{APP_CODE}"], "company_id": ["{USER_COMPANY}", 0]
   3. `user_details` / `master_user_details` (`company_id`).
   4. `MASTER_COMPANY_ID`.
 
-## Perubahan perilaku (breaking) v2.5
+## Perubahan perilaku (breaking) v3.0
+
+Versi major supaya aplikasi dengan constraint `^2.x` tidak ikut naik tanpa sengaja saat `composer update`. Naikkan
+constraint ke `^3.0` per aplikasi setelah siap.
 
 - **Simpan/hapus master di klien dengan `MASTER_DIRECT_EDIT=true`** kini wajib permission modul (dulu tanpa cek di
   paket), dan hanya untuk baris milik aplikasi + company user.
 - **Tombol "Edit di Master Data"** hanya tampil pada baris milik aplikasi + company user.
 - **Data baru dari hub tanpa pilihan pemilik** = APP03 + company 0. Dulu item code diberi `MASTER_COMPANY_ID`.
+- **Route baru `POST master-launch`** (publik, token di body) ada di semua aplikasi. Selain di hub, route ini 404.
+  Aplikasi dengan test daftar route perlu menggolongkannya.
+
+## Urutan rollout
+
+1. **Hub (Master Data):**
+   - Deploy v3. Hub menerima nama permission lama dan baru.
+   - `master:permissions`.
+   - `master:scope-upgrade`. Ini hanya menambah kolom dan melonggarkan index, data tidak berubah.
+   - Saklar `MASTER_UNIQUE_PER_OWNER` tetap kosong.
+2. **Tiap aplikasi penyalin:**
+   - Ubah constraint ke `^3.0` dan jalankan `composer update`.
+   - `master:scope-upgrade` di DB lokal.
+   - `master:permissions`.
+   - Untuk Edit di Master Data: `master:launch-key`, lalu daftarkan kunci publiknya di hub.
+3. **Hub:** setelah semua penyalin tabel X selesai, tambahkan X ke `MASTER_UNIQUE_PER_OWNER`.
 
 ## Batasan yang diketahui
 

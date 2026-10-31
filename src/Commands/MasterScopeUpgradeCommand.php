@@ -17,8 +17,8 @@ use Illuminate\Support\Facades\Schema;
  *
  * Tanpa --table: tabel master yang sudah punya app_code diberi company_id. Dengan --table: tabel global (mis.
  * master_location) diberi app_code (default GLOBAL_APP_CODE = data bersama) + company_id. Setiap index unik lama
- * diperluas dengan app_code/company_id, jadi kode yang sama boleh ada di aplikasi/company lain. Hanya menambah kolom
- * dan mengganti index (melonggarkan), tanpa mengubah/menghapus data.
+ * diperluas dengan app_code/company_id. Hanya menambah kolom dan mengganti index (melonggarkan), tanpa mengubah/menghapus
+ * data; validasi form tetap unik global sampai tabelnya dicantumkan di MasterCrudConfig.UNIQUE_PER_OWNER.
  */
 class MasterScopeUpgradeCommand extends Command
 {

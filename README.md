@@ -61,11 +61,12 @@ Link viewer annotation tanpa token statis `md5(email)` dan tanpa cek cookie lint
 (perilaku lama). Pakai helper `annotation_launch_url($fileUrl, $callback)` di app. Detail dan langkah
 aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
 
-## Pemilik Data Multi Aplikasi + Multi Company (sejak v2.5)
+## Pemilik Data Multi Aplikasi + Multi Company (sejak v3.0)
 
 - **Pemilik data:** baris master dimiliki (`app_code`, `company_id`). APP03 + company 0 = data bersama; APPxx + 0 =
   semua company aplikasi itu; APPxx + N = khusus company N.
-- **Kode unik berpasangan dengan pemiliknya**, dan permission seragam per tabel (`update_item_code`, nama lama
+- **Kode unik berpasangan dengan pemiliknya** (aktif per tabel lewat saklar transisi `MASTER_UNIQUE_PER_OWNER`), dan
+  permission seragam per tabel (`update_item_code`, nama lama
   `update_item` tetap diterima).
 - **Edit di Master Data tanpa login ulang:** lewat launch token Ed25519 + delegasi izin dari aplikasi asal.
 - **Perintah:** `master:scope-upgrade`, `master:permissions`, `master:launch-key`.

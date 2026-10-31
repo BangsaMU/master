@@ -31,6 +31,11 @@ return [
     'USER_COMPANY_RESOLVER' => env('MASTER_USER_COMPANY_RESOLVER'),
     // permission yang boleh mengelola baris company 0 (berlaku semua company) milik aplikasi sendiri
     'ALL_COMPANY_PERMISSION' => env('MASTER_ALL_COMPANY_PERMISSION', 'is_admin'),
+    // saklar transisi: tabel yang kodenya unik per pemilik (kode sama boleh di aplikasi/company lain), dipisah koma,
+    // "*" = semua tabel ber-scope. Kosong (default) = kode tetap unik global seperti sebelum v3. Aktifkan per tabel
+    // HANYA setelah semua aplikasi yang menyalin tabel itu memakai v3 dan menjalankan master:scope-upgrade di DB
+    // lokalnya: salinan lama dengan index unik global akan saling menimpa baris berkode sama saat sinkron (upsert).
+    'UNIQUE_PER_OWNER' => array_values(array_filter(array_map('trim', explode(',', (string) env('MASTER_UNIQUE_PER_OWNER', ''))))),
 
     // --- launch token "Edit di Master Data" (login otomatis + delegasi izin), lihat Services\MasterLaunchToken ---
     // klien: kunci privat Ed25519 base64 (php artisan master:launch-key); kosong = tombol memakai link lama tanpa token
