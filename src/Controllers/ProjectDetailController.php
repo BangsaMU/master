@@ -635,6 +635,14 @@ class ProjectDetailController extends Controller
         return self::store($request, $json);
     }
 
+    public function destroy($id)
+    {
+        // Route::resource mendaftarkan DELETE master/project-detail/{id}; dulu method ini tidak ada -> 500
+        ProjectDetail::findOrFail($id)->delete(); // soft delete
+
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
+    }
+
     public function import(Request $request)
     {
         set_time_limit(600);

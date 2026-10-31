@@ -416,7 +416,8 @@ class ItemGroupController extends Controller
 
     public function destroy($id)
     {
-        DB::table('master_item_group')->where('id', $id)->delete();
+        // lewat model: soft delete + broadcast perubahan (dulu DB::table menghapus permanen tanpa broadcast)
+        ItemGroup::findOrFail($id)->delete();
 
         return redirect()->route('master.item-group.index')->with('success', $this->sheet_slug.' deleted successfully');
     }

@@ -7,7 +7,7 @@ use Bangsamu\Master\Models\ItemCode;
 use Bangsamu\Master\Models\ItemCodePicture;
 use Bangsamu\Master\Models\ItemGroup;
 use Bangsamu\Master\Models\Pca;
-use Bangsamu\Master\Models\UoM;
+use Bangsamu\Master\Models\Uom;
 use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -51,7 +51,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithChunkR
         //         $folder_url = $row[11];
 
         //         if($row[2]){
-        //             $check_uom = UoM::where('uom_code',$row[2])->first();
+        //             $check_uom = Uom::where('uom_code',$row[2])->first();
         //             if (!$check_uom){
         //                 $text = "Row ".$i." : UOM ".$row[2]." not found. Please check the data.";
         //                 array_push($this->error,$text);
@@ -144,7 +144,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithChunkR
             ->get()
             ->keyBy('item_code');
 
-        $existingUoms = UoM::withTrashed()
+        $existingUoms = Uom::withTrashed()
             ->select('id', 'uom_code', 'deleted_at')
             ->get()
             ->keyBy(function ($uom) {
@@ -234,7 +234,7 @@ class ItemCodeImport implements ToCollection, WithCalculatedFormulas, WithChunkR
                                 }
                                 $uom_id = $uom->id;
                             } else {
-                                $create_uom = UoM::create([
+                                $create_uom = Uom::create([
                                     'uom_code' => strtoupper($row['uom_code']),
                                     'uom_name' => $row['uom_name'] ?? $row['uom_code'],
                                 ]);

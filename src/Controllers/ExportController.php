@@ -140,7 +140,9 @@ class ExportController extends Controller
             $this->cleanupOldFiles(storage_path($relativePath), 7);
             // dd(file_exists($fullPath),$fullPath);
             if (file_exists($fullPath)) {
-                $fileAgeInHours = now()->diffInHours(\Carbon\Carbon::parse($log->created_at));
+                // dari waktu dibuat ke sekarang: positif di Carbon 2 dan 3 (Carbon 3 / Laravel 11+ memberi nilai
+                // negatif untuk now()->diffInHours(waktu lalu), sehingga file > 24 jam tidak pernah dibuat ulang)
+                $fileAgeInHours = \Carbon\Carbon::parse($log->created_at)->diffInHours(now());
 
                 if ($fileAgeInHours < 24) {
                     // ✅ File valid, langsung download

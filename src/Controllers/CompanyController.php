@@ -883,7 +883,7 @@ class CompanyController extends Controller
 
     public function destroy(Request $request, $id = null)
     {
-        $company = Company::find($id);
+        $company = Company::findOrFail($id);
 
         $gallery = Gallery::find($company->company_logo_id);
 
@@ -894,12 +894,9 @@ class CompanyController extends Controller
             }
             $gallery->delete();
         }
-        $company->delete();
+        $company->delete(); // soft delete
 
-        if ($company) {
-            return redirect()->route($this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
-        } else {
-            return redirect()->route($this->sheet_slug.'.index')->with('error', $this->sheet_slug.' failed to delete');
-        }
+        // route paket bernama master.company.* (dulu company.index yang tidak ada -> 500)
+        return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
     }
 }

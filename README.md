@@ -47,6 +47,9 @@ Paket terpusat Master Data untuk ekosistem aplikasi berbasis Laravel.
   - `GET|POST /master-sync/catch-up` (Catch-up sync event yang terlewat)
   - `GET /master-sync/allowed-tables` (Daftar whitelist tabel yang diizinkan untuk disinkronkan)
   - `POST /master-sync/channel-auth` (Otorisasi channel privat browser)
+  - *Wajib login (sejak v2.4.11)*: semua route di atas memakai `web` + `auth`, termasuk salinannya `api/master-sync/*`
+    yang dulu terbuka (tamu bisa memicu sync / soft delete baris master lokal lewat `action=deleted`). Pemanggil
+    tanpa session dapat 401 JSON / redirect login.
 
 ---
 

@@ -15,7 +15,7 @@ use Bangsamu\Master\Models\JobPosition;
 use Bangsamu\Master\Models\Location;
 use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\Project;
-use Bangsamu\Master\Models\UoM;
+use Bangsamu\Master\Models\Uom;
 use Bangsamu\Master\Models\Vendor;
 use Bangsamu\Master\Services\TableAccessPolicy;
 use Bangsamu\Master\Traits\DynamicFilterable;
@@ -661,9 +661,9 @@ class ApiController extends Controller
         $search = $request->search;
 
         if ($search == '') {
-            $uoms = UoM::orderBy('id', 'desc')->select('id', 'uom_code', 'uom_name')->limit($this->LIMIT)->get();
+            $uoms = Uom::orderBy('id', 'desc')->select('id', 'uom_code', 'uom_name')->limit($this->LIMIT)->get();
         } else {
-            $uoms = UoM::orderBy('id', 'desc')->select('id', 'uom_code', 'uom_name')->orwhere('uom_code', 'like', '%'.$search.'%')->orwhere('uom_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
+            $uoms = Uom::orderBy('id', 'desc')->select('id', 'uom_code', 'uom_name')->orwhere('uom_code', 'like', '%'.$search.'%')->orwhere('uom_code', 'like', '%'.$search.'%')->limit($this->LIMIT)->get();
         }
 
         $response = [];

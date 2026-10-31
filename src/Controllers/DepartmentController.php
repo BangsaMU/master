@@ -413,7 +413,8 @@ class DepartmentController extends Controller
 
     public function destroy($id)
     {
-        DB::table('master_'.$this->sheet_slug)->where('id', $id)->delete();
+        // lewat model: soft delete + broadcast perubahan (dulu DB::table menghapus permanen tanpa broadcast)
+        Department::findOrFail($id)->delete();
 
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
     }
