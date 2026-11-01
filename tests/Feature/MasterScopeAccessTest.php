@@ -3,6 +3,8 @@
 namespace Bangsamu\Master\Tests\Feature;
 
 use App\Models\User;
+use Bangsamu\Master\Services\Import\Definitions\ItemGroupImportDefinition;
+use Bangsamu\Master\Services\Import\MasterImportService;
 use Bangsamu\Master\Services\MasterAccess;
 use Bangsamu\Master\Services\MasterScope;
 use Bangsamu\Master\Support\MasterModules;
@@ -75,6 +77,14 @@ class MasterScopeAccessTest extends TestCase
         $this->permissions(['update_item']); // nama lama tetap diterima
         $this->assertTrue(app(MasterAccess::class)->can('item-code', 'update'));
         $this->assertFalse(app(MasterAccess::class)->can('item-code', 'create'));
+
+        // import Excel ikut nama seragam + alias lama
+        $import = app(MasterImportService::class);
+        $this->permissions(['create_item_group']);
+        $this->assertTrue($import->canCreate(new ItemGroupImportDefinition));
+        $this->permissions(['create_itemgroup']);
+        $this->assertTrue($import->canCreate(new ItemGroupImportDefinition));
+        $this->assertFalse($import->canUpdate(new ItemGroupImportDefinition));
     }
 
     public function test_klien_data_baru_diberi_pemilik_aplikasi_dan_company_user(): void

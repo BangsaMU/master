@@ -42,14 +42,15 @@ class MasterEditLinkTest extends TestCase
             'url' => 'http://192.168.20.187:9002/master/uom/create', 'target' => '_blank'], MasterEditLink::createButton('uom'));
     }
 
-    public function test_permission_names_follow_master_data_app(): void
+    public function test_permission_names_follow_master_modules(): void
     {
-        $this->assertSame('update_item', MasterEditLink::permission('item-code', 'update'));
-        $this->assertSame('create_itemgroup', MasterEditLink::permission('item-group', 'create'));
+        // v3.1: nama seragam per tabel (dulu update_item / create_itemgroup, tetap diterima allowed())
+        $this->assertSame('update_item_code', MasterEditLink::permission('item-code', 'update'));
+        $this->assertSame('create_item_group', MasterEditLink::permission('item-group', 'create'));
         $this->assertSame('update_uom', MasterEditLink::permission('uom', 'update'));
 
-        config(['MasterCrudConfig.MASTER_EDIT_PERMISSIONS' => ['item-code' => 'item_code']]);
-        $this->assertSame('update_item_code', MasterEditLink::permission('item-code', 'update'));
+        config(['MasterCrudConfig.MASTER_EDIT_PERMISSIONS' => ['item-code' => 'item']]);
+        $this->assertSame('update_item', MasterEditLink::permission('item-code', 'update'));
     }
 
     public function test_buttons_follow_module_permission(): void

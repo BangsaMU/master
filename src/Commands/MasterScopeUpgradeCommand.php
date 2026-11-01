@@ -68,15 +68,7 @@ class MasterScopeUpgradeCommand extends Command
     {
         $requested = array_values(array_filter((array) $this->option('table')));
         if ($requested === []) {
-            $tables = [];
-            foreach (array_keys(MasterModules::MODULES) as $slug) {
-                $table = MasterModules::table($slug);
-                if (! in_array($table, self::DENY, true) && Schema::hasTable($table) && Schema::hasColumn($table, 'app_code')) {
-                    $tables[] = $table;
-                }
-            }
-
-            return $tables;
+            return $this->defaultTables();
         }
 
         foreach ($requested as $table) {
@@ -98,6 +90,34 @@ class MasterScopeUpgradeCommand extends Command
         }
 
         return $requested;
+    }
+
+    /**
+     * Tabel yang dinaikkan tanpa --table: tabel modul master (bukan DENY) di koneksi default yang sudah punya app_code.
+     *
+     * @return list<string>
+     */
+    public function defaultTables(): array
+    {
+        $tables = [];
+        foreach (array_keys(MasterModules::MODULES) as $slug) {
+            $table = MasterModules::table($slug);
+            if (! in_array($table, self::DENY, true) && Schema::hasTable($table) && Schema::hasColumn($table, 'app_code')) {
+                $tables[] = $table;
+            }
+        }
+
+        return $tables;
+    }
+
+    /**
+     * Rencana perubahan satu tabel tanpa menjalankannya (dipakai master:scope-doctor).
+     *
+     * @return list<string>
+     */
+    public function plan(MasterSchemaUpgrader $upgrader, string $table): array
+    {
+        return $this->upgrade($upgrader, $table, true);
     }
 
     /** @return list<string> */

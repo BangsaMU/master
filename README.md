@@ -69,7 +69,9 @@ aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
   permission seragam per tabel (`update_item_code`, nama lama
   `update_item` tetap diterima).
 - **Edit di Master Data tanpa login ulang:** lewat launch token Ed25519 + delegasi izin dari aplikasi asal.
-- **Perintah:** `master:scope-upgrade`, `master:permissions`, `master:launch-key`.
+- **Perintah:** `master:scope-upgrade`, `master:permissions`, `master:launch-key`, `master:scope-doctor` (cek, v3.1).
+- **Skrip setup sekali jalan (v3.1):** dari folder project di host, `vendor/bin/master-scope-setup [--dry-run]`
+  mendeteksi container dan menjalankan semua langkah di atas (aplikasi yang masih v2: jalankan dari salinan paket).
 
 Detail: [docs/scope-multi-company.md](docs/scope-multi-company.md).
 

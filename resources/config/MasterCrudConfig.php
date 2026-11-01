@@ -14,8 +14,8 @@ return [
     // MASTER_DIRECT_EDIT=false: tombol "Edit/Tambah di Master Data" di daftar master membuka aplikasi Master Data (base URL
     // tanpa slash akhir, mis. http://192.168.20.187:9002); kosong = tanpa tombol. Path: master/{slug}/{id}/edit
     'MASTER_EDIT_URL' => env('MASTER_EDIT_URL'),
-    // siapa melihat tombol: is_admin, atau per modul create_{akhiran} (Tambah) / update_{akhiran} (Edit) dengan nama
-    // permission aplikasi Master Data (item code = update_item); override akhiran per slug, mis. ['item-code' => 'item_code']
+    // siapa melihat tombol: is_admin, atau per modul create_{tabel} (Tambah) / update_{tabel} (Edit), nama seragam
+    // MasterModules (item code = update_item_code; nama lama update_item tetap diterima); override akhiran per slug
     'MASTER_EDIT_PERMISSIONS' => [],
     // opsional: satu permission untuk semua modul (kosong = tidak ada)
     'MASTER_EDIT_PERMISSION' => env('MASTER_EDIT_PERMISSION'),
@@ -64,7 +64,7 @@ return [
         'master_company' => ['read_company'],
         'master_department' => ['read_department'],
         'master_employee' => ['read_employee'],
-        'master_item_group' => ['read_itemgroup'],
+        'master_item_group' => ['read_item_group', 'read_itemgroup'],
         'master_location' => ['read_location'],
         'master_pca' => ['read_pca'],
         'master_priority' => ['read_priority'],

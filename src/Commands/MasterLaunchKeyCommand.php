@@ -19,7 +19,8 @@ class MasterLaunchKeyCommand extends Command
         {--register= : (hub) app_code aplikasi yang didaftarkan, mis. APP32}
         {--public= : (hub) kunci publik base64 dari aplikasi itu}
         {--modules= : (hub) daftar tabel yang boleh didelegasikan, dipisah koma; "*" = semua tabel ber-scope}
-        {--show : (klien) tampilkan kunci publik dari MASTER_LAUNCH_PRIVATE_KEY yang terpasang}';
+        {--show : (klien) tampilkan kunci publik dari MASTER_LAUNCH_PRIVATE_KEY yang terpasang}
+        {--format=text : (klien) text, atau env = MASTER_LAUNCH_PRIVATE_KEY=... dan MASTER_LAUNCH_PUBLIC_KEY=... (untuk skrip)}';
 
     protected $description = 'Buat/daftarkan kunci launch token Edit di Master Data (Ed25519)';
 
@@ -42,6 +43,12 @@ class MasterLaunchKeyCommand extends Command
         }
 
         $pair = MasterLaunchToken::generateKeyPair();
+        if ($this->option('format') === 'env') {
+            $this->line('MASTER_LAUNCH_PRIVATE_KEY='.$pair['secret']);
+            $this->line('MASTER_LAUNCH_PUBLIC_KEY='.$pair['public']);
+
+            return self::SUCCESS;
+        }
         $this->info('Simpan di .env aplikasi ini (rahasia, jangan di-commit):');
         $this->line('MASTER_LAUNCH_PRIVATE_KEY='.$pair['secret']);
         $this->newLine();

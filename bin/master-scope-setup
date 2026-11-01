@@ -1,0 +1,425 @@
+#!/usr/bin/env bash
+#
+# Pasang bangsamu/master v3 di satu aplikasi Laravel sekali jalan (pemilik data app_code + company_id, permission per
+# tabel, Edit di Master Data tanpa login ulang), dari folder project di host (bukan console container):
+#   ~/www/<project>$ vendor/bin/master-scope-setup [opsi]
+# Aplikasi yang masih v2 belum punya skrip ini di vendor; jalankan dari salinan paket (repo clay atau GitHub):
+#   bash /path/ke/bangsamu/master/bin/master-scope-setup --app=~/www/<project> [opsi]
+#
+#   --dry-run          tampilkan rencana; deteksi dan pemeriksaan tetap jalan, tidak mengubah apa pun
+#   --yes              tanpa konfirmasi (default: tiap langkah yang mengubah composer/DB/.env ditanya dulu)
+#   --app=DIR          folder project (default: folder saat ini)
+#   --hub=DIR          (klien) folder aplikasi Master Data di mesin yang sama: kunci publik langsung didaftarkan di sana
+#   --modules=LIST     (klien) tabel yang boleh didelegasikan saat didaftarkan, mis. master_item_code,master_uom
+#   --edit-url=URL     (klien) isi MASTER_EDIT_URL di .env bila masih kosong
+#   --with-testing     naikkan juga DB testing (.env.testing): scope-upgrade + permissions dengan --env=testing
+#   --keep-alias       master:permissions --keep-alias: nama lama (update_item, create_itemgroup) tetap ada, mis. selama
+#                      checkout/kode lain yang memakai DB yang sama belum memakai nama baru
+#   --skip-composer    jangan menaikkan versi paket (server produksi: versi ikut composer.lock lewat deploy)
+#
+# Dideteksi otomatis: container php-fpm yang me-mount project (cara deploy-prod.sh; timpa dengan PHP_CONTAINER atau
+# .deploy.env), versi paket terpasang, peran (hub = MasterCrudConfig.MASTER_HUB, selain itu klien), app_code, tabel yang
+# perlu dinaikkan, permission yang belum seragam, kunci launch di .env (php artisan master:scope-doctor).
+# Urutan: composer require bangsamu/master:^3.1 (bila lebih lama) → master:scope-upgrade → master:permissions →
+# (klien) kunci launch ke .env + daftar di hub → MASTER_EDIT_URL → optimize:clear → izin storage → master:scope-doctor
+# (sisa yang dikerjakan manual: permission role, baris filter setting). Aman diulang: langkah yang sudah sesuai dilewati.
+# Nilai .env yang sudah terisi tidak pernah ditimpa; kunci privat tidak pernah ditampilkan.
+
+set -euo pipefail
+
+MIN_VERSION="3.1.0"
+PACKAGE_CONSTRAINT="^3.1"
+
+DRY_RUN=0
+YES=0
+APP_DIR=""
+HUB_DIR=""
+MODULES=""
+EDIT_URL=""
+WITH_TESTING=0
+SKIP_COMPOSER=0
+KEEP_ALIAS=0
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=1 ;;
+        --yes) YES=1 ;;
+        --app=*) APP_DIR="${arg#*=}" ;;
+        --hub=*) HUB_DIR="${arg#*=}" ;;
+        --modules=*) MODULES="${arg#*=}" ;;
+        --edit-url=*) EDIT_URL="${arg#*=}" ;;
+        --with-testing) WITH_TESTING=1 ;;
+        --skip-composer) SKIP_COMPOSER=1 ;;
+        --keep-alias) KEEP_ALIAS=1 ;;
+        -h | --help)
+            sed -n '3,/^$/p' "${BASH_SOURCE[0]}"
+            exit 0
+            ;;
+        *)
+            echo "Opsi tidak dikenal: $arg (lihat --help)" >&2
+            exit 2
+            ;;
+    esac
+done
+
+step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
+info() { printf '   %s\n' "$*"; }
+warn() { printf '\033[1;33m   PERINGATAN: %s\033[0m\n' "$*"; }
+fail() {
+    printf '\033[1;31mGAGAL: %s\033[0m\n' "$*" >&2
+    exit 1
+}
+indent() { sed 's/^/   /'; }
+
+# Pertanyaan ya/tidak sebelum mengubah sesuatu; --yes = ya, --dry-run = ya (perintahnya hanya ditampilkan).
+confirm() {
+    [ "$YES" = 0 ] && [ "$DRY_RUN" = 0 ] || return 0
+    [ -t 0 ] || fail "butuh konfirmasi \"$1\"; jalankan di terminal atau tambahkan --yes."
+    local answer
+    read -r -p "   $1 [y/N] " answer
+    case "$answer" in y | Y | ya | Ya | yes) return 0 ;; *) return 1 ;; esac
+}
+
+[ "$(id -u)" != "0" ] || fail "jangan dijalankan sebagai root/sudo; jalankan sebagai user pemilik project."
+command -v docker > /dev/null || fail "docker tidak ada di PATH."
+APP_DIR="$(cd "${APP_DIR:-$PWD}" 2> /dev/null && pwd)" || fail "folder project tidak ada."
+[ -f "$APP_DIR/artisan" ] || fail "$APP_DIR bukan project Laravel (tidak ada artisan); pakai --app=DIR."
+if [ -n "$HUB_DIR" ]; then
+    HUB_DIR="$(cd "$HUB_DIR" 2> /dev/null && pwd)" || fail "folder --hub tidak ada."
+    [ -f "$HUB_DIR/artisan" ] || fail "$HUB_DIR bukan project Laravel (--hub)."
+fi
+APP_USER="$(id -u):$(id -g)"
+
+# Path folder $2 di dalam container $1 (mount dengan Source terpanjang yang memuatnya); gagal bila tidak di-mount.
+container_path() {
+    local src dst best_src="" best_dst=""
+    while read -r src dst; do
+        [ -n "$src" ] || continue
+        case "$2/" in
+            "$src"/*)
+                if [ "${#src}" -gt "${#best_src}" ]; then
+                    best_src="$src"
+                    best_dst="$dst"
+                fi
+                ;;
+        esac
+    done < <(docker inspect -f '{{range .Mounts}}{{.Source}} {{.Destination}}{{"\n"}}{{end}}' "$1" 2> /dev/null)
+    [ -n "$best_src" ] || return 1
+    printf '%s%s\n' "$best_dst" "${2#"$best_src"}"
+}
+
+is_php_fpm() { docker top "$1" -o pid,args 2> /dev/null | grep -q 'php-fpm: master'; }
+
+php_version_id() { docker exec "$1" php -r 'echo PHP_VERSION_ID;' 2> /dev/null || echo 0; }
+
+# Container php-fpm untuk folder $1: $2 bila diisi, selain itu yang lolos composer check-platform-reqs dengan PHP tertinggi.
+detect_container() {
+    local dir="$1" preset="${2:-}" container path version best="" best_version=-1
+    local mounted=() candidates=()
+    for container in $(docker ps --format '{{.Names}}'); do
+        if container_path "$container" "$dir" > /dev/null; then
+            mounted+=("$container")
+        fi
+    done
+    [ "${#mounted[@]}" -gt 0 ] || fail "tidak ada container jalan yang me-mount $dir."
+    if [ -n "$preset" ]; then
+        printf '%s\n' "${mounted[@]}" | grep -qx "$preset" || fail "PHP_CONTAINER=$preset tidak jalan atau tidak me-mount $dir."
+        echo "$preset"
+        return
+    fi
+    for container in "${mounted[@]}"; do
+        if is_php_fpm "$container"; then
+            candidates+=("$container")
+        fi
+    done
+    [ "${#candidates[@]}" -gt 0 ] || fail "tidak ada container php-fpm yang me-mount $dir."
+    for container in "${candidates[@]}"; do
+        path="$(container_path "$container" "$dir")"
+        if docker exec -u "$APP_USER" -e HOME=/tmp -e COMPOSER_HOME=/tmp/composer -w "$path" "$container" \
+            composer check-platform-reqs --no-dev > /dev/null 2>&1; then
+            version="$(php_version_id "$container")"
+            if [ "$version" -gt "$best_version" ]; then
+                best_version="$version"
+                best="$container"
+            fi
+        fi
+    done
+    [ -n "$best" ] || fail "tidak ada container php-fpm yang memenuhi composer.lock $dir; set PHP_CONTAINER."
+    echo "$best"
+}
+
+# PHP_CONTAINER dari environment atau .deploy.env project (bila ada)
+deploy_container() {
+    [ -f "$1/.deploy.env" ] || return 0
+    (
+        cd "$1"
+        # shellcheck source=/dev/null
+        . ./.deploy.env > /dev/null 2>&1 || true
+        echo "${PHP_CONTAINER:-}"
+    )
+}
+
+step "Deteksi"
+PHP_CONTAINER="${PHP_CONTAINER:-$(deploy_container "$APP_DIR")}"
+PHP_CONTAINER="$(detect_container "$APP_DIR" "$PHP_CONTAINER")"
+CONTAINER_DIR="$(container_path "$PHP_CONTAINER" "$APP_DIR")"
+WEB_USER="$(docker exec "$PHP_CONTAINER" sh -c 'echo "$(id -u www-data):$(id -g www-data)"' 2> /dev/null || true)"
+info "project   : $APP_DIR → $CONTAINER_DIR"
+info "php-fpm   : $PHP_CONTAINER (PHP $(docker exec "$PHP_CONTAINER" php -r 'echo PHP_VERSION;'))"
+
+# baca (tetap jalan saat --dry-run) / ubah (hanya ditampilkan saat --dry-run)
+app_exec() { docker exec -u "$APP_USER" -e HOME=/tmp -e COMPOSER_HOME=/tmp/composer -w "$CONTAINER_DIR" "$PHP_CONTAINER" "$@"; }
+artisan() { app_exec php artisan "$@"; }
+as_app() {
+    if [ "$DRY_RUN" = 1 ]; then
+        printf '   [dry-run] %s:' "$PHP_CONTAINER"
+        printf ' %q' "$@"
+        printf '\n'
+    else
+        app_exec "$@"
+    fi
+}
+as_root() {
+    if [ "$DRY_RUN" = 1 ]; then
+        printf '   [dry-run] %s (root):' "$PHP_CONTAINER"
+        printf ' %q' "$@"
+        printf '\n'
+    else
+        docker exec -u 0:0 -w "$CONTAINER_DIR" "$PHP_CONTAINER" "$@"
+    fi
+}
+
+# Versi bangsamu/master terpasang: "<ok|old|dev|none> <versi>"
+package_state() {
+    app_exec php -r '
+        require "vendor/autoload.php";
+        $p = "bangsamu/master";
+        if (! \Composer\InstalledVersions::isInstalled($p)) { echo "none -"; exit; }
+        $v = (string) \Composer\InstalledVersions::getPrettyVersion($p);
+        $n = ltrim($v, "vV");
+        echo preg_match("/^\d/", $n) ? (version_compare($n, $argv[1], ">=") ? "ok" : "old") : "dev", " ", $v;
+    ' "$MIN_VERSION" 2> /dev/null || echo "none -"
+}
+
+declare -A DOC=()
+# Hasil master:scope-doctor --format=env ke DOC[...]; argumen tambahan diteruskan ke artisan (mis. --env=testing).
+doctor() {
+    local line output
+    DOC=()
+    output="$(artisan "$@" master:scope-doctor --format=env 2>&1)" || {
+        printf '%s\n' "$output" | indent >&2
+        fail "php artisan $* master:scope-doctor gagal."
+    }
+    while IFS= read -r line; do
+        case "$line" in [a-z_]*=*) DOC["${line%%=*}"]="${line#*=}" ;; esac
+    done <<< "$output"
+    [ -n "${DOC[role]:-}" ] || fail "keluaran master:scope-doctor tidak dikenali."
+}
+
+# Ganti baris KEY= yang kosong atau tambahkan di akhir .env; nilai yang sudah terisi tidak ditimpa.
+set_env() {
+    local file="$APP_DIR/.env" key="$1" value="$2" current
+    [ -f "$file" ] || fail ".env tidak ada di $APP_DIR."
+    current="$(sed -n "s/^${key}=//p" "$file" | tail -n 1)"
+    current="${current%\"}"
+    current="${current#\"}"
+    if [ -n "$current" ]; then
+        warn "$key sudah terisi di .env, tidak diubah."
+        return 0
+    fi
+    if [ "$DRY_RUN" = 1 ]; then
+        info "[dry-run] tulis $key ke .env"
+        return 0
+    fi
+    if grep -q "^${key}=" "$file"; then
+        KEY="$key" VALUE="$value" awk 'BEGIN { k = ENVIRON["KEY"] "="; v = ENVIRON["VALUE"] }
+            index($0, k) == 1 { print k v; next } { print }' "$file" > "$file.master-scope.tmp"
+        cat "$file.master-scope.tmp" > "$file"
+        rm -f "$file.master-scope.tmp"
+    else
+        [ -z "$(tail -c 1 "$file")" ] || printf '\n' >> "$file"
+        printf '%s=%s\n' "$key" "$value" >> "$file"
+    fi
+    info "$key ditulis ke .env."
+}
+
+if [ -f "$APP_DIR/bootstrap/cache/config.php" ]; then
+    warn "config ter-cache (bootstrap/cache/config.php); dibersihkan supaya .env terbaca."
+    as_app php artisan config:clear --no-interaction
+fi
+
+step "Paket bangsamu/master"
+read -r PKG_STATE PKG_VERSION <<< "$(package_state)"
+info "terpasang : $PKG_VERSION"
+case "$PKG_STATE" in
+    ok) info "sudah >= $MIN_VERSION." ;;
+    dev) warn "versi dev ($PKG_VERSION); dianggap sudah memuat v$MIN_VERSION." ;;
+    *)
+        [ "$SKIP_COMPOSER" = 0 ] || fail "butuh bangsamu/master >= $MIN_VERSION (terpasang $PKG_VERSION); --skip-composer aktif."
+        if confirm "Naikkan ke bangsamu/master:$PACKAGE_CONSTRAINT (composer require, mengubah composer.json + composer.lock)?"; then
+            as_app composer require "bangsamu/master:$PACKAGE_CONSTRAINT" --update-with-dependencies --no-interaction
+        else
+            fail "dibatalkan; langkah berikutnya butuh bangsamu/master >= $MIN_VERSION."
+        fi
+        if [ "$DRY_RUN" = 1 ]; then
+            info "Langkah berikutnya butuh paket baru terpasang; dry-run berhenti di sini."
+            exit 0
+        fi
+        read -r PKG_STATE PKG_VERSION <<< "$(package_state)"
+        [ "$PKG_STATE" != old ] && [ "$PKG_STATE" != none ] || fail "bangsamu/master masih $PKG_VERSION setelah composer require."
+        info "sekarang  : $PKG_VERSION"
+        ;;
+esac
+
+doctor
+ROLE="${DOC[role]}"
+APP_CODE="${DOC[app_code]}"
+if [ "$ROLE" = hub ]; then
+    info "peran     : hub (aplikasi Master Data), DB ${DOC[database]:-?} @ ${DOC[db_host]:-?}"
+    [ -z "$HUB_DIR$MODULES$EDIT_URL" ] || warn "--hub/--modules/--edit-url hanya untuk aplikasi klien, diabaikan."
+else
+    info "peran     : klien $APP_CODE, DB ${DOC[database]:-?} @ ${DOC[db_host]:-?}"
+fi
+
+# $1 = label DB, sisanya argumen artisan tambahan (--env=testing)
+scope_upgrade() {
+    local label="$1"
+    shift
+    doctor "$@"
+    if [ -z "${DOC[scope_pending]}" ]; then
+        info "$label (${DOC[database]:-?}): tabel ber-app_code sudah punya company_id dan index unik ber-pemilik."
+        return 0
+    fi
+    artisan "$@" master:scope-upgrade --dry-run | indent
+    if confirm "Jalankan master:scope-upgrade di DB $label ${DOC[database]:-?} @ ${DOC[db_host]:-?}?"; then
+        as_app php artisan "$@" master:scope-upgrade --no-interaction
+    else
+        warn "master:scope-upgrade $label dilewati."
+    fi
+}
+
+permissions() {
+    local label="$1" keep=()
+    shift
+    [ "$KEEP_ALIAS" = 0 ] || keep=(--keep-alias)
+    doctor "$@"
+    if [ "${DOC[permissions_missing]:-0}" = 0 ] && { [ "${DOC[permissions_aliases]:-0}" = 0 ] || [ "$KEEP_ALIAS" = 1 ]; }; then
+        local note=""
+        [ "${DOC[permissions_aliases]:-0}" = 0 ] || note=" (alias lama dipertahankan: ${DOC[permissions_aliases]})"
+        info "$label (${DOC[database]:-?}): permission master sudah seragam$note."
+        return 0
+    fi
+    artisan "$@" master:permissions --dry-run "${keep[@]}" | indent
+    if confirm "Jalankan master:permissions${keep:+ --keep-alias} di DB $label ${DOC[database]:-?}?"; then
+        as_app php artisan "$@" master:permissions "${keep[@]}" --no-interaction
+    else
+        warn "master:permissions $label dilewati."
+    fi
+}
+
+step "Pemilik data app_code + company_id (master:scope-upgrade)"
+scope_upgrade "aplikasi"
+[ -z "${DOC[scope_global]}" ] || info "Tabel global tanpa app_code (tidak disentuh): ${DOC[scope_global]}. Naikkan manual bila perlu: php artisan master:scope-upgrade --table=<tabel>"
+
+step "Permission per tabel (master:permissions)"
+permissions "aplikasi"
+
+if [ "$WITH_TESTING" = 1 ]; then
+    step "DB testing (.env.testing)"
+    if [ -f "$APP_DIR/.env.testing" ]; then
+        scope_upgrade "testing" --env=testing
+        permissions "testing" --env=testing
+    else
+        warn ".env.testing tidak ada, dilewati."
+    fi
+fi
+
+if [ "$ROLE" = client ]; then
+    step "Kunci launch Edit di Master Data"
+    doctor
+    PUBLIC_KEY=""
+    if [ "${DOC[launch_key]}" = ok ]; then
+        info "MASTER_LAUNCH_PRIVATE_KEY sudah terpasang."
+        PUBLIC_KEY="$(artisan master:launch-key --show | tail -n 1)"
+    elif [ "$DRY_RUN" = 1 ]; then
+        info "[dry-run] buat pasangan kunci, tulis MASTER_LAUNCH_PRIVATE_KEY ke .env, daftarkan kunci publik di hub."
+    elif confirm "Buat kunci launch baru dan tulis MASTER_LAUNCH_PRIVATE_KEY ke $APP_DIR/.env?"; then
+        KEYS="$(artisan master:launch-key --format=env)"
+        SECRET="$(printf '%s\n' "$KEYS" | sed -n 's/^MASTER_LAUNCH_PRIVATE_KEY=//p')"
+        PUBLIC_KEY="$(printf '%s\n' "$KEYS" | sed -n 's/^MASTER_LAUNCH_PUBLIC_KEY=//p')"
+        unset KEYS
+        [ -n "$SECRET" ] && [ -n "$PUBLIC_KEY" ] || fail "master:launch-key --format=env tidak menghasilkan kunci."
+        set_env MASTER_LAUNCH_PRIVATE_KEY "$SECRET"
+        unset SECRET
+        artisan config:clear --no-interaction > /dev/null
+    else
+        warn "kunci launch dilewati; tombol Edit di Master Data memakai link lama (login ulang di Master Data)."
+    fi
+
+    if [ -n "$PUBLIC_KEY" ]; then
+        REGISTER=(php artisan master:launch-key "--register=$APP_CODE" "--public=$PUBLIC_KEY")
+        [ -z "$MODULES" ] || REGISTER+=("--modules=$MODULES")
+        if [ -n "$HUB_DIR" ]; then
+            HUB_CONTAINER="$(detect_container "$HUB_DIR" "$(deploy_container "$HUB_DIR")")"
+            HUB_CONTAINER_DIR="$(container_path "$HUB_CONTAINER" "$HUB_DIR")"
+            hub_exec() { docker exec -u "$APP_USER" -e HOME=/tmp -w "$HUB_CONTAINER_DIR" "$HUB_CONTAINER" "$@"; }
+            info "hub       : $HUB_DIR → $HUB_CONTAINER:$HUB_CONTAINER_DIR"
+            if hub_exec php artisan list --raw 2> /dev/null | grep -q '^master:scope-doctor'; then
+                hub_role="$(hub_exec php artisan master:scope-doctor --format=env | sed -n 's/^role=//p')"
+                [ "$hub_role" = hub ] || fail "$HUB_DIR bukan aplikasi Master Data (MasterCrudConfig.MASTER_HUB=false)."
+            fi
+            hub_exec php artisan master:launch-key "--register=$APP_CODE" | indent
+            if confirm "Daftarkan kunci publik $APP_CODE di hub $HUB_DIR${MODULES:+ (modul: $MODULES)}?"; then
+                if [ "$DRY_RUN" = 1 ]; then
+                    printf '   [dry-run] %s:' "$HUB_CONTAINER"
+                    printf ' %q' "${REGISTER[@]}"
+                    printf '\n'
+                else
+                    hub_exec "${REGISTER[@]}" | indent
+                fi
+            fi
+        else
+            info "Daftarkan kunci publik ini di server Master Data (dari folder project-nya, lewat container PHP):"
+            info "  ${REGISTER[*]}"
+            info "(atau jalankan skrip ini dengan --hub=/path/master-data bila Master Data ada di mesin yang sama)"
+        fi
+    fi
+
+    step "Tombol Edit di Master Data (.env)"
+    if [ -n "${DOC[edit_url]}" ]; then
+        info "MASTER_EDIT_URL = ${DOC[edit_url]}"
+    elif [ -n "$EDIT_URL" ]; then
+        if confirm "Tulis MASTER_EDIT_URL=$EDIT_URL ke .env?"; then
+            set_env MASTER_EDIT_URL "$EDIT_URL"
+        fi
+    else
+        warn "MASTER_EDIT_URL kosong: tombol Edit/Tambah di Master Data tidak tampil (isi base URL Master Data, atau --edit-url=URL)."
+    fi
+    if [ "${DOC[direct_edit]}" = 1 ]; then
+        warn "MASTER_DIRECT_EDIT=true: master diubah langsung di aplikasi ini, tombol Edit di Master Data tidak dipakai."
+    fi
+fi
+
+step "Bersihkan cache"
+if ! as_app php artisan optimize:clear --no-interaction; then
+    as_app php artisan config:clear --no-interaction
+    as_app php artisan cache:clear --no-interaction
+fi
+
+if [ -n "$WEB_USER" ]; then
+    step "Izin storage dan bootstrap/cache (www-data $WEB_USER)"
+    as_root chown -R "$WEB_USER" storage bootstrap/cache
+    as_root chmod -R a+rwX storage bootstrap/cache
+fi
+
+step "Hasil (php artisan master:scope-doctor)"
+artisan master:scope-doctor
+
+step "Selesai. Sisa yang dikerjakan manual:"
+if [ "$ROLE" = client ]; then
+    info "- Role: beri {create|update|delete}_{tabel} (mis. update_item_code) ke role yang boleh mengubah master lewat Master Data."
+    info "- Filter setting (category = nama tabel): ganti baris lama app_code/company_id dengan baris scope sesuai saran di atas."
+    info "- Test daftar route aplikasi: golongkan POST master-launch (publik, token) dan master-launch/go, master-launch/back."
+else
+    info "- Daftarkan kunci publik tiap aplikasi klien: php artisan master:launch-key --register=APPxx --public=<kunci>"
+    info "- MASTER_UNIQUE_PER_OWNER tetap kosong sampai semua aplikasi penyalin tabel itu sudah menjalankan skrip ini."
+fi

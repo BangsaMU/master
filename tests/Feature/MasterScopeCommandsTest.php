@@ -3,15 +3,17 @@
 namespace Bangsamu\Master\Tests\Feature;
 
 use App\Models\User;
+use Bangsamu\Master\Services\MasterLaunchToken;
 use Bangsamu\Master\Services\MasterSchemaUpgrader;
 use Bangsamu\Master\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
  * master:scope-upgrade (pemilik app_code + company_id, index unik diperluas), master:permissions (nama per tabel +
- * gabung alias lama), dan filter setting baris scope dengan placeholder.
+ * gabung alias lama), master:scope-doctor (dibaca bin/master-scope-setup), dan filter setting baris scope dengan placeholder.
  */
 class MasterScopeCommandsTest extends TestCase
 {
@@ -118,7 +120,7 @@ class MasterScopeCommandsTest extends TestCase
             ->assertFailed();
     }
 
-    public function test_permissions_dibuat_dan_alias_lama_digabung(): void
+    private function createPermissionTables(): void
     {
         Schema::create('permissions', function (Blueprint $table) {
             $table->id();
@@ -137,6 +139,11 @@ class MasterScopeCommandsTest extends TestCase
             $table->unsignedBigInteger('model_id');
             $table->primary(['permission_id', 'model_id', 'model_type']);
         });
+    }
+
+    public function test_permissions_dibuat_dan_alias_lama_digabung(): void
+    {
+        $this->createPermissionTables();
         $readItem = DB::table('permissions')->insertGetId(['name' => 'read_item', 'guard_name' => 'web']);
         $updateItem = DB::table('permissions')->insertGetId(['name' => 'update_item', 'guard_name' => 'web']);
         $updateItemCode = DB::table('permissions')->insertGetId(['name' => 'update_item_code', 'guard_name' => 'web']);
@@ -149,20 +156,45 @@ class MasterScopeCommandsTest extends TestCase
         $this->artisan('master:permissions', ['--dry-run' => true])->assertSuccessful();
         $this->assertSame(3, DB::table('permissions')->count());
 
-        $this->artisan('master:permissions')->expectsOutputToContain('read_item -> read_item_code')->assertSuccessful();
+        $this->artisan('master:permissions')->expectsOutputToContain('read_item -> read_item_code (ganti nama)')->assertSuccessful();
 
         $names = DB::table('permissions')->pluck('id', 'name');
         $this->assertFalse($names->has('read_item'));
         $this->assertFalse($names->has('update_item'));
         $this->assertTrue($names->has('delete_project_detail'));
-        $this->assertSame($updateItemCode, $names['update_item_code']); // id lama dipakai, tidak dibuat ulang
+        // alias tanpa nama baru diganti nama (id tetap); keduanya ada: id lebih kecil (dirujuk seeder) dipertahankan
+        $this->assertSame($readItem, $names['read_item_code']);
+        $this->assertSame($updateItem, $names['update_item_code']);
+        $this->assertFalse(DB::table('permissions')->where('id', $updateItemCode)->exists());
         $role1 = DB::table('role_has_permissions')->where('role_id', 1)->pluck('permission_id')->all();
-        $this->assertEqualsCanonicalizing([$names['read_item_code'], $updateItemCode], $role1);
+        $this->assertEqualsCanonicalizing([$readItem, $updateItem], $role1);
+        $this->assertSame([$updateItem], DB::table('role_has_permissions')->where('role_id', 2)->pluck('permission_id')->all());
 
         // idempoten
         $count = DB::table('permissions')->count();
         $this->artisan('master:permissions')->assertSuccessful();
         $this->assertSame($count, DB::table('permissions')->count());
+    }
+
+    public function test_permissions_keep_alias_mempertahankan_nama_lama(): void
+    {
+        $this->createPermissionTables();
+        $alias = DB::table('permissions')->insertGetId(['name' => 'create_itemgroup', 'guard_name' => 'web']);
+        DB::table('role_has_permissions')->insert(['permission_id' => $alias, 'role_id' => 1]);
+
+        $this->artisan('master:permissions', ['--keep-alias' => true])
+            ->expectsOutputToContain('create_itemgroup -> create_item_group (alias dipertahankan)')
+            ->assertSuccessful();
+
+        $names = DB::table('permissions')->pluck('id', 'name');
+        $this->assertTrue($names->has('create_itemgroup'));
+        $this->assertEqualsCanonicalizing([$alias, $names['create_item_group']], DB::table('role_has_permissions')->where('role_id', 1)->pluck('permission_id')->all());
+
+        // tanpa --keep-alias kemudian: digabung ke id lama (alias), nama baru dipakai
+        $this->artisan('master:permissions')->assertSuccessful();
+        $this->assertSame($alias, DB::table('permissions')->where('name', 'create_item_group')->value('id'));
+        $this->assertFalse(DB::table('permissions')->where('name', 'create_itemgroup')->exists());
+        $this->assertSame([$alias], DB::table('role_has_permissions')->where('role_id', 1)->pluck('permission_id')->all());
     }
 
     public function test_filter_setting_baris_scope_dengan_placeholder(): void
@@ -183,5 +215,65 @@ class MasterScopeCommandsTest extends TestCase
             ->assertOk()->json())->pluck('department_code')->sort()->values()->all();
 
         $this->assertSame(['A1', 'M1', 'S1'], $codes);
+    }
+
+    /** @return array<string, string> */
+    private function doctorEnv(): array
+    {
+        Artisan::call('master:scope-doctor', ['--format' => 'env']);
+        $report = [];
+        foreach (preg_split('/\R/', trim(Artisan::output())) as $line) {
+            [$key, $value] = explode('=', $line, 2);
+            $report[$key] = $value;
+        }
+
+        return $report;
+    }
+
+    public function test_doctor_melaporkan_tabel_kunci_dan_filter_setting(): void
+    {
+        config(['SsoConfig.main.APP_CODE' => 'APP32', 'MasterCrudConfig.MASTER_EDIT_URL' => 'https://master.test']);
+        DB::table('setting')->insert([
+            // format lama: belum membatasi company
+            ['category' => 'master_category', 'name' => 'app_code', 'value' => 'APP03,APP09,APP32'],
+            // baris scope + baris lama app_code digabung OR: baris lama membuka lagi data yang dibatasi
+            ['category' => 'master_department', 'name' => 'scope.spb', 'value' => '{"app_code":["{APP_CODE}"],"company_id":["{USER_COMPANY}",0]}'],
+            ['category' => 'master_department', 'name' => 'app_code', 'value' => 'APP32'],
+        ]);
+
+        $before = $this->doctorEnv();
+        $this->assertSame('client', $before['role']);
+        $this->assertSame('APP32', $before['app_code']);
+        $this->assertSame('master_category,master_department', $before['scope_pending']);
+        $this->assertSame('master_location', $before['scope_global']);
+        $this->assertSame('missing', $before['launch_key']);
+        $this->assertSame('https://master.test', $before['edit_url']);
+        // department: baris scope diabaikan (company_id belum ada); saran baris scope baru muncul setelah company_id ada
+        $this->assertSame('1', $before['filter_warnings']);
+
+        $this->artisan('master:scope-upgrade')->assertSuccessful();
+        config(['MasterCrudConfig.LAUNCH_PRIVATE_KEY' => MasterLaunchToken::generateKeyPair()['secret']]);
+
+        $after = $this->doctorEnv();
+        $this->assertSame('', $after['scope_pending']);
+        $this->assertSame('ok', $after['launch_key']);
+        // department: baris lama app_code digabung OR dengan baris scope; category: saran ganti ke baris scope
+        $this->assertSame('2', $after['filter_warnings']);
+
+        $this->artisan('master:scope-doctor')
+            ->expectsOutputToContain('scope.bersama = {"app_code":["APP03","APP09"]}')
+            ->expectsOutputToContain('digabung OR dengan baris scope')
+            ->assertSuccessful();
+    }
+
+    public function test_launch_key_format_env_untuk_skrip(): void
+    {
+        Artisan::call('master:launch-key', ['--format' => 'env']);
+        $output = Artisan::output();
+        preg_match('/^MASTER_LAUNCH_PRIVATE_KEY=(\S+)$/m', $output, $secret);
+        preg_match('/^MASTER_LAUNCH_PUBLIC_KEY=(\S+)$/m', $output, $public);
+
+        $this->assertNotEmpty($secret[1] ?? null);
+        $this->assertSame(MasterLaunchToken::publicKeyFromSecret($secret[1]), $public[1] ?? null);
     }
 }

@@ -18,7 +18,8 @@ use Bangsamu\Master\Support\MasterModules;
 class MasterEditLink
 {
     /**
-     * Slug route => akhiran permission (override per slug lewat MasterCrudConfig.MASTER_EDIT_PERMISSIONS).
+     * Slug route => akhiran permission (override per slug lewat MasterCrudConfig.MASTER_EDIT_PERMISSIONS). Sejak v3.1
+     * nama seragam MasterModules; nama lama (update_item, create_itemgroup) tetap diterima allowed() lewat MasterAccess.
      *
      * @var array<string, string>
      */
@@ -27,8 +28,8 @@ class MasterEditLink
         'company' => 'company',
         'department' => 'department',
         'employee' => 'employee',
-        'item-code' => 'item',
-        'item-group' => 'itemgroup',
+        'item-code' => 'item_code',
+        'item-group' => 'item_group',
         'location' => 'location',
         'pca' => 'pca',
         'project' => 'project',

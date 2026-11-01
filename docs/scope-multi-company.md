@@ -1,4 +1,4 @@
-# Pemilik data master (app_code + company_id), permission seragam, dan Edit di Master Data (v3.0)
+# Pemilik data master (app_code + company_id), permission seragam, dan Edit di Master Data (v3.0, skrip setup v3.1)
 
 ## Konsep
 
@@ -56,8 +56,12 @@ php artisan master:scope-upgrade --table=master_location   # tabel global: + app
 - **Format:** `{read|create|update|delete}_{tabel tanpa master_}`, mis. `update_item_code`, `create_item_group`.
   Sumbernya `Support\MasterModules`.
 - **Alias lama:** `*_item` dan `*_itemgroup` tetap diterima selama transisi.
-- **`php artisan master:permissions [--dry-run]`:** membuat yang belum ada, lalu menggabungkan alias ke nama baru.
-  Role pemegang alias diberi nama baru, lalu alias dihapus. Pakai `--keep-alias` bila alias perlu dipertahankan.
+- **`php artisan master:permissions [--dry-run]`:** menggabungkan alias ke nama baru, lalu membuat yang belum ada.
+  - Nama baru belum ada: alias cukup diganti nama (id dan semua role tetap).
+  - Keduanya ada: baris ber-id lebih kecil dipertahankan dan diberi nama baru, role pemegang baris lain dipindahkan.
+    Id lama biasanya yang dirujuk seeder/snapshot aplikasi (mis. `PermissionsTableSeeder` SPB dengan id tetap).
+  - `--keep-alias`: nama baru dibuat dan diberi role yang sama, alias tetap ada. Untuk masa transisi selama kode lain
+    di DB yang sama masih memakai nama lama; jalankan lagi tanpa opsi ini setelahnya.
 
 ## Aturan izin (`Services\MasterAccess`)
 
@@ -151,19 +155,152 @@ constraint ke `^3.0` per aplikasi setelah siap.
 - **Route baru `POST master-launch`** (publik, token di body) ada di semua aplikasi. Selain di hub, route ini 404.
   Aplikasi dengan test daftar route perlu menggolongkannya.
 
+## Perubahan v3.1
+
+- **`bin/master-scope-setup`** dan **`master:scope-doctor`** (lihat di bawah); `master:launch-key --format=env` untuk skrip.
+- **`master:permissions`** mengganti nama alias di tempat (id tetap) dan, bila nama baru sudah ada, mempertahankan id
+  yang lebih kecil. Dulu nama baru selalu dibuat dengan id baru lalu alias dihapus.
+- **Import Excel** memakai permission seragam (`create_item_group`, alias `create_itemgroup` tetap diterima).
+- **`MasterEditLink::permission()`** mengembalikan nama seragam (`update_item_code`, `create_item_group`).
+  `allowed()` tetap menerima nama lama.
+- **`EXPORT_TABLES` default** `master_item_group` menerima `read_item_group` dan `read_itemgroup`.
+- **Route `api/master-sync/*`** diberi nama per route (`api.master.sync.sync`, `.items`, `.catch-up`, `.allowed-tables`);
+  dulu keempatnya bernama `api.master.sync.`.
+
 ## Urutan rollout
 
-1. **Hub (Master Data):**
-   - Deploy v3. Hub menerima nama permission lama dan baru.
-   - `master:permissions`.
-   - `master:scope-upgrade`. Ini hanya menambah kolom dan melonggarkan index, data tidak berubah.
-   - Saklar `MASTER_UNIQUE_PER_OWNER` tetap kosong.
-2. **Tiap aplikasi penyalin:**
-   - Ubah constraint ke `^3.0` dan jalankan `composer update`.
-   - `master:scope-upgrade` di DB lokal.
-   - `master:permissions`.
-   - Untuk Edit di Master Data: `master:launch-key`, lalu daftarkan kunci publiknya di hub.
+1. **Hub (Master Data):** deploy v3, lalu jalankan skrip setup (atau `master:permissions` + `master:scope-upgrade`).
+   Hub menerima nama permission lama dan baru. Saklar `MASTER_UNIQUE_PER_OWNER` tetap kosong.
+2. **Tiap aplikasi penyalin:** jalankan skrip setup (di bawah). Skrip menaikkan paket, menaikkan tabel lokal,
+   menyeragamkan permission, memasang kunci launch, dan mendaftarkannya di hub.
 3. **Hub:** setelah semua penyalin tabel X selesai, tambahkan X ke `MASTER_UNIQUE_PER_OWNER`.
+
+## Skrip setup sekali jalan (`bin/master-scope-setup`, sejak v3.1)
+
+Dijalankan dari folder project **di host** (bukan console container), seperti `deploy-prod.sh`. Skrip mendeteksi sendiri
+container php-fpm yang me-mount project (bisa ditimpa `PHP_CONTAINER` atau `.deploy.env`), versi paket, peran aplikasi
+(hub bila `MASTER_HUB=true`, selain itu klien), app_code, dan apa saja yang belum beres (lewat `master:scope-doctor`).
+Tiap langkah yang mengubah composer, DB, atau `.env` ditanya dulu. Langkah yang sudah sesuai dilewati, jadi aman diulang.
+
+```bash
+# aplikasi yang sudah memakai v3.1+
+vendor/bin/master-scope-setup --dry-run        # lihat rencana, tidak mengubah apa pun
+vendor/bin/master-scope-setup                  # jalankan, konfirmasi per langkah
+
+# aplikasi yang masih v2 (skrip belum ada di vendor): jalankan dari salinan paket
+curl -fsSL -o /tmp/master-scope-setup https://raw.githubusercontent.com/BangsaMU/master/v3.1.0/bin/master-scope-setup
+bash /tmp/master-scope-setup --app=$HOME/www/meb_spb --dry-run
+bash /tmp/master-scope-setup --app=$HOME/www/meb_spb
+```
+
+| Opsi | Arti |
+|---|---|
+| `--dry-run` | Tampilkan rencana; deteksi dan pemeriksaan tetap jalan |
+| `--yes` | Tanpa konfirmasi (untuk dijalankan dari skrip lain) |
+| `--app=DIR` | Folder project (default folder saat ini) |
+| `--hub=DIR` | (klien) Folder aplikasi Master Data di mesin yang sama; kunci publik langsung didaftarkan di sana |
+| `--modules=LIST` | (klien) Tabel yang boleh didelegasikan saat didaftarkan, mis. `master_item_code,master_uom` |
+| `--edit-url=URL` | (klien) Isi `MASTER_EDIT_URL` di `.env` bila masih kosong |
+| `--with-testing` | Naikkan juga DB testing (`.env.testing`) |
+| `--keep-alias` | Pertahankan nama permission lama selama checkout/kode lain di DB yang sama masih memakainya |
+| `--skip-composer` | Jangan menaikkan paket (server produksi: versi ikut `composer.lock` lewat deploy) |
+
+Urutan yang dijalankan:
+
+1. **Deteksi:** container, path project di container, versi PHP.
+2. **Paket:** bila `bangsamu/master` < 3.1, `composer require bangsamu/master:^3.1 --update-with-dependencies`.
+3. **`master:scope-upgrade`:** tampilkan rencana (dry-run), konfirmasi, jalankan. Dengan `--with-testing` juga di DB testing.
+4. **`master:permissions`:** tampilkan rencana, konfirmasi, jalankan (`--keep-alias` bila diminta).
+5. **Kunci launch (klien):**
+   - Bila `MASTER_LAUNCH_PRIVATE_KEY` kosong: buat pasangan kunci, tulis kunci privat ke `.env`. Nilai `.env` yang
+     sudah terisi tidak pernah ditimpa, dan kunci privat tidak pernah ditampilkan.
+   - Dengan `--hub`: daftarkan kunci publik di hub. Tanpa `--hub`: cetak perintah untuk dijalankan di server hub.
+6. **`.env` klien:** cek `MASTER_EDIT_URL` (isi dari `--edit-url`) dan peringatkan bila `MASTER_DIRECT_EDIT=true`.
+7. **`optimize:clear`**, lalu izin `storage` dan `bootstrap/cache` ke www-data (seperti deploy).
+8. **`master:scope-doctor`:** ringkasan akhir dan sisa yang dikerjakan manual (role, baris filter setting).
+
+### Contoh: SPB (APP32) di PC dev, Master Data di mesin yang sama
+
+```bash
+cd ~/www/meb_spb
+bash /tmp/master-scope-setup --with-testing \
+    --hub=$HOME/www/master-data \
+    --modules=master_item_code,master_item_group,master_uom,master_pca,master_category \
+    --edit-url=http://master-data.localhost
+```
+
+Contoh keluaran (dipotong):
+
+```
+==> Paket bangsamu/master
+   terpasang : v2.4.10
+   sekarang  : 3.1.0
+   peran     : klien APP32, DB spb_v2_local @ mariadb_alpine
+==> Pemilik data app_code + company_id (master:scope-upgrade)
+   [dry-run] master_category: tambah company_id (default 0 = semua company); unik ... -> (category_code,app_code,company_id)
+   ...
+==> Permission per tabel (master:permissions)
+   [dry-run] Permission baru: 12 (read_brand, ..., delete_status)
+   [dry-run] Alias digabung: 6 (create_item -> create_item_code (gabung, id 15 dipertahankan), read_itemgroup -> read_item_group (ganti nama), ...)
+==> Kunci launch Edit di Master Data
+   MASTER_LAUNCH_PRIVATE_KEY ditulis ke .env.
+   Kunci publik APP32 didaftarkan.
+   Modul delegasi APP32: master_item_code, master_item_group, master_uom, master_pca, master_category
+==> Hasil (php artisan master:scope-doctor)
+   WARN  Filter setting perlu dicek:
+  - master_item_code app_code (setting id 11) = APP09,APP32,APP03, master_item_code company_id (setting id 12) = 1 (format lama)
+    belum membatasi company. Saran: ganti dengan baris scope.bersama = {"app_code":["APP09","APP03"]} dan
+    scope.app = {"app_code":["{APP_CODE}"],"company_id":["{USER_COMPANY}",0]} (category master_item_code)
+```
+
+### Contoh: produksi (server klien dan hub berbeda)
+
+```bash
+# server SPB, setelah deploy-prod.sh membawa composer.lock v3.1
+it@spb:~/www/meb_spb$ vendor/bin/master-scope-setup --skip-composer
+#   ... di akhir langkah kunci launch tercetak:
+#   php artisan master:launch-key --register=APP32 --public=<kunci publik>
+
+# server Master Data: jalankan perintah tercetak tadi lewat container PHP
+it@master:~/www/master-data$ docker exec -u $(id -u):$(id -g) -w /var/www/html/master-data <container-php> \
+    php artisan master:launch-key --register=APP32 --public=<kunci publik> \
+    --modules=master_item_code,master_item_group,master_uom,master_pca,master_category
+```
+
+### Perintah manual (tanpa skrip)
+
+Semua lewat container PHP aplikasinya (`docker exec -u <uid>:<gid> -w /var/www/html/<project> <container> ...`).
+
+```bash
+composer require "bangsamu/master:^3.1" --update-with-dependencies   # klien yang masih v2
+php artisan master:scope-doctor                    # cek kondisi (hanya membaca); --format=env untuk skrip
+php artisan master:scope-upgrade --dry-run && php artisan master:scope-upgrade
+php artisan master:permissions --dry-run && php artisan master:permissions
+php artisan master:launch-key                      # klien: cetak MASTER_LAUNCH_PRIVATE_KEY + perintah daftar di hub
+php artisan master:launch-key --show               # klien: kunci publik dari kunci privat yang terpasang
+php artisan master:launch-key --register=APP32 --public=<kunci> [--modules=...]   # hub
+php artisan master:launch-key --register=APP32     # hub: cek kunci + modul terdaftar
+php artisan optimize:clear
+```
+
+### Sisa manual di aplikasi klien
+
+1. **Role:** beri `{create|update|delete}_{tabel}` ke role yang boleh mengubah master lewat Master Data, mis. ADMIN SPB:
+   `create_item_code`, `update_item_code`, `create_item_group`, `update_item_group`, `create_uom`, `update_uom`,
+   `create_pca`, `update_pca`, `create_category`, `update_category`. Aplikasi yang mengelola permission lewat seeder
+   memasukkannya ke seeder.
+2. **Filter setting** (`setting`, category = nama tabel): ganti baris lama `app_code`/`company_id` dengan baris scope
+   sesuai saran doctor. Antar baris digabung OR, jadi baris lama yang tertinggal membuka lagi data yang dibatasi.
+   Contoh SPB:
+
+   | category | name | value |
+   |---|---|---|
+   | `master_item_code` | `scope.bersama` | `{"app_code":["APP03","APP09"]}` |
+   | `master_item_code` | `scope.spb` | `{"app_code":["{APP_CODE}"],"company_id":["{USER_COMPANY}",0]}` |
+   | `master_department` | `scope.spb` | `{"app_code":["{APP_CODE}"],"company_id":["{USER_COMPANY}",0]}` |
+
+3. **Test daftar route:** golongkan `POST master-launch` (publik, token di body; di klien 404), `GET master-launch/go/{slug}/{id?}`
+   (izin dicek controller), dan `GET master-launch/back` (cukup login).
 
 ## Batasan yang diketahui
 

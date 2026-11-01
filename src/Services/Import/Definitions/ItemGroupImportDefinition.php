@@ -26,7 +26,7 @@ class ItemGroupImportDefinition extends SimpleCodeImportDefinition
 
     public function permission(): string
     {
-        return 'itemgroup';
+        return 'item_group';
     }
 
     protected function keyField(): string

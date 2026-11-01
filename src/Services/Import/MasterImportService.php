@@ -15,7 +15,9 @@ use Bangsamu\Master\Services\Import\Definitions\ProjectDetailImportDefinition;
 use Bangsamu\Master\Services\Import\Definitions\ProjectImportDefinition;
 use Bangsamu\Master\Services\Import\Definitions\UomImportDefinition;
 use Bangsamu\Master\Services\Import\Definitions\VendorImportDefinition;
+use Bangsamu\Master\Services\MasterAccess;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Support\MasterModules;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Http\UploadedFile;
@@ -117,12 +119,23 @@ class MasterImportService
 
     public function canCreate(MasterImportDefinition $definition): bool
     {
-        return $this->hasPermission('create_'.$definition->permission());
+        return $this->allows($definition, 'create');
     }
 
     public function canUpdate(MasterImportDefinition $definition): bool
     {
-        return $this->hasPermission('update_'.$definition->permission());
+        return $this->allows($definition, 'update');
+    }
+
+    /** tabel modul master: permission seragam MasterModules (nama baru + alias lama, mis. create_itemgroup) */
+    protected function allows(MasterImportDefinition $definition, string $ability): bool
+    {
+        $slug = MasterModules::slugForTable($definition->table());
+        if ($slug === null || ! function_exists('checkPermission')) {
+            return $this->hasPermission($ability.'_'.$definition->permission());
+        }
+
+        return app(MasterAccess::class)->hasPermission($slug, $ability);
     }
 
     protected function hasPermission(string $permission): bool
