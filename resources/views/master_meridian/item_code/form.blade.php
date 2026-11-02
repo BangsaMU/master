@@ -81,6 +81,7 @@
                             <div class="field flex flex-col gap-1">
                                 <label class="field__label text-sm font-medium text-foreground" for="pca">PCA</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="select w-full @error('pca_id') border-danger @enderror" name="pca_id" id="pca">
+                                    <option value=""></option>
                                     @if(isset($param->pca_id))
                                         <option value="{{ $param->pca_id }}" selected>{{ $param->pca_name }}</option>
                                     @endif
@@ -93,6 +94,7 @@
                             <div class="field flex flex-col gap-1">
                                 <label class="field__label text-sm font-medium text-foreground" for="category">Category</label>
                                 <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="select w-full @error('category_id') border-danger @enderror" name="category_id" id="category">
+                                    <option value=""></option>
                                     @if(isset($param->category_id))
                                         <option value="{{ $param->category_id }}" selected>{{ $param->category_name }}</option>
                                     @endif
@@ -136,13 +138,15 @@
     @endif
 
     <script>
-        const CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
+        // var (bukan const): layout aplikasi bisa sudah mendeklarasikan CSRF_TOKEN global; const = SyntaxError.
+        var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
         // Common Select2 Configuration
-        function initializeSelect2(elementId, url, searchParam, placeholder, selectedValue) {
+        function initializeSelect2(elementId, url, searchParam, placeholder, selectedValue, allowClear) {
             $(elementId).select2({
                 width: '100%',
                 placeholder: placeholder,
+                allowClear: allowClear === true,
                 ajax: {
                     url: url,
                     type: "get",
@@ -184,8 +188,8 @@
 
         // Initialize Select2 Fields with old values
         initializeSelect2('#uom', "{!! url('api/getmaster_uombyparams?set[id]=id&set[text]=uom_name') !!}", 'uom_name', 'Please select UoM', "{{ old('uom_id', isset($param->uom_id) ? $param->uom_id : '') }}");
-        initializeSelect2('#pca', "{!! url('api/getmaster_pcabyparams?set[id]=id&set[text]=pca_name') !!}", 'pca_name', 'Please select PCA', "{{ old('pca_id', isset($param->pca_id) ? $param->pca_id : '') }}");
-        initializeSelect2('#category', "{!! url('api/getmaster_categorybyparams?set[id]=id&set[text]=category_name') !!}", 'category_name', 'Please select Category', "{{ old('category_id', isset($param->category_id) ? $param->category_id : '') }}");
+        initializeSelect2('#pca', "{!! url('api/getmaster_pcabyparams?set[id]=id&set[text]=pca_name') !!}", 'pca_name', 'Please select PCA', "{{ old('pca_id', isset($param->pca_id) ? $param->pca_id : '') }}", true);
+        initializeSelect2('#category', "{!! url('api/getmaster_categorybyparams?set[id]=id&set[text]=category_name') !!}", 'category_name', 'Please select Category', "{{ old('category_id', isset($param->category_id) ? $param->category_id : '') }}", true);
         initializeSelect2('#item_group', "{!! url('api/getmaster_item_groupbyparams?set[id]=id&set[text]=item_group_name') !!}", 'item_group_name', 'Please select Item Group', "{{ old('group_id', isset($param->group_id) ? $param->group_id : '') }}");
 
         // Handle attributes input logic

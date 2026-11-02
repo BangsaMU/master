@@ -142,7 +142,8 @@
     @endif
 
     <script>
-        const CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
+        // var (bukan const): layout aplikasi bisa sudah mendeklarasikan CSRF_TOKEN global; const = SyntaxError.
+        var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
         // Common Select2 Configuration
         function initializeSelect2(elementId, url, searchParam, placeholder) {
