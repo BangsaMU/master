@@ -11,14 +11,22 @@
     $summary = $analysis['summary'];
     $fields = $definition->fields();
     $totalRows = count($analysis['rows']);
+    // kelas mi-* didefinisikan di halaman ini: kelas warna Tabler (bg-green-lt dst.) tidak ada di AdminLTE/Bootstrap
     $statusMeta = [
-        'new' => ['label' => 'Baru', 'class' => 'bg-green-lt'],
-        'update' => ['label' => 'Update', 'class' => 'bg-yellow-lt'],
-        'same' => ['label' => 'Tidak berubah', 'class' => 'bg-secondary-lt'],
-        'locked' => ['label' => 'Milik app lain', 'class' => 'bg-purple-lt'],
-        'error' => ['label' => 'Error', 'class' => 'bg-red-lt'],
+        'new' => ['label' => 'Baru', 'class' => 'mi-badge-new'],
+        'update' => ['label' => 'Update', 'class' => 'mi-badge-update'],
+        'same' => ['label' => 'Tidak berubah', 'class' => 'mi-badge-same'],
+        'locked' => ['label' => 'Milik app lain', 'class' => 'mi-badge-locked'],
+        'error' => ['label' => 'Error', 'class' => 'mi-badge-error'],
     ];
     $allowUpdateOld = (bool) old('allow_update');
+    // referensi yang belum ada di master: kuning = dibuat otomatis, merah = ditolak (saklar dashboard_settings)
+    $refLabels = $definition->autoCreatableRefs();
+    $autoCreateRefs = $analysis['auto_create_refs'] ?? false;
+    $refClass = $autoCreateRefs ? 'mi-ref mi-ref-auto' : 'mi-ref mi-ref-reject';
+    $settingUrl = Route::has('settings.dashboard.index') && (! function_exists('checkPermission') || checkPermission('is_admin'))
+        ? route('settings.dashboard.index', \Bangsamu\Master\Services\Import\MasterImportSettings::GROUP)
+        : null;
 @endphp
 @extends($themeLayout)
 
@@ -26,6 +34,9 @@
 
 @section('content_header')
     <h1>Preview Import {{ $definition->label() }}</h1>
+    <div class="text-muted small">
+        File <strong>{{ $payload['file_name'] }}</strong> &middot; {{ $totalRows }} baris &middot; diunggah {{ $payload['created_at'] }}
+    </div>
 @stop
 
 @section('header')
@@ -41,6 +52,22 @@
 @endsection
 
 @section('content')
+    {{-- Warna sendiri (var Bootstrap 5.3 bila ada, fallback heksa) supaya terbaca di tema AdminLTE, Tabler, maupun mode gelap --}}
+    <style>
+        .mi-badge { display: inline-block; padding: .3em .6em; font-size: .75rem; font-weight: 600; line-height: 1.2; border: 1px solid transparent; border-radius: .375rem; white-space: nowrap; }
+        .mi-badge-new { color: var(--bs-success-text-emphasis, #0a3622); background-color: var(--bs-success-bg-subtle, #d1e7dd); border-color: var(--bs-success-border-subtle, #a3cfbb); }
+        .mi-badge-update { color: var(--bs-warning-text-emphasis, #664d03); background-color: var(--bs-warning-bg-subtle, #fff3cd); border-color: var(--bs-warning-border-subtle, #ffe69c); }
+        .mi-badge-same { color: var(--bs-secondary-text-emphasis, #2b2f32); background-color: var(--bs-secondary-bg-subtle, #e2e3e5); border-color: var(--bs-secondary-border-subtle, #c4c8cb); }
+        .mi-badge-locked { color: #432874; background-color: #e2d9f3; border-color: #c5b3e6; }
+        .mi-badge-error { color: var(--bs-danger-text-emphasis, #58151c); background-color: var(--bs-danger-bg-subtle, #f8d7da); border-color: var(--bs-danger-border-subtle, #f1aeb5); }
+        .mi-badge-key { color: var(--bs-primary-text-emphasis, #052c65); background-color: var(--bs-primary-bg-subtle, #cfe2ff); border-color: var(--bs-primary-border-subtle, #9ec5fe); }
+        .mi-badge-field { color: var(--bs-info-text-emphasis, #055160); background-color: var(--bs-info-bg-subtle, #cff4fc); border-color: var(--bs-info-border-subtle, #9eeaf9); }
+        .mi-text-update { color: #b58105; font-weight: 700; }
+        .mi-ref { display: inline-block; padding: 0 .35em; border-radius: .25rem; font-weight: 600; }
+        .mi-ref-auto { color: #946c00; background-color: #fff3cd; }
+        .mi-ref-reject { color: #b02a37; background-color: #f8d7da; }
+    </style>
+
     @if ($errors->any())
         <div class="alert alert-danger" role="alert">
             @foreach ($errors->all() as $message)
@@ -56,7 +83,7 @@
                 <div class="card card-sm">
                     <div class="card-body">
                         <div class="d-flex align-items-center justify-content-between">
-                            <span class="badge {{ $meta['class'] }}">{{ $meta['label'] }}</span>
+                            <span class="mi-badge {{ $meta['class'] }}">{{ $meta['label'] }}</span>
                             <span class="h2 mb-0">{{ number_format($summary[$status] ?? 0, 0, ',', '.') }}</span>
                         </div>
                     </div>
@@ -75,23 +102,39 @@
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Kunci unik</dt>
-                        <dd class="col-sm-8"><span class="badge badge-outline text-blue">{{ $definition->keyLabel() }}</span></dd>
+                        <dd class="col-sm-8"><span class="mi-badge mi-badge-key">{{ $definition->keyLabel() }}</span></dd>
 
                         <dt class="col-sm-4">Kolom yang bisa diupdate</dt>
                         <dd class="col-sm-8">
                             @foreach ($definition->updatableFields() as $field)
-                                <span class="badge bg-azure-lt mb-1">{{ $fields[$field] ?? $field }}</span>
+                                <span class="mi-badge mi-badge-field mb-1">{{ $fields[$field] ?? $field }}</span>
                             @endforeach
                         </dd>
 
                         <dt class="col-sm-4">Akan terupdate</dt>
                         <dd class="col-sm-8">
                             @forelse ($analysis['update_fields'] as $label => $count)
-                                <span class="badge bg-yellow-lt mb-1">{{ $label }}: {{ number_format($count, 0, ',', '.') }} baris</span>
+                                <span class="mi-badge mi-badge-update mb-1">{{ $label }}: {{ number_format($count, 0, ',', '.') }} baris</span>
                             @empty
                                 <span class="text-muted">Tidak ada data existing yang berubah.</span>
                             @endforelse
                         </dd>
+
+                        @if ($refLabels)
+                            <dt class="col-sm-4">Referensi belum ada</dt>
+                            <dd class="col-sm-8" id="importRefPolicy">
+                                <span class="{{ $refClass }}">{{ $autoCreateRefs ? 'Dibuat otomatis' : 'Ditolak, baris dilewati' }}</span>
+                                <div class="text-muted small mt-1">
+                                    Berlaku untuk kode {{ implode(', ', $refLabels) }} yang belum ada di master. Saklar:
+                                    @if ($settingUrl)
+                                        <a href="{{ $settingUrl }}">Dashboard Settings &rarr; Master Import</a>
+                                    @else
+                                        Dashboard Settings &rarr; Master Import
+                                    @endif
+                                    (<code>{{ \Bangsamu\Master\Services\Import\MasterImportSettings::AUTO_CREATE_REFS }}</code>).
+                                </div>
+                            </dd>
+                        @endif
                     </dl>
                     <div class="text-muted small mt-3">
                         Data yang sudah ada dicocokkan berdasarkan kunci unik. Kolom yang kosong di file tidak akan mengosongkan data lama.
@@ -141,6 +184,14 @@
                             @endif
                         @endif
 
+                        @if (($analysis['missing_rows'] ?? 0) > 0)
+                            <p class="small mt-2 mb-0">
+                                <span class="{{ $refClass }}">
+                                    {{ $analysis['missing_rows'] }} baris memakai referensi yang belum ada di master{{ $autoCreateRefs ? ', referensinya akan dibuat otomatis.' : ' dan ditolak.' }}
+                                </span>
+                            </p>
+                        @endif
+
                         @if ($summary['error'] > 0)
                             <p class="text-danger small mt-2 mb-0">{{ $summary['error'] }} baris error akan dilewati.</p>
                         @endif
@@ -169,14 +220,14 @@
 
     {{-- Detail baris --}}
     <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Detail Baris</h3>
-            <div class="card-actions">
+        <div class="card-header d-flex flex-wrap align-items-center gap-2">
+            <h3 class="card-title mb-0">Detail Baris</h3>
+            <div class="card-actions ms-auto">
                 <div class="btn-group btn-group-sm" role="group" id="statusFilter">
-                    <button type="button" class="btn active" data-status="all">Semua ({{ $totalRows }})</button>
+                    <button type="button" class="btn btn-outline-secondary active" data-status="all">Semua ({{ $totalRows }})</button>
                     @foreach ($statusMeta as $status => $meta)
                         @if (($summary[$status] ?? 0) > 0)
-                            <button type="button" class="btn" data-status="{{ $status }}">{{ $meta['label'] }} ({{ $summary[$status] }})</button>
+                            <button type="button" class="btn btn-outline-secondary" data-status="{{ $status }}">{{ $meta['label'] }} ({{ $summary[$status] }})</button>
                         @endif
                     @endforeach
                 </div>
@@ -203,19 +254,29 @@
                     @foreach ($rows as $item)
                         <tr data-status="{{ $item['status'] }}">
                             <td class="text-muted">{{ $item['row'] }}</td>
-                            <td><span class="badge {{ $statusMeta[$item['status']]['class'] }}">{{ $statusMeta[$item['status']]['label'] }}</span></td>
+                            <td><span class="mi-badge {{ $statusMeta[$item['status']]['class'] }}">{{ $statusMeta[$item['status']]['label'] }}</span></td>
                             @foreach ($fields as $field => $label)
+                                @php($missingRef = isset($item['missing'][$field]))
                                 <td>
                                     @if (isset($item['changes'][$field]))
                                         <div class="text-muted text-decoration-line-through small">{{ $item['changes'][$field]['old'] !== '' ? $item['changes'][$field]['old'] : '(kosong)' }}</div>
-                                        <div class="text-yellow fw-bold">{{ $item['changes'][$field]['new'] }}</div>
+                                        <div class="mi-text-update"><span @class([$refClass.' text-nowrap' => $missingRef])>{{ $item['changes'][$field]['new'] }}</span></div>
+                                    @elseif ($missingRef)
+                                        <span class="{{ $refClass }} text-nowrap">{{ $item['data'][$field] }}</span>
                                     @else
                                         {{ $item['data'][$field] ?? '' }}
                                     @endif
                                 </td>
                             @endforeach
                             <td class="small">
-                                @if ($item['message'])
+                                @if ($item['missing'] ?? [])
+                                    @foreach ($item['missing'] as $ref)
+                                        <div class="mb-1"><span class="{{ $refClass }}">{{ $ref }} belum ada{{ $autoCreateRefs ? ', akan dibuat otomatis.' : ' di master.' }}</span></div>
+                                    @endforeach
+                                    @if ($item['status'] === 'error')
+                                        <div class="text-danger">Ditolak: buat otomatis referensi tidak diizinkan, baris dilewati.</div>
+                                    @endif
+                                @elseif ($item['message'])
                                     <div class="{{ $item['status'] === 'error' ? 'text-danger' : 'text-muted' }}">{{ $item['message'] }}</div>
                                 @endif
                                 @if ($item['changes'])

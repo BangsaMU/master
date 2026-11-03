@@ -136,6 +136,21 @@ dengan nama tabel dari URL sebelum middleware `auth` (injeksi SQL tanpa login).
 - **CRUD generik**: hanya tabel `MasterCrudConfig.CRUD_TABLES` dan hanya `is_admin`; default kosong = semua route `crud/*`
   404.
 
+## Import: Referensi yang Belum Ada (sejak v3.2.0)
+
+Import Item Code dulu selalu membuat UoM/PCA/Category/Item Group yang kodenya belum ada di master. Kini diatur saklar
+`dashboard_settings` key `master_import.auto_create_refs` (group `master_import`, tipe `checkbox`, class
+`Services\Import\MasterImportSettings`):
+
+- **0 / tidak ada (default) = tolak**: baris itu berstatus **Error** di preview dan dilewati saat proses; nilai yang belum
+  ada ditandai merah di tabel dan kolom Keterangan.
+- **1 = izinkan**: alur lama, referensi dibuat otomatis saat proses; nilai ditandai kuning (*... akan dibuat otomatis*).
+
+Baris saklar dibuat otomatis (nilai 0) saat preview import pertama, atau dari app dengan `MasterImportSettings::ensure()`,
+supaya bisa diubah dari halaman Dashboard Settings app. Bila app punya route `settings.dashboard.index`, preview memberi
+admin link ke group `master_import`. Definisi import lain bisa ikut memakai saklar ini dengan mengisi `missingRefs()` dan
+`autoCreatableRefs()`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

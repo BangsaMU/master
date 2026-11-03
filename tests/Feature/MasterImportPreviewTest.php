@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Tests\Feature;
 
 use App\Models\User;
 use Bangsamu\LibraryClay\Models\ActivityLog;
+use Bangsamu\Master\Services\Import\MasterImportSettings;
 use Bangsamu\Master\Tests\Concerns\CreatesMasterTables;
 use Bangsamu\Master\Tests\TestCase;
 use Illuminate\Http\UploadedFile;
@@ -21,6 +22,7 @@ class MasterImportPreviewTest extends TestCase
         parent::setUp();
 
         Http::fake();
+        $this->createDashboardSettings();
         $this->user = User::create(['name' => 'Bagas Setyo', 'email' => 'bagas@meindo.test']);
         $this->actingAs($this->user);
     }
@@ -310,8 +312,87 @@ A01,Ganti Nama,
         $this->assertSame('update', $rows[1]['status']);
     }
 
+    /** Saklar dashboard_settings master_import.auto_create_refs (default mati = tolak). */
+    private function izinkanBuatReferensi(bool $aktif): void
+    {
+        DB::table('dashboard_settings')->updateOrInsert(
+            ['key' => MasterImportSettings::AUTO_CREATE_REFS],
+            ['value' => $aktif ? '1' : '0', 'group' => MasterImportSettings::GROUP, 'type' => 'checkbox', 'label' => 'uji'],
+        );
+    }
+
+    private function seedReferensiItemCode(): void
+    {
+        DB::table('master_uom')->insert(['id' => 1, 'uom_code' => 'BOT', 'uom_name' => 'Bottle', 'app_code' => 'APP27']);
+        DB::table('master_category')->insert(['id' => 1, 'category_code' => 'A04', 'category_name' => 'A04', 'app_code' => 'APP27']);
+        DB::table('master_item_group')->insert(['id' => 1, 'item_group_code' => 'HSE', 'item_group_name' => 'HSE', 'item_group_attributes' => '{"size_1":null}', 'app_code' => 'APP27']);
+    }
+
+    public function test_item_code_referensi_belum_ada_ditolak_secara_default(): void
+    {
+        $this->seedReferensiItemCode();
+        $csv = "Item Code,Item Name,UoM Code,PCA Code,Category Code,Item Group Code\n"
+            ."HYG-1,Item Lengkap,BOT,,A04,HSE\n"
+            ."HYG-2,Item Baru,BOT,PCA-6300.008,A04,HSE-HYG\n";
+        $token = $this->upload('item-code', $csv);
+
+        $response = $this->get(route('master.import.show', ['item-code', $token]))->assertOk();
+        $analysis = $response->viewData('analysis');
+        $this->assertFalse($analysis['auto_create_refs']);
+        $this->assertSame(1, $analysis['missing_rows']);
+        $this->assertSame(['new' => 1, 'update' => 0, 'same' => 0, 'locked' => 0, 'error' => 1], $analysis['summary']);
+
+        $rows = $analysis['rows'];
+        $this->assertSame('new', $rows[0]['status']);
+        $this->assertSame([], $rows[0]['missing']);
+        $this->assertSame('error', $rows[1]['status']);
+        $this->assertSame(['pca_code' => "PCA 'PCA-6300.008'", 'item_group_code' => "Item Group 'HSE-HYG'"], $rows[1]['missing']);
+        $this->assertStringContainsString('belum ada di master', $rows[1]['message']);
+
+        // nilai yang belum ada ditandai merah, saklar dibuat di dashboard_settings dengan nilai 0
+        $response->assertSee('<span class="mi-ref mi-ref-reject text-nowrap">PCA-6300.008</span>', false);
+        $response->assertSee('Ditolak, baris dilewati');
+        $response->assertDontSee('mi-ref-auto"', false);
+        $this->assertDatabaseHas('dashboard_settings', ['key' => MasterImportSettings::AUTO_CREATE_REFS, 'group' => 'master_import', 'type' => 'checkbox', 'value' => '0']);
+
+        $this->post(route('master.import.commit', ['item-code', $token]))
+            ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 0 diupdate, 0 dilewati, 1 gagal'))
+            ->assertSessionHas('error_message', fn ($m) => str_contains($m[0], 'Baris 3 [HYG-2]: PCA &#039;PCA-6300.008&#039;, Item Group &#039;HSE-HYG&#039; belum ada di master'));
+
+        $this->assertNull(DB::table('master_item_code')->where('item_code', 'HYG-2')->first());
+        $this->assertSame(0, DB::table('master_pca')->count());
+        $this->assertSame(1, DB::table('master_item_group')->count());
+        $this->assertNotNull(DB::table('master_item_code')->where('item_code', 'HYG-1')->first());
+    }
+
+    public function test_item_code_referensi_belum_ada_ditandai_kuning_bila_diizinkan(): void
+    {
+        $this->seedReferensiItemCode();
+        $this->izinkanBuatReferensi(true);
+        $token = $this->upload('item-code', "Item Code,Item Name,UoM Code,PCA Code,Category Code,Item Group Code\nHYG-2,Item Baru,BOT,PCA-1,A04,HSE\n");
+
+        $response = $this->get(route('master.import.show', ['item-code', $token]))->assertOk();
+        $this->assertTrue($response->viewData('analysis')['auto_create_refs']);
+        $this->assertSame('new', $response->viewData('analysis')['rows'][0]['status']);
+        $response->assertSee('<span class="mi-ref mi-ref-auto text-nowrap">PCA-1</span>', false);
+        $response->assertSee('PCA &#039;PCA-1&#039; belum ada, akan dibuat otomatis.', false);
+        $response->assertSee('Dibuat otomatis');
+        $response->assertDontSee('mi-ref-reject"', false);
+    }
+
+    public function test_saklar_referensi_tidak_berlaku_untuk_import_tanpa_referensi(): void
+    {
+        $token = $this->upload('category', "Category Code,Category Name,Remark\nB01,Kategori Baru,\n");
+
+        $response = $this->get(route('master.import.show', ['category', $token]))->assertOk();
+        $this->assertFalse($response->viewData('analysis')['auto_create_refs']);
+        $response->assertDontSee('Referensi belum ada');
+        $this->assertDatabaseMissing('dashboard_settings', ['key' => MasterImportSettings::AUTO_CREATE_REFS]);
+    }
+
     public function test_item_code_membuat_referensi_otomatis_dan_update(): void
     {
+        $this->izinkanBuatReferensi(true);
         DB::table('master_uom')->insert(['id' => 1, 'uom_code' => 'BOT', 'uom_name' => 'Bottle', 'app_code' => 'APP27']);
         DB::table('master_category')->insert(['id' => 1, 'category_code' => 'A04', 'category_name' => 'A04', 'app_code' => 'APP27']);
         DB::table('master_item_group')->insert(['id' => 1, 'item_group_code' => 'HSE', 'item_group_name' => 'HSE', 'item_group_attributes' => '{"size_1":null}', 'app_code' => 'APP27']);
@@ -330,7 +411,7 @@ A01,Ganti Nama,
         $this->assertSame(['item_name', 'attributes'], array_keys($rows[0]['changes']));
         $this->assertSame('{"size_1":"10","unit_weight":"5"}', $rows[0]['changes']['attributes']['new']);
         $this->assertSame('new', $rows[1]['status']);
-        $this->assertContains("UOM 'LTR' belum ada, akan dibuat otomatis.", $rows[1]['notes']);
+        $this->assertSame(['uom_code' => "UOM 'LTR'", 'pca_code' => "PCA 'PCA-1'"], $rows[1]['missing']);
 
         $this->post(route('master.import.commit', ['item-code', $token]), ['allow_update' => '1', 'update_reason' => 'revisi nama item'])
             ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '1 dibuat, 1 diupdate'));

@@ -233,8 +233,12 @@ class MasterImportService
     /**
      * Klasifikasikan setiap baris terhadap kondisi DB saat ini (tidak menulis apa pun).
      *
+     * Referensi yang belum ada di master (missingRefs) dibuat otomatis hanya bila saklar
+     * MasterImportSettings::AUTO_CREATE_REFS aktif; bila mati baris baru/update itu menjadi error dan dilewati.
+     *
      * @param  list<array{row:int, data:array<string, string>}>  $rows
-     * @return array{rows:list<array>, summary:array<string, int>, update_fields:array<string, int>}
+     * @return array{rows:list<array>, summary:array<string, int>, update_fields:array<string, int>,
+     *               auto_create_refs:bool, missing_rows:int}
      */
     public function analyze(MasterImportDefinition $definition, array $rows): array
     {
@@ -242,10 +246,12 @@ class MasterImportService
 
         $fields = $definition->fields();
         $appCode = (string) config('SsoConfig.main.APP_CODE', 'APP03');
+        $autoCreateRefs = $definition->autoCreatableRefs() !== [] && MasterImportSettings::autoCreateRefs();
         $seen = [];
         $result = [];
         $summary = array_fill_keys(self::STATUSES, 0);
         $updateFields = [];
+        $missingRows = 0;
 
         foreach ($rows as $row) {
             $data = $row['data'];
@@ -257,6 +263,7 @@ class MasterImportService
                 'message' => null,
                 'changes' => [],
                 'notes' => [],
+                'missing' => [],
                 'id' => null,
             ];
 
@@ -277,13 +284,23 @@ class MasterImportService
                         $error = $definition->check($data, $existing);
                     }
 
+                    $locked = $existing && $definition->ownershipColumn() && $existing['owner'] !== null && (string) $existing['owner'] !== $appCode;
+
+                    if ($error === null && ! $locked) {
+                        // baris milik app lain tidak diproses, jadi referensinya tidak perlu dibuat
+                        $item['missing'] = $definition->missingRefs($data);
+                        if ($item['missing'] !== [] && ! $autoCreateRefs) {
+                            $error = implode(', ', $item['missing']).' belum ada di master; buat otomatis referensi tidak diizinkan.';
+                        }
+                    }
+
                     if ($error === null) {
                         $item['notes'] = $definition->notes($data);
                         $item['id'] = $existing['id'] ?? null;
 
                         if (! $existing) {
                             $item['status'] = 'new';
-                        } elseif ($definition->ownershipColumn() && $existing['owner'] !== null && (string) $existing['owner'] !== $appCode) {
+                        } elseif ($locked) {
                             $item['status'] = 'locked';
                             $item['message'] = "Data milik aplikasi {$existing['owner']}, tidak dapat diupdate dari aplikasi ini.";
                         } else {
@@ -309,6 +326,9 @@ class MasterImportService
                 $item['message'] = $error;
             }
 
+            if ($item['missing'] !== []) {
+                $missingRows++;
+            }
             $summary[$item['status']]++;
             $result[] = $item;
         }
@@ -318,7 +338,13 @@ class MasterImportService
             $labels[$fields[$field] ?? $field] = $count;
         }
 
-        return ['rows' => $result, 'summary' => $summary, 'update_fields' => $labels];
+        return [
+            'rows' => $result,
+            'summary' => $summary,
+            'update_fields' => $labels,
+            'auto_create_refs' => $autoCreateRefs,
+            'missing_rows' => $missingRows,
+        ];
     }
 
     /**

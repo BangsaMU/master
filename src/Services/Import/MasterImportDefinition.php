@@ -100,11 +100,32 @@ abstract class MasterImportDefinition
     }
 
     /**
-     * Catatan informasi untuk preview (mis. data referensi akan dibuat otomatis).
+     * Catatan informasi untuk preview (mis. atribut yang akan ditambahkan).
      *
      * @return list<string>
      */
     public function notes(array $data): array
+    {
+        return [];
+    }
+
+    /**
+     * Referensi di baris ini yang belum ada di master. create()/update() membuatnya hanya bila saklar
+     * MasterImportSettings::AUTO_CREATE_REFS aktif; bila mati baris ditolak saat analisis.
+     *
+     * @return array<string, string> kolom => teks, contoh ['pca_code' => "PCA 'PCA-1'"]
+     */
+    public function missingRefs(array $data): array
+    {
+        return [];
+    }
+
+    /**
+     * Label referensi yang bisa dibuat otomatis oleh import ini (kosong = saklar tidak berlaku).
+     *
+     * @return list<string>
+     */
+    public function autoCreatableRefs(): array
     {
         return [];
     }

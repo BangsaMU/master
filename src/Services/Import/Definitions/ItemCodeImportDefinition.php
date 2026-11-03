@@ -15,7 +15,8 @@ use Illuminate\Support\Collection;
 
 /**
  * Unik: item_code. Kolom posisi: Item Code, Item Name, UoM, PCA, Category, Item Group, lalu kolom atribut.
- * Referensi (UOM/PCA/Category/Item Group) yang belum ada dibuat otomatis, sama seperti import lama.
+ * Referensi (UOM/PCA/Category/Item Group) yang belum ada dibuat otomatis hanya bila saklar
+ * MasterImportSettings::AUTO_CREATE_REFS aktif; default ditolak (baris Error, dilewati).
  */
 class ItemCodeImportDefinition extends MasterImportDefinition
 {
@@ -251,15 +252,26 @@ class ItemCodeImportDefinition extends MasterImportDefinition
         return null;
     }
 
-    public function notes(array $data): array
+    public function missingRefs(array $data): array
     {
-        $notes = [];
+        $missing = [];
         foreach (self::REFS as $ref => [, , , , , $label]) {
             if ($data[$ref] !== '' && ! $this->refByCode[$ref]->has($data[$ref])) {
-                $notes[] = "{$label} '{$data[$ref]}' belum ada, akan dibuat otomatis.";
+                $missing[$ref] = "{$label} '{$data[$ref]}'";
             }
         }
 
+        return $missing;
+    }
+
+    public function autoCreatableRefs(): array
+    {
+        return array_column(self::REFS, 5);
+    }
+
+    public function notes(array $data): array
+    {
+        $notes = [];
         $group = $this->refByCode['item_group_code']->get($data['item_group_code']);
         if ($group && $this->attributeKeys) {
             $missing = array_diff($this->attributeKeys, array_keys(json_decode((string) $group->item_group_attributes, true) ?: []));
