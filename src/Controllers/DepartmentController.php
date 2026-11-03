@@ -383,6 +383,13 @@ class DepartmentController extends Controller
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
 
+    public function show($id)
+    {
+        $this->readonly = true;
+
+        return self::edit($id);
+    }
+
     public function edit($id)
     {
         $this->ensureSchema();
