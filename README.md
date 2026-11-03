@@ -151,6 +151,11 @@ supaya bisa diubah dari halaman Dashboard Settings app. Bila app punya route `se
 admin link ke group `master_import`. Definisi import lain bisa ikut memakai saklar ini dengan mengisi `missingRefs()` dan
 `autoCreatableRefs()`.
 
+Sejak v3.2.1 route lama `POST master/{modul}/import` (nama `master.{modul}.import`, 10 modul yang punya definisi preview)
+juga masuk ke preview, bukan lagi `Imports\Master\*Import` yang langsung menyimpan (item code lama membuat referensi
+otomatis tanpa saklar dan tanpa activity log). Form yang masih memakai route itu kini diarahkan ke halaman preview.
+Employee tetap import langsung (belum ada definisi preview; kode posisi/lokasi yang salah ditolak).
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

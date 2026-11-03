@@ -4,6 +4,8 @@ namespace Bangsamu\Master\Tests\Feature;
 
 use App\Models\User;
 use Bangsamu\LibraryClay\Models\ActivityLog;
+use Bangsamu\Master\Controllers\MasterImportController;
+use Bangsamu\Master\Services\Import\MasterImportService;
 use Bangsamu\Master\Services\Import\MasterImportSettings;
 use Bangsamu\Master\Tests\Concerns\CreatesMasterTables;
 use Bangsamu\Master\Tests\TestCase;
@@ -286,6 +288,44 @@ A01,Ganti Nama,
         config(['test.denied_permissions' => ['is_admin', 'create_uom']]);
 
         $this->post(route('master.import.preview', 'uom'), ['file' => $this->csv("UOM Code,UOM Name\nPCS,Pieces\n")])
+            ->assertForbidden();
+    }
+
+    /** Route lama master.{modul}.import (dulu langsung menyimpan tanpa preview) kini masuk ke preview modul yang sama. */
+    public function test_route_import_lama_diarahkan_ke_preview(): void
+    {
+        foreach (array_keys(MasterImportService::DEFINITIONS) as $entity) {
+            $route = app('router')->getRoutes()->getByName("master.{$entity}.import");
+            $this->assertNotNull($route, "route master.{$entity}.import hilang");
+            $this->assertSame(MasterImportController::class.'@preview', $route->getActionName(), $entity);
+            $this->assertSame($entity, $route->defaults['entity'] ?? null, $entity);
+        }
+
+        $this->assertSame('Bangsamu\Master\Controllers\EmployeeController@import', app('router')->getRoutes()->getByName('master.employee.import')->getActionName());
+        $this->post(route('master.uom.import'), ['file' => $this->csv("UOM Code,UOM Name\nPCS,Pieces\n")])
+            ->assertRedirectContains('/master/import/uom/preview/');
+        $this->assertSame(0, DB::table('master_uom')->count());
+    }
+
+    public function test_route_import_lama_item_code_tidak_membuat_referensi_tanpa_saklar(): void
+    {
+        $this->seedReferensiItemCode();
+        $response = $this->post(route('master.item-code.import'), [
+            'file' => $this->csv("Item Code,Item Name,UoM Code,PCA Code,Category Code,Item Group Code\nHYG-9,Item Baru,BOT,PCA-9,A04,HSE\n"),
+        ]);
+        $response->assertRedirectContains('/master/import/item-code/preview/');
+
+        $this->post(route('master.import.commit', ['item-code', basename($response->headers->get('Location'))]))
+            ->assertSessionHas('success_message', fn ($m) => str_contains($m[0], '0 dibuat, 0 diupdate, 0 dilewati, 1 gagal'));
+        $this->assertSame(0, DB::table('master_pca')->count());
+        $this->assertSame(0, DB::table('master_item_code')->count());
+    }
+
+    public function test_route_import_lama_ditolak_tanpa_permission_create(): void
+    {
+        config(['test.denied_permissions' => ['is_admin', 'create_uom']]);
+
+        $this->post(route('master.uom.import'), ['file' => $this->csv("UOM Code,UOM Name\nPCS,Pieces\n")])
             ->assertForbidden();
     }
 

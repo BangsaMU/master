@@ -16,6 +16,10 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
+/**
+ * @deprecated sejak v3.2.1 route master.item-code.import memakai preview (MasterImportService). Kelas ini membuat
+ *             UoM/PCA/Category/Item Group yang belum ada tanpa melihat saklar MasterImportSettings; jangan dipakai.
+ */
 class ItemCodeImport implements ToCollection, WithChunkReading, WithEvents, WithMultipleSheets
 {
     use HandlesBatchImportBroadcast;

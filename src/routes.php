@@ -71,6 +71,9 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
 
     // Import dengan preview (upload -> preview -> commit) untuk master yang terdaftar di MasterImportService::DEFINITIONS
     // where() regex, bukan whereIn(), supaya kompatibel Laravel 8
+    // Route lama `{modul}/import` (nama route tetap, mis. master.item-code.import) juga masuk ke preview: dulu langsung
+    // menyimpan lewat Imports\Master\*Import tanpa preview, activity log, maupun saklar MasterImportSettings (item code
+    // membuat UoM/PCA/Category/Item Group otomatis). Hanya employee (tanpa definisi preview) yang tetap import langsung.
     $importEntities = implode('|', array_map('preg_quote', array_keys(\Bangsamu\Master\Services\Import\MasterImportService::DEFINITIONS)));
     Route::post('import/{entity}/preview', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])
         ->where('entity', $importEntities)->name('import.preview');
@@ -81,7 +84,7 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
 
     Route::get('category/importtemplate', [\Bangsamu\Master\Controllers\CategoryController::class, 'importtemplate'])->name('category.importtemplate');
     Route::resource('category', \Bangsamu\Master\Controllers\CategoryController::class);
-    Route::post('category/import', [\Bangsamu\Master\Controllers\CategoryController::class, 'import'])->name('category.import');
+    Route::post('category/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'category')->name('category.import');
 
     Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     Route::post('company/import', [\Bangsamu\Master\Controllers\CompanyController::class, 'import'])->name('company.import');
@@ -90,43 +93,43 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     // Route::resource('company', \Bangsamu\Master\Controllers\CompanyController::class);
     Route::get('department/importtemplate', [\Bangsamu\Master\Controllers\DepartmentController::class, 'importtemplate'])->name('department.importtemplate');
     Route::resource('department', \Bangsamu\Master\Controllers\DepartmentController::class);
-    Route::post('department/import', [\Bangsamu\Master\Controllers\DepartmentController::class, 'import'])->name('department.import');
+    Route::post('department/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'department')->name('department.import');
 
     Route::get('item-code/export', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'export'])->name('item-code.export');
     Route::get('item-code/importtemplate', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'importtemplate'])->name('item-code.importtemplate');
     Route::resource('item-code', \Bangsamu\Master\Controllers\ItemCodeController::class);
-    Route::post('item-code/import', [\Bangsamu\Master\Controllers\ItemCodeController::class, 'import'])->name('item-code.import');
+    Route::post('item-code/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'item-code')->name('item-code.import');
 
     Route::get('item-group/importtemplate', [\Bangsamu\Master\Controllers\ItemGroupController::class, 'importtemplate'])->name('item-group.importtemplate');
     Route::resource('item-group', \Bangsamu\Master\Controllers\ItemGroupController::class);
-    Route::post('item-group/import', [\Bangsamu\Master\Controllers\ItemGroupController::class, 'import'])->name('item-group.import');
+    Route::post('item-group/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'item-group')->name('item-group.import');
 
     Route::get('location/importtemplate', [\Bangsamu\Master\Controllers\LocationController::class, 'importtemplate'])->name('location.importtemplate');
     Route::resource('location', \Bangsamu\Master\Controllers\LocationController::class);
-    Route::post('location/import', [\Bangsamu\Master\Controllers\LocationController::class, 'import'])->name('location.import');
+    Route::post('location/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'location')->name('location.import');
 
     Route::get('vendor/importtemplate', [\Bangsamu\Master\Controllers\VendorController::class, 'importtemplate'])->name('vendor.importtemplate');
     Route::resource('vendor', \Bangsamu\Master\Controllers\VendorController::class);
-    Route::post('vendor/import', [\Bangsamu\Master\Controllers\VendorController::class, 'import'])->name('vendor.import');
+    Route::post('vendor/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'vendor')->name('vendor.import');
 
     Route::get('pca/importtemplate', [\Bangsamu\Master\Controllers\PcaController::class, 'importtemplate'])->name('pca.importtemplate');
     Route::resource('pca', \Bangsamu\Master\Controllers\PcaController::class);
-    Route::post('pca/import', [\Bangsamu\Master\Controllers\PcaController::class, 'import'])->name('pca.import');
+    Route::post('pca/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'pca')->name('pca.import');
 
     Route::get('project/importtemplate', [\Bangsamu\Master\Controllers\ProjectController::class, 'importtemplate'])->name('project.importtemplate');
     Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
-    Route::post('project/import', [\Bangsamu\Master\Controllers\ProjectController::class, 'import'])->name('project.import');
+    Route::post('project/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'project')->name('project.import');
 
     // Route::resource('project2', \Bangsamu\Master\Controllers\ProjectController2::class);
     // Route::post('project2/import', [\Bangsamu\Master\Controllers\ProjectController2::class, 'import'])->name('project2.import');
 
     Route::get('project-detail/importtemplate', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'importtemplate'])->name('project-detail.importtemplate');
     Route::resource('project-detail', \Bangsamu\Master\Controllers\ProjectDetailController::class);
-    Route::post('project-detail/import', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'import'])->name('project-detail.import');
+    Route::post('project-detail/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'project-detail')->name('project-detail.import');
 
     Route::get('uom/importtemplate', [\Bangsamu\Master\Controllers\UomController::class, 'importtemplate'])->name('uom.importtemplate');
     Route::resource('uom', \Bangsamu\Master\Controllers\UomController::class);
-    Route::post('uom/import', [\Bangsamu\Master\Controllers\UomController::class, 'import'])->name('uom.import');
+    Route::post('uom/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'uom')->name('uom.import');
 
     Route::resource('priority', \Bangsamu\Master\Controllers\PriorityController::class);
 
