@@ -4,14 +4,17 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
 
-Route::get('mud-master', function () {
-    // dd(config());
-    $value = config('MasterConfig.main.APP_CODE');
-    echo 'Hello from the master package!' . json_encode($value);
-});
+/* halaman uji paket: hanya untuk user login (dulu terbuka dan menampilkan APP_CODE) */
+Route::middleware(['web', 'auth'])->group(function () {
+    Route::get('mud-master', function () {
+        // dd(config());
+        $value = config('MasterConfig.main.APP_CODE');
+        echo 'Hello from the master package!' . json_encode($value);
+    });
 
-Route::prefix('master')->get('mud-view', function () {
-    return view('master::mud');
+    Route::prefix('master')->get('mud-view', function () {
+        return view('master::mud');
+    });
 });
 
 Route::middleware(['web','auth'])->prefix('redis')->name('redis.')->group(function () {
@@ -195,7 +198,10 @@ Route::get('session-crul',  [Bangsamu\Master\Controllers\MasterCrulController::c
 
 
 
-Route::middleware(['web'])->group(function () {
+/* route perawatan: wajib login + ability MasterConfig.maintenance.ability (default is_admin). Dulu hanya `web`, dan cek
+   login di closure /composer hanya menutup halaman bantuan: tamu bisa menjalankan ?update, ?require=vendor/paket,
+   ?remove dan /optimize tanpa login. */
+Route::middleware(['web', 'auth', 'can:'.(config('MasterConfig.maintenance.ability') ?: 'is_admin')])->group(function () {
     Route::get('/optimize', function (Request $request) {
 
         try {

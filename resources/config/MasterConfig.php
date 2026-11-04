@@ -65,5 +65,9 @@ return [
             'MODEL' => env('TABEL_LOKAL_UOM', 'Uom'),
             // 'FIELD' => json_decode(env('SYNC_LOKAL_UOM', '["id","uom_code","uom_name"]')),
         ],
-    )
+    ),
+    // route perawatan /optimize dan /composer: wajib login + ability ini (Gate / permission Spatie), mis. is_root di SPB
+    'maintenance' => [
+        'ability' => env('MASTER_MAINTENANCE_ABILITY', 'is_admin'),
+    ],
 ];
