@@ -360,12 +360,21 @@
         .btn-sm {
             padding: 0.1rem .3rem !important;
         }
+
+        /* data terhapus (hanya tampil untuk admin, MasterTrash) */
+        tr.master-row-trashed > td {
+            background-color: rgba(220, 53, 69, .08) !important;
+            color: #6c757d;
+        }
     </style>
 @endpush
 
 @push('js')
     <form action="" id="delete-form" method="POST" autocomplete="off">
         @method('delete')
+        @csrf
+    </form>
+    <form action="" id="restore-form" method="POST" autocomplete="off">
         @csrf
     </form>
 
@@ -554,6 +563,35 @@
                 if (result.value == true) {
                     $("#delete-form").attr('action', $(el).attr('href'));
                     $("#delete-form").submit();
+                }
+            });
+        }
+
+        function notificationBeforeRestore(event, el) {
+            event.preventDefault();
+            var submit = function() {
+                $("#restore-form").attr('action', $(el).attr('href'));
+                $("#restore-form").submit();
+            };
+            var text = 'Data akan aktif kembali dan tampil di daftar serta dropdown aplikasi lain.';
+            if (typeof Swal === 'undefined') {
+                if (confirm('Pulihkan data ini? ' + text)) {
+                    submit();
+                }
+                return;
+            }
+            Swal.fire({
+                title: 'Pulihkan data ini?',
+                text: text,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, pulihkan',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.value == true) {
+                    submit();
                 }
             });
         }

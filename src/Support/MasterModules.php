@@ -124,7 +124,7 @@ class MasterModules
         return $map;
     }
 
-    /** aksi route resource -> aksi permission (store dengan id = update) */
+    /** aksi route resource -> aksi permission (store dengan id = update, restore = delete + is_admin di controller) */
     public static function abilityForRouteAction(string $action, bool $hasId = false): ?string
     {
         return match ($action) {
@@ -132,7 +132,7 @@ class MasterModules
             'create', 'import', 'importtemplate' => 'create',
             'store' => $hasId ? 'update' : 'create',
             'edit', 'update', 'update_template_json' => 'update',
-            'destroy' => 'delete',
+            'destroy', 'restore' => 'delete',
             default => null,
         };
     }

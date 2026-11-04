@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use Bangsamu\Master\Services\MasterAccess;
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterTrash;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\DepartmentTemplateExport;
@@ -144,6 +145,7 @@ class DepartmentController extends Controller
 
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $this->ensureSchema();
 
         $sheet_name = $this->sheet_name;
@@ -181,7 +183,7 @@ class DepartmentController extends Controller
         $settings = $this->getSettingsForTable($category);
 
         $query = DB::table($tableName.' as md')
-            ->whereNull('md.deleted_at');
+            ->tap(fn ($query) => $trash->filter($query, 'department', 'md'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'md');
 
@@ -194,7 +196,7 @@ class DepartmentController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('md.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'department', 'md'));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'md');
             $data_tabel->groupby('md.id');
@@ -215,7 +217,7 @@ class DepartmentController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('md.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'department', 'md'));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'md');
 
@@ -273,7 +275,8 @@ class DepartmentController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('department', $row->No, $row);
-                $nestedData['action'] = @$btn;
+                $nestedData['action'] = $trash->actions('department', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;

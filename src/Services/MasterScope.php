@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Bangsamu\Master\Services;
 
+use Bangsamu\Master\Rules\MasterUnique;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -400,11 +400,31 @@ class MasterScope
 
     /**
      * Rule unik kolom kode: berpasangan dengan pemiliknya bila uniquePerOwner() (kode JKT boleh sama di dua aplikasi /
-     * company), selain itu unik global.
+     * company), selain itu unik global. Baris terhapus ikut dihitung; pesannya menyebut baris pemakai kode
+     * (MasterUnique), termasuk keterangan terhapus dan cara memulihkannya.
      *
      * @param  array{app_code?: ?string, company_id?: int}  $owner
      */
     public function uniqueRule(string $table, string $column, array $owner, int|string|null $ignoreId = null): Unique
+    {
+        $owner = $this->uniqueOwner($table, $owner);
+
+        return (new MasterUnique($table, $column))
+            ->where(function ($query) use ($owner) {
+                foreach ($owner as $key => $value) {
+                    $query->where($key, $value);
+                }
+            })
+            ->ignore($ignoreId);
+    }
+
+    /**
+     * Kolom pemilik yang ikut menentukan keunikan kode (kosong = unik global).
+     *
+     * @param  array{app_code?: ?string, company_id?: int}  $owner
+     * @return array{app_code?: string, company_id?: int}
+     */
+    public function uniqueOwner(string $table, array $owner): array
     {
         $owner = $this->onlyExistingColumns($table, $owner);
         if (! $this->uniquePerOwner($table)) {
@@ -412,13 +432,7 @@ class MasterScope
             $owner = in_array($table, self::LEGACY_UNIQUE_PER_APP, true) ? array_intersect_key($owner, ['app_code' => true]) : [];
         }
 
-        return Rule::unique($table, $column)
-            ->where(function ($query) use ($owner) {
-                foreach ($owner as $key => $value) {
-                    $query->where($key, $value);
-                }
-            })
-            ->ignore($ignoreId);
+        return $owner;
     }
 
     /**

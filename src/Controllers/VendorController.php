@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Controllers;
 
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\Master\Exports\Master\VendorTemplateExport;
@@ -144,6 +145,7 @@ class VendorController extends Controller
 
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -179,7 +181,7 @@ class VendorController extends Controller
         $settings = $this->getSettingsForTable($category);
 
         $query = DB::table($tableName.' as mp')
-            ->whereNull('mp.deleted_at');
+            ->tap(fn ($query) => $trash->filter($query, 'vendor', 'mp'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mp');
 
@@ -192,7 +194,7 @@ class VendorController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'vendor', 'mp'));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mp');
             $data_tabel->groupby('mp.id');
@@ -213,7 +215,7 @@ class VendorController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'vendor', 'mp'));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mp');
 
@@ -270,7 +272,8 @@ class VendorController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('vendor', $row->No, $row);
-                $nestedData['action'] = @$btn;
+                $nestedData['action'] = $trash->actions('vendor', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;

@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Controllers;
 
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
@@ -166,6 +167,7 @@ class ItemCodeController extends Controller
      */
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -215,7 +217,7 @@ class ItemCodeController extends Controller
         }
 
         $query = DB::table($tableName.' as mic')
-            ->whereNull('mic.deleted_at');
+            ->tap(fn ($query) => $trash->filter($query, 'item-code', 'mic'));
         // filter setting aplikasi (DynamicFilterable: format kolom lama + baris scope)
         $this->applyDynamicFilter($query, $tableName, $settings, 'mic');
         $totalData = $query->count();
@@ -232,7 +234,7 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
-                ->whereNull('mic.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'item-code', 'mic'));
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mic');
             $data_tabel->groupby('mic.id');
 
@@ -256,7 +258,7 @@ class ItemCodeController extends Controller
                 ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
                 ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
                 ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
-                ->whereNull('mic.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'item-code', 'mic'));
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mic');
             $datatb_request->groupby('mic.id')
                 ->orderBy($order, $dir)
@@ -325,7 +327,8 @@ class ItemCodeController extends Controller
                     : '';
 
                 $btn .= MasterEditLink::rowButton('item-code', $row->No, $row);
-                $nestedData['action'] = @$btn;
+                $nestedData['action'] = $trash->actions('item-code', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;

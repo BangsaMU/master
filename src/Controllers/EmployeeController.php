@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
+use Bangsamu\Master\Services\MasterTrash;
 // use App\Imports\Master\ProjectImport;
 use App\Models\User;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
@@ -348,6 +349,7 @@ class EmployeeController extends Controller
 
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -395,7 +397,7 @@ class EmployeeController extends Controller
                         ->where('m_k.app_code', $effectiveAppCode)
                         ->whereIn('hire_id', explode(',', $user_location_id));
                 }
-            })->whereNull('m_k.deleted_at');
+            })->tap(fn ($query) => $trash->filter($query, 'employee', 'm_k'));
 
         $this->applyDynamicFilter($baseQuery, $tableName, $settings, 'm_k');
 
@@ -421,7 +423,7 @@ class EmployeeController extends Controller
                             ->where('m_k.app_code', $effectiveAppCode)
                             ->whereIn('hire_id', explode(',', $user_location_id));
                     }
-                })->whereNull('m_k.deleted_at');
+                })->tap(fn ($query) => $trash->filter($query, 'employee', 'm_k'));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'm_k');
 
@@ -453,7 +455,7 @@ class EmployeeController extends Controller
                             ->where('m_k.app_code', $effectiveAppCode)
                             ->whereIn('hire_id', explode(',', $user_location_id));
                     }
-                })->whereNull('m_k.deleted_at');
+                })->tap(fn ($query) => $trash->filter($query, 'employee', 'm_k'));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'm_k');
 
@@ -510,7 +512,8 @@ class EmployeeController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('employee', $row->No);
-                $nestedData['action'] = $btn;
+                $nestedData['action'] = $trash->actions('employee', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;

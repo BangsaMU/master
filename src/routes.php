@@ -141,6 +141,12 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     Route::resource('employee', \Bangsamu\Master\Controllers\EmployeeController::class);
     Route::post('employee/import', [\Bangsamu\Master\Controllers\EmployeeController::class, 'import'])->name('employee.import');
 
+    // Pulihkan data terhapus (admin, baris bertanda Terhapus di daftar master; lihat MasterTrash)
+    foreach (\Bangsamu\Master\Controllers\MasterRestoreController::MODULES as $restoreSlug) {
+        Route::post($restoreSlug.'/{id}/restore', [\Bangsamu\Master\Controllers\MasterRestoreController::class, 'restore'])
+            ->defaults('slug', $restoreSlug)->where('id', '[0-9]+')->name($restoreSlug.'.restore');
+    }
+
     Route::get('get{table}/export', [\Bangsamu\Master\Controllers\ExportController::class, 'export'])->name('table.export');
 
     // belum test Route::resource('report', \Bangsamu\Master\Controllers\ReportController::class);

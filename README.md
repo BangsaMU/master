@@ -161,6 +161,27 @@ juga masuk ke preview, bukan lagi `Imports\Master\*Import` yang langsung menyimp
 otomatis tanpa saklar dan tanpa activity log). Form yang masih memakai route itu kini diarahkan ke halaman preview.
 Employee tetap import langsung (belum ada definisi preview; kode posisi/lokasi yang salah ditolak).
 
+## Data Terhapus: Pesan Kode Terpakai dan Restore (sejak v3.5.0)
+
+Data master dihapus secara soft delete, dan kodenya tetap terpakai (rule unik menghitung baris terhapus, sama dengan
+index unik DB). Dulu form hanya menampilkan *The project code has already been taken* padahal daftar kosong.
+
+- **Pesan kode terpakai** (`Rules\MasterUnique`, dipakai `MasterScope::uniqueRule()`, form Company dan Project Detail):
+  turunan `Unique` dengan query yang sama, tetapi pesannya menyebut baris pemakai kode. Baris aktif: nama + pemilik
+  (*Project Code 20000 sudah dipakai: Heavy Equipment, pemilik APP03 · Semua company.*). Baris terhapus: nama, waktu dan
+  user penghapus (dari `activity_logs` aksi `deleted`), lalu arahan Restore untuk admin atau "minta admin" untuk user lain.
+- **Daftar master** (`Services\MasterTrash`, 13 modul): admin (`is_admin`) melihat baris terhapus berlatar merah muda
+  (`DT_RowClass` `master-row-trashed`) dengan tanda **Terhapus**, tombol **View** dan **Restore**; user lain tetap hanya baris
+  aktif. Controller modul cukup `->tap(fn ($query) => $trash->filter($query, 'slug', 'alias'))` pengganti
+  `->whereNull('alias.deleted_at')`, dan `$trash->actions()` / `$trash->rowClass()` di kolom Action.
+- **Restore** (`Controllers\MasterRestoreController`): `POST master/{slug}/{id}/restore`, nama `master.{slug}.restore`
+  (`MasterRestoreController::MODULES`). Hanya admin; di aplikasi klien hanya baris milik aplikasinya (aturan hapus
+  `MasterAccess`). Ditolak bila kode unik sudah dipakai baris aktif lain. Vendor ikut memulihkan Location vendor-nya.
+  Tercatat di activity log aksi `restored` (atas nama `Models\{Studly}`, tampil di kartu riwayat form).
+  `MasterModules::abilityForRouteAction('restore')` = `delete`, untuk middleware izin aksi tulis di app.
+- Layout `layouts.dashboard.index` menyediakan `#restore-form` dan `notificationBeforeRestore()` (SweetAlert, fallback
+  `confirm()`). App yang memakai layout daftar sendiri perlu menyalin keduanya.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Controllers;
 
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
@@ -144,6 +145,7 @@ class CategoryController extends Controller
 
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -179,7 +181,7 @@ class CategoryController extends Controller
         $settings = $this->getSettingsForTable($category);
 
         $query = DB::table($tableName.' as mc')
-            ->whereNull('mc.deleted_at');
+            ->tap(fn ($query) => $trash->filter($query, 'category', 'mc'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mc');
 
@@ -193,7 +195,7 @@ class CategoryController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mc.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'category', 'mc'));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mc');
             $data_tabel->groupby('mc.id');
@@ -214,7 +216,7 @@ class CategoryController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mc.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'category', 'mc'));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mc');
 
@@ -271,7 +273,8 @@ class CategoryController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('category', $row->No, $row);
-                $nestedData['action'] = @$btn;
+                $nestedData['action'] = $trash->actions('category', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;

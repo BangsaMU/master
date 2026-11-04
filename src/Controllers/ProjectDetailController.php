@@ -3,6 +3,8 @@
 namespace Bangsamu\Master\Controllers;
 
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterTrash;
+use Bangsamu\Master\Rules\MasterUnique;
 use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
@@ -18,7 +20,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
 
@@ -136,6 +137,7 @@ class ProjectDetailController extends Controller
 
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -173,7 +175,7 @@ class ProjectDetailController extends Controller
         $query = DB::table($tableName.' as mpd')
             ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
             ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-            ->whereNull('mpd.deleted_at');
+            ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mpd');
 
@@ -188,7 +190,7 @@ class ProjectDetailController extends Controller
                 )
                 ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
                 ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-                ->whereNull('mpd.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mpd');
             $data_tabel->groupby('mpd.id');
@@ -211,7 +213,7 @@ class ProjectDetailController extends Controller
                 )
                 ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
                 ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-                ->whereNull('mpd.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mpd');
 
@@ -277,7 +279,8 @@ class ProjectDetailController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('project-detail', $row->No, $row);
-                $nestedData['action'] = @$btn;
+                $nestedData['action'] = $trash->actions('project-detail', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;
@@ -328,7 +331,8 @@ class ProjectDetailController extends Controller
             // Validasi unik pada kombinasi project_id, project_code_client, dan company_id
             'project_code_client' => [
                 'required',
-                Rule::unique('master_project_detail')->where(function ($query) use ($request) {
+                // MasterUnique: pesan menyebut baris pemakai kode, termasuk yang sudah dihapus
+                (new MasterUnique('master_project_detail'))->where(function ($query) use ($request) {
                     return $query->where('project_id', $request->project_id)
                         ->where('company_id', $request->company_id);
                 })

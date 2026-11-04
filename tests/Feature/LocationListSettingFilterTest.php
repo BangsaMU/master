@@ -44,6 +44,8 @@ class LocationListSettingFilterTest extends TestCase
             ]);
         }
 
+        // user biasa (bukan is_admin): baris terhapus OLD tidak tampil; admin melihatnya bertanda Terhapus (MasterTrashTest)
+        config(['test.denied_permissions' => ['is_admin']]);
         $this->actingAs(User::create(['name' => 'Budi', 'email' => 'budi@meindo.test']));
     }
 

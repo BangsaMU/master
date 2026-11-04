@@ -90,6 +90,39 @@ class VendorService
     }
 
     /**
+     * Pulihkan lokasi vendor (group_type vendor) yang ikut terhapus saat vendor dihapus, lalu samakan kode/nama dan
+     * loc_id vendor. Baris terhapus dipulihkan dulu supaya syncVendorLocation() tidak membuat lokasi kembar.
+     */
+    public function restoreVendorLocation(object $vendor): void
+    {
+        $locationCode = Str::upper(trim((string) $vendor->vendor_code));
+        if ($locationCode === '') {
+            return;
+        }
+
+        $models = [LibraryClayController::resolveModelFromSheetSlug('location')];
+        if (! LibraryClayController::isMasterDbSameAsDefault()) {
+            $models[] = LibraryClayController::resolveModelFromSheetSlug('master_location');
+        }
+        foreach ($models as $locationModel) {
+            $active = $locationModel::where('group_type', 'vendor')->where('loc_code', $locationCode)->exists();
+            if (! $active) {
+                $locationModel::onlyTrashed()
+                    ->where('group_type', 'vendor')
+                    ->where('loc_code', $locationCode)
+                    ->orderByDesc('deleted_at')
+                    ->first()
+                    ?->restore();
+            }
+        }
+
+        $locId = $this->syncVendorLocation($locationCode, (string) ($vendor->vendor_description ?? ''));
+        if ((int) $vendor->loc_id !== $locId && method_exists($vendor, 'forceFill')) {
+            $vendor->forceFill(['loc_id' => $locId])->save();
+        }
+    }
+
+    /**
      * Save or update vendor and its contact, including master sync if configured.
      *
      * @param  array<string, mixed>  $vendorData

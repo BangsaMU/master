@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Controllers;
 
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
@@ -142,6 +143,7 @@ class PcaController extends Controller
 
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -177,7 +179,7 @@ class PcaController extends Controller
         $settings = $this->getSettingsForTable($category);
 
         $query = DB::table($tableName.' as mp')
-            ->whereNull('mp.deleted_at');
+            ->tap(fn ($query) => $trash->filter($query, 'pca', 'mp'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mp');
 
@@ -190,7 +192,7 @@ class PcaController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'pca', 'mp'));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mp');
             $data_tabel->groupby('mp.id');
@@ -211,7 +213,7 @@ class PcaController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mp.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'pca', 'mp'));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mp');
 
@@ -268,7 +270,8 @@ class PcaController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('pca', $row->No, $row);
-                $nestedData['action'] = @$btn;
+                $nestedData['action'] = $trash->actions('pca', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;

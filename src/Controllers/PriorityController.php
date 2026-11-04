@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Controllers;
 
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterAccess;
 use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
@@ -126,6 +127,7 @@ class PriorityController extends Controller
 
     public function dataJson(Request $request)
     {
+        $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
         $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
         $view_tabel = $this->view_tabel;
@@ -161,7 +163,7 @@ class PriorityController extends Controller
         $settings = $this->getSettingsForTable($category);
 
         $query = DB::table($tableName.' as mu')
-            ->whereNull('mu.deleted_at');
+            ->tap(fn ($query) => $trash->filter($query, 'priority', 'mu'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mu');
 
@@ -174,7 +176,7 @@ class PriorityController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mu.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'priority', 'mu'));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mu');
             $data_tabel->groupby('mu.id');
@@ -195,7 +197,7 @@ class PriorityController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->whereNull('mu.deleted_at');
+                ->tap(fn ($query) => $trash->filter($query, 'priority', 'mu'));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mu');
 
@@ -251,7 +253,8 @@ class PriorityController extends Controller
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $nestedData['action'] = @$btn;
+                $nestedData['action'] = $trash->actions('priority', $row, $btn);
+                $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
                 $data[] = $nestedData;
                 $DT_RowIndex++;
