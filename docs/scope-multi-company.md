@@ -110,6 +110,17 @@ ada di lokal (mis. `company_id` sebelum `master:scope-upgrade` lokal), walau has
    - store/destroy memanggil `authorizeStore`/`authorize` (403).
    - Form edit baris di luar scope menjadi hanya-baca.
    - Form menampilkan "Pemilik Data" (tim master memilih pemilik data baru).
+5. **Memindahkan pemilik baris lama (sejak v3.4):**
+   - Hanya `is_admin`. Isian pemilik dari user lain diabaikan (pemilik tetap).
+   - Tujuan wajib terdaftar aktif: aplikasi di `master_apps` (atau aplikasi ini / data bersama), company 0 atau ada di
+     `master_company`. Berlaku juga untuk pemilik pilihan tim master pada data baru di hub.
+   - Wajib dikonfirmasi: `confirm_owner_change=1` (`MasterScope::CONFIRM_OWNER_FIELD`), diisi dialog di form
+     (`partials.master-owner`). Tanpa itu simpan ditolak dengan pesan validasi, termasuk bila form dikirim langsung.
+   - Dialog memuat sebelum → sesudah dan dampaknya: data bersama APP03 yang dipindah hilang dari daftar/pilihan
+     aplikasi lain yang menyaring data bersama, dan hak "Edit di Master Data" ikut pindah.
+   - Pemilik lama yang tidak (lagi) terdaftar tetap muncul terpilih di form, supaya menyimpan form tidak memindahkan
+     pemilik ke opsi pertama tanpa disadari. Mengubah isi baris seperti itu tetap bisa tanpa konfirmasi.
+   - Perpindahan tercatat di log data (`Loggable`: `app_code`/`company_id` sebelum dan sesudah).
 
 ## Edit di Master Data tanpa login ulang
 
@@ -202,6 +213,15 @@ constraint ke `^3.0` per aplikasi setelah siap.
 - **`EXPORT_TABLES` default** `master_item_group` menerima `read_item_group` dan `read_itemgroup`.
 - **Route `api/master-sync/*`** diberi nama per route (`api.master.sync.sync`, `.items`, `.catch-up`, `.allowed-tables`);
   dulu keempatnya bernama `api.master.sync.`.
+
+## Perubahan v3.4
+
+- **Memindahkan pemilik data dijaga** (lihat Aturan izin no. 5). Dulu `is_admin` bisa memindahkan pemilik, misalnya
+  APP03 → APP23, tanpa konfirmasi dan tanpa cek apakah aplikasi/company tujuan terdaftar.
+- **Klien yang mengirim `owner_app_code`/`owner_company_id` sendiri** (bukan lewat form paket) wajib menambahkan
+  `confirm_owner_change=1` saat memindahkan pemilik, dan memakai aplikasi/company yang terdaftar.
+- **Dialog konfirmasi form master** dipindah ke komponen bersama `master::components.confirm-dialog`
+  (`window.masterConfirmDialog`), dipakai penjaga kunci unik dan pemindahan pemilik. Kelas CSS `ukg-*` diganti `mcd-*`.
 
 ## Urutan rollout
 

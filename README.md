@@ -69,6 +69,8 @@ aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
   permission seragam per tabel (`update_item_code`, nama lama
   `update_item` tetap diterima).
 - **Edit di Master Data tanpa login ulang:** lewat launch token Ed25519 + delegasi izin dari aplikasi asal.
+- **Memindahkan pemilik baris (v3.4):** hanya `is_admin`, ke aplikasi/company terdaftar, dan wajib konfirmasi
+  (dialog di form + `confirm_owner_change=1` dicek server).
 - **Perintah:** `master:scope-upgrade`, `master:permissions`, `master:launch-key`, `master:scope-doctor` (cek, v3.1),
   `master:schema-columns` (kolom DB master yang belum ada di tabel sinkron lokal, v3.3).
 - **Banner pengelola (v3.3):** `@include('master::partials.schema-notice')` di layout menampilkan tabel lokal yang

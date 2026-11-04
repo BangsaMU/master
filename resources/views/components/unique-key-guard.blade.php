@@ -8,6 +8,9 @@
 @php
     $uniqueKeyGuard = app(\Bangsamu\Master\Services\MasterUniqueKeyGuard::class)->viewConfig($entity, $param ?? null);
 @endphp
+@if ($uniqueKeyGuard['confirm'])
+    @include('master::components.confirm-dialog')
+@endif
 <script>
     (function () {
         var cfg = @json($uniqueKeyGuard);
@@ -72,13 +75,11 @@
             flag.value = '0';
             form.appendChild(flag);
 
-            var confirmed = false;
+            // perubahan yang sudah dikonfirmasi; dialog lain di form yang sama (pemilik data) mengirim ulang form,
+            // perubahan yang sama tidak ditanyakan lagi
+            var confirmedSig = null;
 
             form.addEventListener('submit', function (e) {
-                if (confirmed) {
-                    confirmed = false; // submit hasil konfirmasi, biarkan lanjut
-                    return;
-                }
                 var changes = [];
                 names.forEach(function (name) {
                     var el = pick(name);
@@ -90,16 +91,34 @@
                         changes.push({ label: cfg.fields[name], before: labelOf(el, before), after: labelOf(el, after) });
                     }
                 });
-                flag.value = '0';
-                if (changes.length === 0) return;
+                if (changes.length === 0) {
+                    flag.value = '0';
+                    return;
+                }
+                var sig = JSON.stringify(changes);
+                if (sig === confirmedSig) {
+                    flag.value = '1';
+                    return;
+                }
 
+                flag.value = '0';
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 var submitter = e.submitter || null;
 
-                ukgModal(changes, function () {
+                window.masterConfirmDialog({
+                    title: 'Ubah kunci unik?',
+                    subtitle: 'Kunci unik dipakai sebagai acuan oleh data dan aplikasi lain.',
+                    okText: 'Ya, ubah kunci unik',
+                    changes: changes,
+                    notes: [
+                        'Dokumen, laporan, atau aplikasi lain yang menyimpan kode lama bisa kehilangan acuan.',
+                        'Import berikutnya yang masih memakai kode lama akan dianggap data baru.',
+                        'Perubahan ini tercatat di log data.'
+                    ]
+                }, function () {
                     flag.value = '1';
-                    confirmed = true;
+                    confirmedSig = sig;
                     if (typeof form.requestSubmit === 'function') {
                         submitter ? form.requestSubmit(submitter) : form.requestSubmit();
                     } else {
@@ -107,154 +126,6 @@
                     }
                 });
             }, true);
-        }
-
-        // Modal konfirmasi kunci unik (mandiri, tidak bergantung Bootstrap JS / theme)
-        function ukgModal(changes, onConfirm) {
-            injectStyle();
-
-            var lastFocus = document.activeElement;
-            var overlay = el('div', 'ukg-overlay');
-            var dialog = el('div', 'ukg-dialog');
-            dialog.setAttribute('role', 'alertdialog');
-            dialog.setAttribute('aria-modal', 'true');
-            dialog.setAttribute('aria-labelledby', 'ukg-title');
-            dialog.setAttribute('aria-describedby', 'ukg-desc');
-
-            var head = el('div', 'ukg-head');
-            var icon = el('div', 'ukg-icon');
-            icon.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg>';
-            var titles = el('div', 'ukg-titles');
-            var title = el('h3', 'ukg-title', 'Ubah kunci unik?');
-            title.id = 'ukg-title';
-            var subtitle = el('p', 'ukg-subtitle', 'Kunci unik dipakai sebagai acuan oleh data dan aplikasi lain.');
-            subtitle.id = 'ukg-desc';
-            titles.appendChild(title);
-            titles.appendChild(subtitle);
-            head.appendChild(icon);
-            head.appendChild(titles);
-
-            var body = el('div', 'ukg-body');
-            var table = el('table', 'ukg-table');
-            var thead = el('thead');
-            var hr = el('tr');
-            ['Kolom', 'Sebelum', '', 'Sesudah'].forEach(function (t) { hr.appendChild(el('th', null, t)); });
-            thead.appendChild(hr);
-            var tbody = el('tbody');
-            changes.forEach(function (c) {
-                var tr = el('tr');
-                tr.appendChild(el('td', 'ukg-field', c.label));
-                tr.appendChild(el('td', 'ukg-before', c.before || '(kosong)'));
-                tr.appendChild(el('td', 'ukg-arrow', '→'));
-                tr.appendChild(el('td', 'ukg-after', c.after || '(kosong)'));
-                tbody.appendChild(tr);
-            });
-            table.appendChild(thead);
-            table.appendChild(tbody);
-            body.appendChild(table);
-
-            var note = el('div', 'ukg-note');
-            note.appendChild(el('strong', null, 'Dampak perubahan:'));
-            var ul = el('ul');
-            [
-                'Dokumen, laporan, atau aplikasi lain yang menyimpan kode lama bisa kehilangan acuan.',
-                'Import berikutnya yang masih memakai kode lama akan dianggap data baru.',
-                'Perubahan ini tercatat di log data.'
-            ].forEach(function (t) { ul.appendChild(el('li', null, t)); });
-            note.appendChild(ul);
-            body.appendChild(note);
-
-            var foot = el('div', 'ukg-foot');
-            var cancel = el('button', 'ukg-btn ukg-btn-cancel', 'Batal');
-            cancel.type = 'button';
-            var ok = el('button', 'ukg-btn ukg-btn-ok', 'Ya, ubah kunci unik');
-            ok.type = 'button';
-            foot.appendChild(cancel);
-            foot.appendChild(ok);
-
-            dialog.appendChild(head);
-            dialog.appendChild(body);
-            dialog.appendChild(foot);
-            overlay.appendChild(dialog);
-            document.body.appendChild(overlay);
-            document.body.classList.add('ukg-open');
-            requestAnimationFrame(function () { overlay.classList.add('ukg-show'); });
-            cancel.focus();
-
-            var close = function (accepted) {
-                document.removeEventListener('keydown', onKey, true);
-                overlay.classList.remove('ukg-show');
-                document.body.classList.remove('ukg-open');
-                setTimeout(function () { overlay.remove(); }, 160);
-                if (accepted) {
-                    onConfirm();
-                } else if (lastFocus && lastFocus.focus) {
-                    lastFocus.focus();
-                }
-            };
-            var onKey = function (e) {
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    close(false);
-                } else if (e.key === 'Tab') {
-                    // jaga fokus tetap di dalam modal
-                    e.preventDefault();
-                    (document.activeElement === cancel ? ok : cancel).focus();
-                }
-            };
-            document.addEventListener('keydown', onKey, true);
-            cancel.addEventListener('click', function () { close(false); });
-            ok.addEventListener('click', function () { ok.disabled = true; close(true); });
-            overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) close(false); });
-        }
-
-        function el(tag, cls, text) {
-            var node = document.createElement(tag);
-            if (cls) node.className = cls;
-            if (text !== undefined) node.textContent = text; // textContent: aman dari HTML di nilai input
-            return node;
-        }
-
-        function injectStyle() {
-            if (document.getElementById('ukg-style')) return;
-            var css = ''
-                + '.ukg-open{overflow:hidden}'
-                + '.ukg-overlay{position:fixed;inset:0;z-index:2050;display:flex;align-items:center;justify-content:center;padding:16px;'
-                + 'background:rgba(15,23,42,.55);backdrop-filter:blur(2px);opacity:0;transition:opacity .15s ease}'
-                + '.ukg-overlay.ukg-show{opacity:1}'
-                + '.ukg-dialog{width:100%;max-width:520px;max-height:calc(100vh - 32px);overflow:auto;background:#fff;color:#1e293b;'
-                + 'border-radius:12px;box-shadow:0 24px 48px -12px rgba(15,23,42,.35);transform:translateY(8px) scale(.98);transition:transform .15s ease;'
-                + 'font-family:inherit;font-size:14px;line-height:1.5;text-align:left}'
-                + '.ukg-show .ukg-dialog{transform:none}'
-                + '.ukg-head{display:flex;gap:14px;align-items:flex-start;padding:20px 22px 8px}'
-                + '.ukg-icon{flex:0 0 44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#fef3c7;color:#d97706}'
-                + '.ukg-title{margin:2px 0 2px;font-size:17px;font-weight:600;color:#0f172a}'
-                + '.ukg-subtitle{margin:0;color:#64748b;font-size:13px}'
-                + '.ukg-body{padding:10px 22px 4px}'
-                + '.ukg-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:0 0 14px}'
-                + '.ukg-table th{background:#f8fafc;color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0}'
-                + '.ukg-table td{padding:9px 10px;vertical-align:middle;border-top:1px solid #f1f5f9;word-break:break-word}'
-                + '.ukg-table tbody tr:first-child td{border-top:0}'
-                + '.ukg-field{color:#475569;font-weight:500;white-space:nowrap}'
-                + '.ukg-before{color:#b91c1c;text-decoration:line-through;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}'
-                + '.ukg-after{color:#15803d;font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}'
-                + '.ukg-arrow{color:#94a3b8;width:1%;padding-left:0!important;padding-right:0!important;text-align:center}'
-                + '.ukg-note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;color:#92400e;font-size:13px}'
-                + '.ukg-note ul{margin:4px 0 0;padding-left:18px}'
-                + '.ukg-note li{margin:2px 0}'
-                + '.ukg-foot{display:flex;justify-content:flex-end;gap:8px;padding:16px 22px 20px}'
-                + '.ukg-btn{appearance:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;line-height:1.4;transition:background .12s,border-color .12s,box-shadow .12s}'
-                + '.ukg-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(59,130,246,.35)}'
-                + '.ukg-btn-cancel{background:#fff;border:1px solid #cbd5e1;color:#334155}'
-                + '.ukg-btn-cancel:hover{background:#f8fafc}'
-                + '.ukg-btn-ok{background:#d97706;border:1px solid #d97706;color:#fff}'
-                + '.ukg-btn-ok:hover{background:#b45309;border-color:#b45309}'
-                + '.ukg-btn-ok:disabled{opacity:.7;cursor:wait}'
-                + '@media (max-width:480px){.ukg-foot{flex-direction:column-reverse}.ukg-btn{width:100%}.ukg-field{white-space:normal}}';
-            var style = document.createElement('style');
-            style.id = 'ukg-style';
-            style.textContent = css;
-            document.head.appendChild(style);
         }
     })();
 </script>

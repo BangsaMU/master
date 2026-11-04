@@ -33,6 +33,9 @@ class MasterScope
 
     public const OWNER_COMPANY_FIELD = 'owner_company_id';
 
+    /** diisi dialog konfirmasi di form (partials.master-owner) saat admin memindahkan pemilik baris lama */
+    public const CONFIRM_OWNER_FIELD = 'confirm_owner_change';
+
     /** tabel yang sebelum v3 sudah unik per app_code (index unik lokal aplikasi lama juga per app_code) */
     public const LEGACY_UNIQUE_PER_APP = ['master_department'];
 
@@ -191,9 +194,15 @@ class MasterScope
     public function ownerForNew(string $table, ?Request $request = null): array
     {
         $request ??= request();
-        $owner = $this->resolveNewOwner($request);
+        $owner = $this->onlyExistingColumns($table, $this->resolveNewOwner($request));
 
-        return $this->onlyExistingColumns($table, $owner);
+        // pilihan pemilik dari form hanya dipakai tim master-data di hub; dicek saat menyimpan (form create memanggil
+        // method ini juga untuk nilai awal, request GET tidak divalidasi)
+        if ($this->isHub() && $this->delegation() === null && ! $request->isMethodSafe()) {
+            $this->assertOwnerRegistered($owner);
+        }
+
+        return $owner;
     }
 
     /**
@@ -226,13 +235,18 @@ class MasterScope
     }
 
     /**
-     * Pemilik baris yang diubah: tetap pemilik lama, kecuali is_admin mengisi field pemilik di form.
+     * Pemilik baris yang diubah: tetap pemilik lama, kecuali is_admin mengisi field pemilik di form. Memindahkan
+     * pemilik wajib ke aplikasi/company yang terdaftar dan dikonfirmasi (CONFIRM_OWNER_FIELD), karena data bersama
+     * yang dipindah ke satu aplikasi hilang dari pilihan aplikasi lain dan hak ubahnya ikut pindah.
      *
      * @return array{app_code?: string, company_id?: int}
+     *
+     * @throws ValidationException
      */
     public function ownerForUpdate(string $table, object $row, ?Request $request = null): array
     {
         $request ??= request();
+        $current = $this->onlyExistingColumns($table, $this->ownerOf($row));
         $owner = $this->ownerOf($row);
 
         if (app(MasterAccess::class)->isAdmin()) {
@@ -244,7 +258,90 @@ class MasterScope
             }
         }
 
-        return $this->onlyExistingColumns($table, $owner);
+        $owner = $this->onlyExistingColumns($table, $owner);
+        if ($this->ownerChanged($current, $owner)) {
+            $this->assertOwnerRegistered($owner, $current);
+            if (! $request->boolean(self::CONFIRM_OWNER_FIELD)) {
+                $field = $this->sameAppCode($current['app_code'] ?? null, $owner['app_code'] ?? null) ? self::OWNER_COMPANY_FIELD : self::OWNER_APP_FIELD;
+
+                throw ValidationException::withMessages([
+                    $field => ['Pemindahan pemilik data dari '.$this->ownerLabel($current).' ke '.$this->ownerLabel($owner).' harus dikonfirmasi sebelum disimpan.'],
+                ]);
+            }
+        }
+
+        return $owner;
+    }
+
+    /**
+     * @param  array{app_code?: string, company_id?: int}  $before
+     * @param  array{app_code?: string, company_id?: int}  $after
+     */
+    public function ownerChanged(array $before, array $after): bool
+    {
+        return ! $this->sameAppCode($before['app_code'] ?? null, $after['app_code'] ?? null)
+            || (int) ($before['company_id'] ?? 0) !== (int) ($after['company_id'] ?? 0);
+    }
+
+    protected function sameAppCode(?string $first, ?string $second): bool
+    {
+        return strtoupper(trim((string) $first)) === strtoupper(trim((string) $second));
+    }
+
+    /**
+     * Aplikasi pemilik harus terdaftar aktif di master_apps (kecuali aplikasi ini / data bersama), company harus 0 atau
+     * terdaftar aktif di master_company. Nilai yang tidak berubah dari pemilik lama ($current) tidak dicek ulang, supaya
+     * baris lama ber-pemilik yang kini tidak terdaftar tetap bisa diubah isinya.
+     *
+     * @param  array{app_code?: string, company_id?: int}  $owner
+     * @param  array{app_code?: string, company_id?: int}  $current
+     *
+     * @throws ValidationException
+     */
+    public function assertOwnerRegistered(array $owner, array $current = []): void
+    {
+        $errors = [];
+
+        $appCode = $owner['app_code'] ?? null;
+        if ($appCode !== null && ! $this->sameAppCode($appCode, $current['app_code'] ?? null) && ! $this->appRegistered($appCode)) {
+            $errors[self::OWNER_APP_FIELD] = ['Aplikasi '.$appCode.' tidak terdaftar aktif di master_apps, tidak bisa menjadi pemilik data.'];
+        }
+
+        $companyId = $owner['company_id'] ?? null;
+        if ($companyId !== null && $companyId !== 0 && $companyId !== ($current['company_id'] ?? null) && ! $this->companyRegistered($companyId)) {
+            $errors[self::OWNER_COMPANY_FIELD] = ['Company id '.$companyId.' tidak terdaftar aktif di master_company, tidak bisa menjadi pemilik data.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    public function appRegistered(string $appCode): bool
+    {
+        if ($this->sameAppCode($appCode, $this->globalAppCode()) || $this->sameAppCode($appCode, $this->appCode())) {
+            return true;
+        }
+        if (! Schema::hasTable('master_apps')) {
+            return false;
+        }
+
+        return DB::table('master_apps')
+            ->where('app_code', strtoupper(trim($appCode)))
+            ->when(Schema::hasColumn('master_apps', 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
+            ->exists();
+    }
+
+    public function companyRegistered(int $companyId): bool
+    {
+        if (! Schema::hasTable('master_company')) {
+            return false;
+        }
+
+        return DB::table('master_company')
+            ->where('id', $companyId)
+            ->when(Schema::hasColumn('master_company', 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
+            ->exists();
     }
 
     /**

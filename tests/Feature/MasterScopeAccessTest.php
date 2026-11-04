@@ -11,8 +11,10 @@ use Bangsamu\Master\Support\MasterModules;
 use Bangsamu\Master\Tests\Concerns\CreatesMasterTables;
 use Bangsamu\Master\Tests\TestCase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Pemilik data master app_code + company_id (MasterScope) dan aturan izin per baris (MasterAccess):
@@ -56,6 +58,21 @@ class MasterScopeAccessTest extends TestCase
     private function hub(): void
     {
         config(['MasterCrudConfig.MASTER_HUB' => true, 'SsoConfig.main.APP_CODE' => 'APP03']);
+    }
+
+    /** pemilik pilihan tim master di hub wajib aplikasi + company terdaftar (MasterScope::assertOwnerRegistered) */
+    private function registerOwner(string $appCode, int $companyId): void
+    {
+        if (! Schema::hasTable('master_apps')) {
+            Schema::create('master_apps', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('app_code');
+                $table->softDeletes();
+            });
+        }
+        DB::table('master_apps')->insert(['name' => 'Aplikasi '.$appCode, 'app_code' => $appCode]);
+        DB::table('master_company')->insert(['id' => $companyId, 'company_code' => 'C'.$companyId]);
     }
 
     /** @return array<string, mixed> */
@@ -196,6 +213,7 @@ class MasterScopeAccessTest extends TestCase
     {
         $this->hub();
         $this->permissions(['create_category']);
+        $this->registerOwner('APP32', 648);
 
         $this->post(route('master.category.store'), ['category_code' => 'C41', 'category_name' => 'Untuk SPB ENL', 'owner_app_code' => 'app32', 'owner_company_id' => 648])
             ->assertSessionHasNoErrors();
