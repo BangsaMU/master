@@ -64,6 +64,25 @@ class ItemCodeController extends Controller
     ];
 
     /**
+     * Kolom daftar (alias `data` DataTables) => ekspresi SQL yang boleh dicari dan diurutkan. Cari per kolom (input di
+     * bawah judul kolom) dan cari global hanya memakai daftar ini; nilai dari request tidak pernah menjadi nama kolom.
+     * LIKE '%kata%' tidak bisa memakai index B-tree, jadi tiap pencarian memindai master_item_code (ribuan baris = beberapa
+     * milidetik); join ke tabel referensi memakai PRIMARY (eq_ref).
+     */
+    protected const SEARCH_COLUMNS = [
+        'item_code' => 'mic.item_code',
+        'description' => 'mic.item_name',
+        'uom' => 'mu.uom_name',
+        'pca' => 'mp.pca_name',
+        'category' => 'mc.category_name',
+        'item_group' => 'mig.item_group_name',
+        'attributes' => 'mic.attributes',
+    ];
+
+    /** batas kata per kotak cari (tiap kata = satu LIKE) */
+    protected const SEARCH_MAX_TERMS = 5;
+
+    /**
      * Create a new controller instance.
      *
      * @return void
@@ -114,6 +133,9 @@ class ItemCodeController extends Controller
         $data['page']['title'] = $sheet_name;
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
+
+        // baris input cari per kolom di bawah judul kolom (kolom = 'filter' true dari dataJson, SEARCH_COLUMNS)
+        $data['datatable']['column_search'] = true;
 
         if (app(MasterAccess::class)->can('item-code', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -168,107 +190,46 @@ class ItemCodeController extends Controller
     public function dataJson(Request $request)
     {
         $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
-        $sheet_name = $this->sheet_name;
-        $sheet_slug = $this->sheet_slug;
-        $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
-        $start = $request->input('start') ?? 0;
+        $limit = (int) $request->input('length', 10);
+        $limit = $limit > 0 ? $limit : 10; // -1 (All) dan kosong = 10 seperti dulu
+        $start = max(0, (int) $request->input('start', 0));
 
-        $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
+        // urutan dicocokkan lewat nama kolom DataTables ke whitelist; dulu memakai indeks $view_tabel yang lebih pendek
+        // dari kolom tabel, jadi urut kolom Attributes = error SQL. Kolom No / tak dikenal = mic.id.
+        $orderName = $request->input('columns.'.(int) $request->input('order.0.column', 0).'.data');
+        $order = is_string($orderName) && isset(self::SEARCH_COLUMNS[$orderName]) ? self::SEARCH_COLUMNS[$orderName] : 'mic.id';
+        $dir = strtolower((string) ($request->input('order.0.dir') ?? 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        $char_nosearch = 0;
-        $search = $request->input('search.value');
+        // setting aplikasi: tabel `setting` category master_item_code, fallback dashboard_settings group yang sama (docblock)
+        $settings = $this->getSettingsForTable('master_item_code');
 
-        $id = $request->id ?? 0;
-
-        $offest = 0;
-        $user_id = Auth::user()->id ?? 0;
-
-        if ($request->input('order.0.column')) {
-            /* remove alias */
-            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
-            $order = $colom_filed[0] ?? 'id';
-        } else {
-            $order = 'mic.id';
-        }
-        $dir = $request->input('order.0.dir') ?? 'desc';
-
-        $array_data_maping = $view_tabel_index;
-
-        // Ambil setting
-        // 1. Ambil semua setting berdasarkan category master_item_code
-        $category = 'master_item_code';
-        $tableName = 'master_item_code';
-        $key = 'app_code';
-
-        // 1. Ambil semua setting secara dinamis
-        $settings = Setting::where('category', $category)
-            ->get();
-
-        // dashboard_settings
-        if ($settings->isEmpty()) {
-            $settings = DashboardSettings::
-            // where('key', $key)
-            where('group', $category)
-                ->get();
-        }
-
-        $query = DB::table($tableName.' as mic')
+        $query = DB::table('master_item_code as mic')
             ->tap(fn ($query) => $trash->filter($query, 'item-code', 'mic'));
         // filter setting aplikasi (DynamicFilterable: format kolom lama + baris scope)
-        $this->applyDynamicFilter($query, $tableName, $settings, 'mic');
+        $this->applyDynamicFilter($query, 'master_item_code', $settings, 'mic');
         $totalData = $query->count();
 
+        $columnSearch = $this->columnSearchTerms($request);
+        $globalSearch = $this->searchTerms($request->input('search.value'));
+
+        // Join referensi lewat PRIMARY = tepat satu baris per item, jadi tanpa GROUP BY (dulu GROUP BY mic.id memaksa
+        // temporary table + filesort) dan jumlah hasil cukup COUNT(*) (dulu semua baris hasil diambil ke PHP lalu dihitung).
         $totalFiltered = $totalData;
-        if ($request_columns || $search) {
-            $view_tabel = $view_tabel_index;
-
-            $data_tabel = DB::table($tableName.' as mic')
-                ->select(
-                    DB::raw(implode(',', $view_tabel_index)),
-                )
-                ->leftJoin('master_uom as mu', 'mu.id', '=', 'mic.uom_id')
-                ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
-                ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
-                ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
-                ->tap(fn ($query) => $trash->filter($query, 'item-code', 'mic'));
-            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mic');
-            $data_tabel->groupby('mic.id');
-
-            $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
-
-            $totalFiltered = $data_tabel->get()->count();
-
-            $data_tabel->offset($start)
-                ->groupby('mic.id')
-                ->orderBy($order, $dir)
-                ->limit($limit)
-                ->offset($start);
-
-            $data_tabel = $data_tabel->get();
-        } else {
-            $datatb_request = DB::table($tableName.' as mic')
-                ->select(
-                    DB::raw(implode(',', $view_tabel_index)),
-                )
-                ->leftJoin('master_uom as mu', 'mu.id', '=', 'mic.uom_id')
-                ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
-                ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
-                ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
-                ->tap(fn ($query) => $trash->filter($query, 'item-code', 'mic'));
-            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mic');
-            $datatb_request->groupby('mic.id')
-                ->orderBy($order, $dir)
-                ->limit($limit)
-                ->offset($start);
-
-            $datatb_request = $datatb_request->get();
-
-            $data_tabel = $datatb_request;
+        if ($columnSearch !== [] || $globalSearch !== []) {
+            $totalFiltered = $this->listQuery($trash, $settings)
+                ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch))
+                ->count();
         }
+
+        $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index)
+            ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch))
+            ->orderBy($order, $dir)
+            ->when($order !== 'mic.id', fn ($query) => $query->orderBy('mic.id', $dir)) // urutan stabil antar halaman
+            ->offset($start)
+            ->limit($limit)
+            ->get();
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
@@ -281,7 +242,7 @@ class ItemCodeController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => isset(self::SEARCH_COLUMNS[$c_filed]), // kolom ber-input cari per kolom (view: column_search)
             ];
 
             if ($name == 'uom') {
@@ -344,6 +305,83 @@ class ItemCodeController extends Controller
         ];
 
         return response()->json($json_data);
+    }
+
+    /** query daftar item code + referensi, sudah difilter data terhapus dan setting aplikasi */
+    private function listQuery(MasterTrash $trash, $settings, ?array $select = null): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('master_item_code as mic');
+        if ($select !== null) {
+            $query->select(DB::raw(implode(',', $select))); // sebelum MasterTrash::filter, yang menambah kolom deleted_at
+        }
+        $query->leftJoin('master_uom as mu', 'mu.id', '=', 'mic.uom_id')
+            ->leftJoin('master_pca as mp', 'mp.id', '=', 'mic.pca_id')
+            ->leftJoin('master_category as mc', 'mc.id', '=', 'mic.category_id')
+            ->leftJoin('master_item_group as mig', 'mig.id', '=', 'mic.group_id')
+            ->tap(fn ($query) => $trash->filter($query, 'item-code', 'mic'));
+        $this->applyDynamicFilter($query, 'master_item_code', $settings, 'mic');
+
+        return $query;
+    }
+
+    /**
+     * Cari per kolom: setiap kata wajib ada di kolom itu, antar kolom AND.
+     * Cari global: setiap kata wajib ada di salah satu kolom SEARCH_COLUMNS (termasuk nama UoM/PCA/Category/Item Group).
+     *
+     * @param  array<string, list<string>>  $columnSearch
+     * @param  list<string>  $globalSearch
+     */
+    private function applySearch($query, array $columnSearch, array $globalSearch): void
+    {
+        foreach ($columnSearch as $column => $terms) {
+            foreach ($terms as $term) {
+                $this->whereContains($query, self::SEARCH_COLUMNS[$column], $term);
+            }
+        }
+
+        foreach ($globalSearch as $term) {
+            $query->where(function ($any) use ($term) {
+                foreach (self::SEARCH_COLUMNS as $expression) {
+                    $this->whereContains($any, $expression, $term, 'or');
+                }
+            });
+        }
+    }
+
+    /** LIKE '%nilai%' dengan % dan _ ketikan user dibaca sebagai huruf biasa (ESCAPE '!' berlaku di MariaDB dan SQLite) */
+    private function whereContains($query, string $expression, string $value, string $boolean = 'and'): void
+    {
+        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+        $query->whereRaw($expression." LIKE ? ESCAPE '!'", ['%'.$escaped.'%'], $boolean);
+    }
+
+    /** @return array<string, list<string>> nama kolom SEARCH_COLUMNS => kata dari columns[i][search][value] */
+    private function columnSearchTerms(Request $request): array
+    {
+        $result = [];
+        foreach ((array) $request->input('columns', []) as $column) {
+            $name = is_array($column) ? ($column['data'] ?? null) : null;
+            if (! is_string($name) || ! isset(self::SEARCH_COLUMNS[$name])) {
+                continue;
+            }
+            $terms = $this->searchTerms($column['search']['value'] ?? null);
+            if ($terms !== []) {
+                $result[$name] = $terms;
+            }
+        }
+
+        return $result;
+    }
+
+    /** @return list<string> kata pencarian dipisah spasi, unik, maksimal SEARCH_MAX_TERMS */
+    private function searchTerms(mixed $value): array
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+        $terms = preg_split('/\s+/u', trim($value), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return array_slice(array_values(array_unique($terms)), 0, self::SEARCH_MAX_TERMS);
     }
 
     public function create()

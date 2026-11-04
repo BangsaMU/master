@@ -284,6 +284,7 @@
                                 style="width:100%">
                                 <thead>
                                     <tr class="header"></tr>
+                                    @if (! empty($data['datatable']['column_search']))<tr class="cari-kolom"></tr>@endif
                                 </thead>
                                 <tbody>
                                 </tbody>
@@ -329,6 +330,7 @@
                             style="width:100%">
                             <thead>
                                 <tr class="header"></tr>
+                                @if (! empty($data['datatable']['column_search']))<tr class="cari-kolom"></tr>@endif
                             </thead>
                             <tbody>
                             </tbody>
@@ -359,6 +361,17 @@
         .btn-group-sm>.btn,
         .btn-sm {
             padding: 0.1rem .3rem !important;
+        }
+
+        /* baris input cari per kolom ($data['datatable']['column_search']) */
+        tr.cari-kolom > th {
+            padding: .25rem !important;
+            font-weight: normal;
+        }
+
+        tr.cari-kolom .master-col-search {
+            width: 100%;
+            min-width: 5rem;
         }
 
         /* data terhapus (hanya tampil untuk admin, MasterTrash) */
@@ -418,6 +431,47 @@
             });
         }
 
+        // cari per kolom: kirim columns[i][search][value] sesudah berhenti mengetik 400 ms (Enter = langsung)
+        var columnSearch = @json(! empty($data['datatable']['column_search']));
+        var columnSearchCells = []; // indeks kolom => sel <th> baris cari
+
+        function bindColumnSearch(api) {
+            // Responsive (2.5) hanya menyembunyikan sel baris judul; sel cari di bawahnya ikut supaya kolom tetap sejajar
+            var syncResponsive = function() {
+                if (typeof api.columns().responsiveHidden !== 'function') {
+                    return;
+                }
+                var visible = api.columns().responsiveHidden();
+                $.each(columnSearchCells, function(i, cell) {
+                    if (cell) {
+                        cell.css('display', visible[i] === false ? 'none' : '');
+                    }
+                });
+            };
+            api.on('responsive-resize', syncResponsive);
+            syncResponsive();
+
+            $(tableName + '>thead>tr.cari-kolom').on('input search keydown', 'input[data-column]', function(e) {
+                var input = this;
+                var apply = function() {
+                    var column = api.column($(input).data('column'));
+                    var value = input.value.trim();
+                    if (column.search() !== value) {
+                        column.search(value).draw();
+                    }
+                };
+                clearTimeout(input.cariTimer);
+                if (e.type === 'keydown') {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        apply();
+                    }
+                    return;
+                }
+                input.cariTimer = setTimeout(apply, 400);
+            });
+        }
+
         var data,
             tableName = '#{{ $data['page']['slug'] }}_tabel',
             headerName = '#{{ $data['page']['slug'] }}_header',
@@ -460,6 +514,21 @@
 
                     $(str).appendTo(tableName + '>tfoot>tr.header');
                     $(str2).appendTo(tableName + '>tfoot>tr.cari');
+
+                    // satu sel per kolom (jumlah sel wajib sama dengan baris judul); input hanya untuk kolom filter: true
+                    if (columnSearch) {
+                        var cell = $('<th></th>');
+                        if (colObj.filter === true) {
+                            $('<input type="search" class="form-control form-control-sm master-col-search" autocomplete="off">')
+                                .attr({
+                                    'data-column': k,
+                                    placeholder: 'Cari ' + colObj.name,
+                                    'aria-label': 'Cari ' + colObj.name
+                                })
+                                .appendTo(cell);
+                        }
+                        columnSearchCells[k] = cell.appendTo(tableName + '>thead>tr.cari-kolom');
+                    }
                 });
 
                 // Add some Render transformations to Columns
@@ -506,20 +575,11 @@
                     "data": data.data,
                     "columns": data.columns,
                     columnDefs: paramsColumnDefs,
+                    orderCellsTop: true, // klik judul (baris atas) = urutkan; baris input cari tidak ikut mengurutkan
                     "fnInitComplete": function() {
-                        // Event handler to be fired when rendering is complete (Turn off Loading gif for example)
-                        console.log('Datatable rendering complete'); // Apply the search
-                        this.api().columns().every(function() {
-                            var that = this;
-
-                            $('input', this.footer()).on('keyup change clear', function() {
-                                if (that.search() !== this.value) {
-                                    that
-                                        .search(htmlEntities(this.value))
-                                        .draw();
-                                }
-                            });
-                        });
+                        if (columnSearch) {
+                            bindColumnSearch(this.api());
+                        }
                     }
                 });
             })

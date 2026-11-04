@@ -182,6 +182,26 @@ index unik DB). Dulu form hanya menampilkan *The project code has already been t
 - Layout `layouts.dashboard.index` menyediakan `#restore-form` dan `notificationBeforeRestore()` (SweetAlert, fallback
   `confirm()`). App yang memakai layout daftar sendiri perlu menyalin keduanya.
 
+## Cari per Kolom di Daftar Master (sejak v3.6.0, Item Code)
+
+Daftar `master/item-code` punya baris input **Cari …** di bawah judul kolom (Item Code, Description, Unit (UoM), PCA,
+Category, Item Group, Attributes). Request dikirim 400 ms sesudah berhenti mengetik (Enter = langsung, tombol × = hapus).
+
+- **Layout** `layouts.dashboard.index` (opt-in): controller mengisi `$data['datatable']['column_search'] = true` di
+  `index()`; input dibuat hanya untuk kolom dengan `'filter' => true` di metadata `columns` dari `dataJson()`. Memakai
+  `orderCellsTop` (klik judul = urutkan, input tidak) dan ikut menyembunyikan sel cari saat Responsive melipat kolom.
+  Modul lain belum dinyalakan; backend-nya masih memakai helper app `datatabelFilterQuery()`.
+- **Item Code** (`ItemCodeController::SEARCH_COLUMNS`): whitelist alias kolom => ekspresi SQL untuk cari per kolom, cari
+  global dan urutan; nama kolom dari request hanya dicocokkan ke daftar ini. Tiap kata (maks 5, dipisah spasi) wajib
+  ada (`LIKE '%kata%' ESCAPE '!'`, jadi `%` dan `_` ketikan user = huruf biasa); antar kolom AND, cari global = tiap kata
+  ada di salah satu kolom, termasuk nama UoM/PCA/Category/Item Group (dulu dilewati). Tidak lagi bergantung pada helper
+  app `datatabelFilterQuery()`.
+- **Performa**: `LIKE '%…%'` tidak bisa memakai index B-tree (`EXPLAIN` = `type ALL`), jadi setiap pencarian memindai
+  `master_item_code`; ±6 ribu baris = beberapa milidetik. Join referensi memakai PRIMARY (`eq_ref`), sehingga `GROUP BY
+  mic.id` dibuang (dulu memaksa temporary table + filesort) dan jumlah hasil dihitung `COUNT(*)` (dulu semua baris hasil
+  diambil ke PHP setiap ganti halaman). Urutan dicocokkan lewat nama kolom (dulu indeks `$view_tabel` yang berbeda
+  panjang, urut kolom Attributes = error SQL), dengan `mic.id` sebagai pengurut kedua supaya halaman stabil.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

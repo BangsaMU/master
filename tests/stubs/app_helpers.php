@@ -27,3 +27,15 @@ if (! function_exists('configDefAction')) {
         return $data;
     }
 }
+
+if (! function_exists('searchConfig')) {
+    /** Stub helper app: data modal Search di halaman daftar master (layouts.dashboard.index). */
+    function searchConfig($data, $view_tabel_index = [])
+    {
+        return [
+            'modal_format' => ['identification' => 'modal_search', 'title' => 'Search', 'button_title' => 'Search'],
+            'form_format' => ['identification' => 'form_search', 'url' => ''],
+            'list_input' => [],
+        ];
+    }
+}
