@@ -65,6 +65,23 @@ dengan nama tabel dari URL sebelum middleware `auth` (injeksi SQL tanpa login di
 
 ---
 
+## Route Perawatan `/optimize` dan `/composer` Wajib Admin (sejak v3.6.3, backport v2.4.12, v1.2.15, v1.1.102)
+
+Sebelumnya kedua route hanya memakai middleware `web`. Cek login di dalam `/composer` hanya menutup halaman bantuan,
+jadi **tamu** bisa menjalankan `?update=1`, `?install=1`, `?require=vendor/paket`, `?remove=vendor/paket`,
+`?autoload=1`, dan `/optimize` (`?clear=1`). `composer require` paket buatan orang lain = kode orang itu berjalan di server.
+
+- `/optimize` dan `/composer`: `web` + `auth` + `can:{ability}`. Ability dari `MASTER_MAINTENANCE_ABILITY`
+  (config `MasterConfig.maintenance.ability`, default `is_admin`; Gate atau permission Spatie), mis. `is_root` di SPB.
+  Tamu diarahkan ke login, user tanpa ability 403. Aplikasi yang belum punya permission itu: semua user 403 (aman).
+- `mud-master` dan `master/mud-view` (halaman uji paket): wajib login.
+- Skrip deploy tidak perlu route ini: `php artisan optimize:clear` dari CLI + reload php-fpm (opcache).
+
+```dotenv
+# ability untuk /optimize dan /composer (default is_admin)
+MASTER_MAINTENANCE_ABILITY=is_admin
+```
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
