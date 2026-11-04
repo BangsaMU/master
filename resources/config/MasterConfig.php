@@ -90,4 +90,8 @@ return [
         'browser_cooldown' => (int) env('MASTER_SYNC_BROWSER_COOLDOWN', 300), // 5 minutes cooldown for browser catch-up
         'browser_auto_catchup' => env('MASTER_SYNC_BROWSER_AUTO_CATCHUP', true),
     ],
+    // route perawatan /optimize dan /composer: wajib login + ability ini (Gate / permission Spatie), mis. is_root di SPB
+    'maintenance' => [
+        'ability' => env('MASTER_MAINTENANCE_ABILITY', 'is_admin'),
+    ],
 ];
