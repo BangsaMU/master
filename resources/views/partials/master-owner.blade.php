@@ -51,11 +51,11 @@
                 <div class="col-sm-6">
                     <select name="{{ \Bangsamu\Master\Services\MasterScope::OWNER_APP_FIELD }}" class="form-select @error(\Bangsamu\Master\Services\MasterScope::OWNER_APP_FIELD) is-invalid @enderror" aria-label="Aplikasi pemilik">
                         @if ($ownerAppMissing)
-                            <option value="{{ $ownerCurrent['app_code'] }}" selected>{{ $ownerCurrent['app_code'] }} · (tidak terdaftar di master_apps)</option>
+                            <option value="{{ $ownerCurrent['app_code'] }}" selected>{{ $ownerCurrent['app_code'] }} | (tidak terdaftar di master_apps)</option>
                         @endif
                         @foreach ($ownerApps as $ownerApp)
                             <option value="{{ $ownerApp->app_code }}" @selected(old(\Bangsamu\Master\Services\MasterScope::OWNER_APP_FIELD, $ownerValue['app_code'] ?? $ownerScope->globalAppCode()) === $ownerApp->app_code)>
-                                {{ $ownerApp->app_code }} · {{ $ownerApp->name }}{{ $ownerApp->app_code === $ownerScope->globalAppCode() ? ' (bersama)' : '' }}
+                                {{ $ownerApp->app_code }} | {{ $ownerApp->name }}{{ $ownerApp->app_code === $ownerScope->globalAppCode() ? ' (bersama)' : '' }}
                             </option>
                         @endforeach
                     </select>
@@ -65,11 +65,11 @@
                         <select name="{{ \Bangsamu\Master\Services\MasterScope::OWNER_COMPANY_FIELD }}" class="form-select @error(\Bangsamu\Master\Services\MasterScope::OWNER_COMPANY_FIELD) is-invalid @enderror" aria-label="Company pemilik">
                             <option value="0">Semua company</option>
                             @if ($ownerCompanyMissing)
-                                <option value="{{ (int) $ownerCurrent['company_id'] }}" selected>Company {{ (int) $ownerCurrent['company_id'] }} · (tidak terdaftar di master_company)</option>
+                                <option value="{{ (int) $ownerCurrent['company_id'] }}" selected>Company {{ (int) $ownerCurrent['company_id'] }} | (tidak terdaftar di master_company)</option>
                             @endif
                             @foreach ($ownerCompanies as $ownerCompany)
                                 <option value="{{ $ownerCompany->id }}" @selected((int) old(\Bangsamu\Master\Services\MasterScope::OWNER_COMPANY_FIELD, $ownerValue['company_id'] ?? 0) === (int) $ownerCompany->id)>
-                                    {{ strtoupper(trim((string) $ownerCompany->company_code)) }} · {{ $ownerCompany->company_name }}
+                                    {{ strtoupper(trim((string) $ownerCompany->company_code)) }} | {{ $ownerCompany->company_name }}
                                 </option>
                             @endforeach
                         </select>

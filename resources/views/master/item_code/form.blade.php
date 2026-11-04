@@ -53,7 +53,7 @@
                             <label for="uom">Unit of Measurement</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('uom_id') is-invalid @enderror" name="uom_id" id="uom">
                                 @if(isset($param->uom_id))
-                                    <option value="{{ $param->uom_id }}" selected>{{ $param->uom_name }}</option>
+                                    <option value="{{ $param->uom_id }}" selected>{{ $param->uom_text ?? $param->uom_name }}</option>
                                 @endif
                             </select>
                             @error('uom_id') <span class="text-danger">{{ $message }}</span> @enderror
@@ -63,7 +63,7 @@
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('pca_id') is-invalid @enderror" name="pca_id" id="pca">
                                 <option value=""></option>
                                 @if(isset($param->pca_id))
-                                    <option value="{{ $param->pca_id }}" selected>{{ $param->pca_name }}</option>
+                                    <option value="{{ $param->pca_id }}" selected>{{ $param->pca_text ?? $param->pca_name }}</option>
                                 @endif
                             </select>
                             @error('pca_id') <span class="text-danger">{{$message}}</span> @enderror
@@ -73,7 +73,7 @@
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('category_id') is-invalid @enderror" name="category_id" id="category">
                                 <option value=""></option>
                                 @if(isset($param->category_id))
-                                    <option value="{{ $param->category_id }}" selected>{{ $param->category_name }}</option>
+                                    <option value="{{ $param->category_id }}" selected>{{ $param->category_text ?? $param->category_name }}</option>
                                 @endif
                             </select>
                             @error('category_id') <span class="text-danger">{{$message}}</span> @enderror
@@ -82,7 +82,7 @@
                             <label for="group">Item Group</label>
                             <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('group_id') is-invalid @enderror" name="group_id" id="item_group">
                                 @if(isset($param->group_id))
-                                    <option value="{{ $param->group_id }}" selected>{{ $param->item_group_name }}</option>
+                                    <option value="{{ $param->group_id }}" selected>{{ $param->item_group_text ?? $param->item_group_name }}</option>
                                 @endif
                             </select>
                             @error('group_id') <span class="text-danger">{{$message}}</span> @enderror
@@ -117,12 +117,18 @@
         @include($data['page']['js'])
     @endif
 
+    {{-- Tab ke dropdown langsung membuka kotak cari, Tab di kotak cari pindah ke field berikut --}}
+    @include('master::partials.select2-keyboard')
+
     <script>
         // var (bukan const): layout aplikasi bisa sudah mendeklarasikan CSRF_TOKEN global; const = SyntaxError.
         var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
         // Common Select2 Configuration
+        // searchParam boleh array kolom: dicari dengan OR (search[kolom][]=kata), mis. kode atau nama.
         function initializeSelect2(elementId, url, searchParam, placeholder, selectedValue, allowClear) {
+            var searchColumns = [].concat(searchParam);
+
             $(elementId).select2({
                 width: '100%',
                 placeholder: placeholder,
@@ -133,10 +139,11 @@
                     dataType: 'json',
                     delay: 5,
                     data: function(params) {
-                        return {
-                            _token: CSRF_TOKEN,
-                            ["search["+searchParam+"]"]: params.term
-                        };
+                        var query = { _token: CSRF_TOKEN };
+                        searchColumns.forEach(function (column) {
+                            query["search["+column+"][]"] = params.term;
+                        });
+                        return query;
                     },
                     processResults: function(response) {
                         return { results: response };
@@ -147,17 +154,27 @@
 
             if (selectedValue != '' && selectedValue != null) {
                 $.ajax({
-                    url: url + '&where[id]=' + selectedValue,
+                    url: url + '&where[id]=' + encodeURIComponent(selectedValue),
                     success: function (result) {
                         result = result[0];
+                        if (!result) {
+                            return;
+                        }
 
                         var data = {
                             id: result.id,
                             text: result.text
                         };
 
-                        var newOption = new Option(data.text, data.id, false, false);
-                        $(elementId).append(newOption).trigger('change');
+                        // opsi dari server (edit) cukup diganti teksnya; nilai old() sesudah validasi gagal ditambahkan lalu dipilih
+                        // (dulu Option(..., false, false): PCA/Category kembali kosong walau old() terisi)
+                        var $option = $(elementId).find('option').filter(function () { return String(this.value) === String(data.id); });
+                        if ($option.length) {
+                            $option.first().text(data.text).prop('selected', true);
+                        } else {
+                            $(elementId).append(new Option(data.text, data.id, true, true));
+                        }
+                        $(elementId).trigger('change');
 
                         var event = $.Event('select2:select', { params: { data: { id: data.id, text: data.text } } });
                         $(elementId).trigger(event);
@@ -166,11 +183,12 @@
             }
         }
 
-        // Initialize Select2 Fields with old values
-        initializeSelect2('#uom', "{!! url('api/getmaster_uombyparams?set[id]=id&set[text]=uom_name') !!}", 'uom_name', 'Please select UoM', "{{ old('uom_id', isset($param->uom_id) ? $param->uom_id : '') }}");
-        initializeSelect2('#pca', "{!! url('api/getmaster_pcabyparams?set[id]=id&set[text]=pca_name') !!}", 'pca_name', 'Please select PCA', "{{ old('pca_id', isset($param->pca_id) ? $param->pca_id : '') }}", true);
-        initializeSelect2('#category', "{!! url('api/getmaster_categorybyparams?set[id]=id&set[text]=category_name') !!}", 'category_name', 'Please select Category', "{{ old('category_id', isset($param->category_id) ? $param->category_id : '') }}", true);
-        initializeSelect2('#item_group', "{!! url('api/getmaster_item_groupbyparams?set[id]=id&set[text]=item_group_name') !!}", 'item_group_name', 'Please select Item Group', "{{ old('group_id', isset($param->group_id) ? $param->group_id : '') }}");
+        // Initialize Select2 Fields with old values. Teks pilihan "kode | nama" (set[text][ | ]=kode&set[text][]=nama =
+        // CONCAT kode,' | ',nama di api byparams), kata dicari di kode atau nama.
+        initializeSelect2('#uom', "{!! url('api/getmaster_uombyparams?set[id]=id&set[text][%20%7C%20]=uom_code&set[text][]=uom_name') !!}", ['uom_code', 'uom_name'], 'Please select UoM', "{{ old('uom_id', isset($param->uom_id) ? $param->uom_id : '') }}");
+        initializeSelect2('#pca', "{!! url('api/getmaster_pcabyparams?set[id]=id&set[text][%20%7C%20]=pca_code&set[text][]=pca_name') !!}", ['pca_code', 'pca_name'], 'Please select PCA', "{{ old('pca_id', isset($param->pca_id) ? $param->pca_id : '') }}", true);
+        initializeSelect2('#category', "{!! url('api/getmaster_categorybyparams?set[id]=id&set[text][%20%7C%20]=category_code&set[text][]=category_name') !!}", ['category_code', 'category_name'], 'Please select Category', "{{ old('category_id', isset($param->category_id) ? $param->category_id : '') }}", true);
+        initializeSelect2('#item_group', "{!! url('api/getmaster_item_groupbyparams?set[id]=id&set[text][%20%7C%20]=item_group_code&set[text][]=item_group_name') !!}", ['item_group_code', 'item_group_name'], 'Please select Item Group', "{{ old('group_id', isset($param->group_id) ? $param->group_id : '') }}");
 
         // Handle attributes input logic
         $('#item_group').on('select2:select', function(e) {

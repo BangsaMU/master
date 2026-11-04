@@ -548,10 +548,18 @@ class ItemCodeController extends Controller
             $data['page']['readonly'] = true;
         }
 
-        $param->uom_name = DB::table('master_uom')->where('id', $param->uom_id)->value('uom_name');
-        $param->pca_name = DB::table('master_pca')->where('id', $param->pca_id)->value('pca_name');
-        $param->category_name = DB::table('master_category')->where('id', $param->category_id)->value('category_name');
-        $param->item_group_name = DB::table('master_item_group')->where('id', $param->group_id)->value('item_group_name');
+        // teks pilihan dropdown "kode | nama", sama dengan api byparams set[text][ | ] di form (tidak berganti saat JS memuat)
+        $referensi = [
+            'uom' => ['master_uom', 'uom_id'],
+            'pca' => ['master_pca', 'pca_id'],
+            'category' => ['master_category', 'category_id'],
+            'item_group' => ['master_item_group', 'group_id'],
+        ];
+        foreach ($referensi as $prefix => [$tabelRef, $kolomFk]) {
+            $ref = DB::table($tabelRef)->where('id', $param->{$kolomFk})->first([$prefix.'_code', $prefix.'_name']);
+            $param->{$prefix.'_name'} = $ref->{$prefix.'_name'} ?? null;
+            $param->{$prefix.'_text'} = $ref ? ($ref->{$prefix.'_code'} ?? '').' | '.($ref->{$prefix.'_name'} ?? '') : null;
+        }
 
         // dd($param);
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(ItemCode::class, $id);

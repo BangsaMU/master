@@ -217,6 +217,22 @@ aplikasi lain) dieksekusi di browser setiap pembuka daftar (stored XSS).
 - Controller/daftar baru: jangan memasang `$row->kolom` langsung ke data DataTables. `MasterDataTableEscapeTest` menolak
   pola `$nestedData[$c_filed] = @$row->$c_filed;` di `src/Controllers`.
 
+## Form Item Code: Dropdown "kode | nama" dan Tab di Select2 (sejak v3.6.2)
+
+- Dropdown UoM, PCA, Category, dan Item Group (`master/item_code/form`, juga tema `_tabler`) tampil `KODE | Nama`
+  (`set[text][ | ]={ref}_code&set[text][]={ref}_name`, pemisah dikirim `%20%7C%20` = CONCAT yang dikutip PDO di
+  `getTabelByParams`). Kata dicari di kode ATAU nama (`search[{ref}_code][]` + `search[{ref}_name][]`, `initializeSelect2()`
+  menerima array kolom). `ItemCodeController::edit()` mengisi `{ref}_text` dengan format yang sama untuk opsi tersimpan.
+  Nilai `old()` sesudah validasi gagal kini ikut terpilih (dulu `Option(…, false, false)`: PCA/Category kosong lagi).
+- Dropdown **Pemilik Data** (`partials/master-owner`) memakai pemisah yang sama: `APP03 | MASTER DATA (bersama)`,
+  `MEB | Nama company`. Label pemilik gabungan (`MasterScope::ownerLabel()`, "APP03 · Semua company") tidak berubah.
+- `master::partials.select2-keyboard` (dimuat sekali per halaman, aman di-include berulang atau dari layout aplikasi):
+  Select2 4.0 bawaan hanya memfokuskan kotak saat Tab (kotak cari baru muncul sesudah klik/Enter/Spasi) dan Tab di kotak
+  cari yang terbuka hanya menutup lalu fokus kembali ke kotak yang sama. Kini Tab/Shift+Tab ke select2 langsung membuka
+  kotak cari; Tab di kotak cari menutup lalu pindah ke field berikut/sebelumnya, dan bila sudah mengetik kata, pilihan
+  yang disorot ikut dipilih (seperti Enter). Tanpa kata, nilai tidak berubah. Klik, Esc, dan Enter tetap bawaan.
+  Dipasang di form Item Code; form lain cukup `@include('master::partials.select2-keyboard')` di `@push('js')`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

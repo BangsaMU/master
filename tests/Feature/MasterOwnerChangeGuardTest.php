@@ -173,8 +173,8 @@ class MasterOwnerChangeGuardTest extends TestCase
         $this->assertStringContainsString('name="'.MasterScope::CONFIRM_OWNER_FIELD.'" value="0"', $admin);
         $this->assertStringContainsString('window.masterConfirmDialog', $admin);
         // pemilik lama yang tidak terdaftar tetap terpilih, bukan opsi pertama daftar
-        $this->assertMatchesRegularExpression('/<option value="APP77" selected>APP77 · \(tidak terdaftar di master_apps\)<\/option>/', $admin);
-        $this->assertMatchesRegularExpression('/<option value="650" selected>Company 650 · \(tidak terdaftar di master_company\)<\/option>/', $admin);
+        $this->assertMatchesRegularExpression('/<option value="APP77" selected>APP77 \| \(tidak terdaftar di master_apps\)<\/option>/', $admin);
+        $this->assertMatchesRegularExpression('/<option value="650" selected>Company 650 \| \(tidak terdaftar di master_company\)<\/option>/', $admin);
 
         config(['test.allowed_permissions' => ['update_category']]);
         $user = $render();
