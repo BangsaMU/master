@@ -69,7 +69,10 @@ aktivasi: [docs/annotation-launch-token.md](docs/annotation-launch-token.md).
   permission seragam per tabel (`update_item_code`, nama lama
   `update_item` tetap diterima).
 - **Edit di Master Data tanpa login ulang:** lewat launch token Ed25519 + delegasi izin dari aplikasi asal.
-- **Perintah:** `master:scope-upgrade`, `master:permissions`, `master:launch-key`, `master:scope-doctor` (cek, v3.1).
+- **Perintah:** `master:scope-upgrade`, `master:permissions`, `master:launch-key`, `master:scope-doctor` (cek, v3.1),
+  `master:schema-columns` (kolom DB master yang belum ada di tabel sinkron lokal, v3.3).
+- **Banner pengelola (v3.3):** `@include('master::partials.schema-notice')` di layout menampilkan tabel lokal yang
+  tertinggal beserta perintah `docker exec`/artisan perbaikannya untuk `MASTER_SCHEMA_NOTICE_PERMISSION`.
 - **Skrip setup sekali jalan (v3.1):** dari folder project di host, `vendor/bin/master-scope-setup [--dry-run]`
   mendeteksi container dan menjalankan semua langkah di atas (aplikasi yang masih v2: jalankan dari salinan paket).
 

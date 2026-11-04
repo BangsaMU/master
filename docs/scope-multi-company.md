@@ -51,6 +51,38 @@ php artisan master:scope-upgrade --table=master_location   # tabel global: + app
 - **Urutan:** jalankan di DB hub (master) dulu, baru di DB lokal tiap aplikasi klien. Sinkronisasi hanya menyalin
   kolom yang ada di kedua sisi.
 
+### Kolom lain yang ada di DB master (`master:schema-columns`, sejak v3.3)
+
+```bash
+php artisan master:schema-columns --dry-run                # klien: kolom DB master yang belum ada di tabel sinkron lokal
+php artisan master:schema-columns [--table=master_uom]     # tambahkan (NULL-able, tipe dari DB master, tanpa default/index)
+```
+
+Kolom pemilik `app_code`/`company_id` tidak ditambahkan di sini (pakai `master:scope-upgrade`). Di hub tidak berlaku.
+Tipe yang tidak dikenali dan kolom auto increment dilewati (ditulis di keluaran).
+
+### Banner pengelola aplikasi (`master::partials.schema-notice`, sejak v3.3)
+
+Pasang sekali di layout aplikasi (setelah login), mis. di atas konten:
+
+```blade
+@include('master::partials.schema-notice')
+```
+
+User dengan permission `MASTER_SCHEMA_NOTICE_PERMISSION` (default `is_admin`; SPB memakai `is_root`) melihat banner bila
+ada tabel yang perlu `master:scope-upgrade` (sama dengan `master:scope-doctor`) atau kolom DB master yang belum ada di
+tabel sinkron lokal. Banner berisi perintah siap salin: `docker exec -u <pemilik file artisan> -w <folder app>
+<container> php artisan ...` (container = `MASTER_DOCKER_CONTAINER` atau hostname container, hanya bila aplikasi
+berjalan di Docker), versi tanpa Docker, dan skrip setup. Hasil cek disimpan di cache 1 jam (`MasterSchemaStatus`) dan
+dikosongkan kedua perintah perbaikan, jadi banner hilang begitu perintahnya selesai. Gagal dicek (mis. DB master tidak
+terjangkau) = banner tidak tampil, halaman tidak ikut gagal.
+
+### Tombol Sync halaman master (sejak v3.3)
+
+Tombol Sync (`api/master-{tabel}`, juga webhook `api/sync-master` bertoken) kini hanya menyalin kolom yang ada di
+tabel lokal, seperti sinkron otomatis. Sebelumnya baris gagal "Unknown column" bila DB master punya kolom yang belum
+ada di lokal (mis. `company_id` sebelum `master:scope-upgrade` lokal), walau hasil keseluruhan tertulis sukses.
+
 ## Permission seragam
 
 - **Format:** `{read|create|update|delete}_{tabel tanpa master_}`, mis. `update_item_code`, `create_item_group`.

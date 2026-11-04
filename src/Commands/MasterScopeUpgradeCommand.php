@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Commands;
 
 use Bangsamu\Master\Services\MasterDataSyncService;
+use Bangsamu\Master\Services\MasterSchemaStatus;
 use Bangsamu\Master\Services\MasterSchemaUpgrader;
 use Bangsamu\Master\Services\MasterScope;
 use Bangsamu\Master\Support\MasterModules;
@@ -58,6 +59,7 @@ class MasterScopeUpgradeCommand extends Command
             MasterScope::flush();
             MasterSchemaUpgrader::flush();
             MasterDataSyncService::flushSchemaCache();
+            MasterSchemaStatus::flush();
         }
 
         return self::SUCCESS;

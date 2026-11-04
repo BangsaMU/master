@@ -97,7 +97,7 @@ class MasterController extends Controller
                 }
 
                 /* convert array master index ke key dengan id */
-                $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+                $data_array_map_master = $this->onlyLocalColumns(LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal')), $model_lokal);
 
                 if ($sync_update) {
                     $log = LibraryClayController::sync_update(compact('sync_update', 'tabel_lokal', 'data_array_map_master', 'data_array_map_lokal', 'log'));
@@ -145,7 +145,7 @@ class MasterController extends Controller
                     }
 
                     $master_array = $data_sync_master->toArray();
-                    $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+                    $data_array_map_master = $this->onlyLocalColumns(LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal')), $model_lokal);
 
                     $log = LibraryClayController::sync_update([
                         'sync_update' => $chunk,
@@ -170,7 +170,7 @@ class MasterController extends Controller
                         : $model_master::whereIn('id', $chunk)->get();
 
                     $master_array = $data_sync_master->toArray();
-                    $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+                    $data_array_map_master = $this->onlyLocalColumns(LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal')), $model_lokal);
 
                     $log = LibraryClayController::sync_insert([
                         'sync_insert' => $chunk,
@@ -197,6 +197,31 @@ class MasterController extends Controller
         }
 
         return LibraryClayController::setOutput($respon);
+    }
+
+    /**
+     * Baris dari DB master dibatasi ke kolom yang ada di tabel lokal (tanpa beda huruf besar/kecil), seperti
+     * MasterDataSyncService::syncTable. Dulu kolom yang hanya ada di master (mis. company_id sebelum master:scope-upgrade
+     * lokal) ikut di insert/update library-clay sehingga baris itu gagal "Unknown column".
+     *
+     * @param  array<int|string, array<string, mixed>>  $rows
+     * @return array<int|string, array<string, mixed>>
+     */
+    protected function onlyLocalColumns(array $rows, string $modelLokal): array
+    {
+        if ($rows === [] || ! is_subclass_of($modelLokal, Model::class)) {
+            return $rows;
+        }
+
+        $columns = array_flip(array_map('strtolower', Schema::getColumnListing((new $modelLokal)->getTable())));
+        if ($columns === []) {
+            return $rows;
+        }
+
+        return array_map(
+            fn ($row) => is_array($row) ? array_filter($row, fn ($key) => isset($columns[strtolower((string) $key)]), ARRAY_FILTER_USE_KEY) : $row,
+            $rows
+        );
     }
 
     public function getTabel(Request $request, $tabel, $id = null)
@@ -330,7 +355,7 @@ class MasterController extends Controller
         }
 
         /* convert array master index ke key dengan id */
-        $data_array_map_master = LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal'));
+        $data_array_map_master = $this->onlyLocalColumns(LibraryClayController::arrayIndexToId(compact('master_array', 'key_master', 'key_lokal')), 'Bangsamu\\Master\\Models\\'.$tabel_lokal);
         // dd($master_array, $key_master, $key_lokal, 1, $data, $tabel, $validate_master, $validate_tabel, $validate_rows, $validate_id);
 
         if ($sync_update) {

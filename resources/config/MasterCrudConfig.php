@@ -37,6 +37,12 @@ return [
     // lokalnya: salinan lama dengan index unik global akan saling menimpa baris berkode sama saat sinkron (upsert).
     'UNIQUE_PER_OWNER' => array_values(array_filter(array_map('trim', explode(',', (string) env('MASTER_UNIQUE_PER_OWNER', ''))))),
 
+    // --- banner struktur tabel master lokal (partial master::partials.schema-notice, Services\MasterSchemaStatus) ---
+    // permission yang melihat banner + perintah perbaikannya (pengelola aplikasi), mis. is_root di aplikasi yang punya
+    'SCHEMA_NOTICE_PERMISSION' => env('MASTER_SCHEMA_NOTICE_PERMISSION', 'is_admin'),
+    // nama container PHP di perintah docker exec banner; kosong = hostname container (id pendek, sama dengan docker ps)
+    'DOCKER_CONTAINER' => env('MASTER_DOCKER_CONTAINER'),
+
     // --- launch token "Edit di Master Data" (login otomatis + delegasi izin), lihat Services\MasterLaunchToken ---
     // klien: kunci privat Ed25519 base64 (php artisan master:launch-key); kosong = tombol memakai link lama tanpa token
     'LAUNCH_PRIVATE_KEY' => env('MASTER_LAUNCH_PRIVATE_KEY'),

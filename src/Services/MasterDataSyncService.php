@@ -348,6 +348,7 @@ class MasterDataSyncService
      */
     public static function flushSchemaCache(): void
     {
+        self::$masterColumnCache = [];
         foreach (['allowed_tables', 'dashboard_settings'] as $name) {
             try {
                 Cache::forget(self::schemaCacheKey($name));
