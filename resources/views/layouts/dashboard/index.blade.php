@@ -325,6 +325,9 @@
                                 </a>
                             @endforeach
                         @endisset
+                        @if (! empty($data['datatable']['advanced_filter']))
+                            @include('master::partials.advanced-filter.toolbar')
+                        @endif
 
                         <table id="{{ $data['page']['slug'] }}_tabel" class="table table-hover table-bordered table-striped"
                             style="width:100%">
@@ -391,6 +394,14 @@
         @csrf
     </form>
 
+
+    {{-- Filter Lanjutan (opt-in $data['datatable']['advanced_filter']); belum untuk tema _meridian (tanpa modal Bootstrap) --}}
+    @if (! empty($data['datatable']['advanced_filter']) && config('app.themes') != '_meridian')
+        @include('master::partials.advanced-filter.modal', [
+            'config' => $data['datatable']['advanced_filter'],
+            'tableSelector' => '#'.$data['page']['slug'].'_tabel',
+        ])
+    @endif
 
     <script>
         if (window.jQuery && $.fn && $.fn.dataTable) {
@@ -556,19 +567,32 @@
                     ajax: {
                         'type': 'GET',
                         "url": "{!! $data['page']['list'] !!}",
-                        'data': {
-                            _token: "{{ csrf_token() }}",
-                            sheet_name: "{{ $data['page']['sheet_name'] }}",
-                            serverSide: "true",
-                            @isset($search)
-                                @foreach ($search as $keySearch => $valSearch)
-                                    "{{ $keySearch }}": "{{ $valSearch }}",
-                                @endforeach
-                            @endisset
+                        'data': function(d) {
+                            $.extend(d, {
+                                _token: "{{ csrf_token() }}",
+                                sheet_name: "{{ $data['page']['sheet_name'] }}",
+                                serverSide: "true",
+                                @isset($search)
+                                    @foreach ($search as $keySearch => $valSearch)
+                                        "{{ $keySearch }}": "{{ $valSearch }}",
+                                    @endforeach
+                                @endisset
+                            });
+                            // filter lanjutan terpasang (modal Filter Lanjutan) ikut setiap request
+                            var advancedFilter = window.masterAdvancedFilter ? window.masterAdvancedFilter.payload() : null;
+                            if (advancedFilter) {
+                                d.advanced_filter = advancedFilter;
+                            }
                         },
                         "error": function(xhr, error, thrown) {
                             if (xhr && (xhr.status === 401 || xhr.status === 419)) {
                                 window.handleSessionExpired();
+                                return;
+                            }
+                            // filter lanjutan ditolak server (bentuk salah / kolom tak dikenal): dilepas, daftar dimuat ulang
+                            if (xhr && xhr.status === 422 && window.masterAdvancedFilter) {
+                                $(tableName + '_processing').hide();
+                                window.masterAdvancedFilter.rejected(xhr.responseJSON && xhr.responseJSON.message);
                             }
                         }
                     },

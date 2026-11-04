@@ -24,7 +24,9 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
+use Bangsamu\Master\Support\AdvancedFilter;
 use Bangsamu\Master\Support\DataTableCell;
+use InvalidArgumentException;
 
 class ItemCodeController extends Controller
 {
@@ -83,6 +85,23 @@ class ItemCodeController extends Controller
     /** batas kata per kotak cari (tiap kata = satu LIKE) */
     protected const SEARCH_MAX_TERMS = 5;
 
+    /** label kolom di modal Filter Lanjutan (kunci = SEARCH_COLUMNS) */
+    protected const ADVANCED_FILTER_LABELS = [
+        'item_code' => 'Item Code',
+        'description' => 'Description',
+        'uom' => 'Unit (UoM)',
+        'pca' => 'PCA',
+        'category' => 'Category',
+        'item_group' => 'Item Group',
+        'attributes' => 'Attributes',
+    ];
+
+    /** kolom referensi yang diberi saran nilai di modal Filter Lanjutan (nama yang dipakai item di daftar ini) */
+    protected const ADVANCED_FILTER_SUGGEST = ['uom', 'pca', 'category', 'item_group'];
+
+    /** batas saran nilai per kolom referensi */
+    protected const ADVANCED_FILTER_SUGGEST_LIMIT = 500;
+
     /**
      * Create a new controller instance.
      *
@@ -122,6 +141,9 @@ class ItemCodeController extends Controller
         $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
+        if ($request->ajax() && $request->boolean('advanced_filter_options')) {
+            return $this->advancedFilterOptions();
+        }
         if ($request->ajax()) {
             return self::dataJson($request);
         }
@@ -137,6 +159,13 @@ class ItemCodeController extends Controller
 
         // baris input cari per kolom di bawah judul kolom (kolom = 'filter' true dari dataJson, SEARCH_COLUMNS)
         $data['datatable']['column_search'] = true;
+
+        // tombol + modal Filter Lanjutan: grup kondisi bertingkat (maks 3), AND/OR, dikirim sebagai advanced_filter (JSON)
+        $data['datatable']['advanced_filter'] = AdvancedFilter::viewConfig(
+            self::ADVANCED_FILTER_LABELS,
+            self::ADVANCED_FILTER_SUGGEST,
+            route('master.item-code.index', ['advanced_filter_options' => 1])
+        );
 
         if (app(MasterAccess::class)->can('item-code', 'read')) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -214,18 +243,23 @@ class ItemCodeController extends Controller
 
         $columnSearch = $this->columnSearchTerms($request);
         $globalSearch = $this->searchTerms($request->input('search.value'));
+        try {
+            $advanced = AdvancedFilter::fromRequest($request->input('advanced_filter'), self::SEARCH_COLUMNS);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         // Join referensi lewat PRIMARY = tepat satu baris per item, jadi tanpa GROUP BY (dulu GROUP BY mic.id memaksa
         // temporary table + filesort) dan jumlah hasil cukup COUNT(*) (dulu semua baris hasil diambil ke PHP lalu dihitung).
         $totalFiltered = $totalData;
-        if ($columnSearch !== [] || $globalSearch !== []) {
+        if ($columnSearch !== [] || $globalSearch !== [] || $advanced !== null) {
             $totalFiltered = $this->listQuery($trash, $settings)
-                ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch))
+                ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch, $advanced))
                 ->count();
         }
 
         $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index)
-            ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch))
+            ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch, $advanced))
             ->orderBy($order, $dir)
             ->when($order !== 'mic.id', fn ($query) => $query->orderBy('mic.id', $dir)) // urutan stabil antar halaman
             ->offset($start)
@@ -320,14 +354,44 @@ class ItemCodeController extends Controller
     }
 
     /**
+     * Saran nilai kolom referensi untuk modal Filter Lanjutan: nama UoM/PCA/Category/Item Group yang dipakai item di daftar
+     * ini (filter data terhapus + setting aplikasi sama dengan daftar), urut abjad, maks ADVANCED_FILTER_SUGGEST_LIMIT.
+     */
+    private function advancedFilterOptions(): \Illuminate\Http\JsonResponse
+    {
+        $trash = app(MasterTrash::class);
+        $settings = $this->getSettingsForTable('master_item_code');
+
+        $options = [];
+        foreach (self::ADVANCED_FILTER_SUGGEST as $field) {
+            $expression = self::SEARCH_COLUMNS[$field];
+            $options[$field] = $this->listQuery($trash, $settings)
+                ->select(DB::raw($expression.' AS value'))
+                ->whereNotNull(DB::raw($expression))
+                ->where(DB::raw($expression), '<>', '')
+                ->distinct()
+                ->orderBy('value')
+                ->limit(self::ADVANCED_FILTER_SUGGEST_LIMIT)
+                ->pluck('value')
+                ->map(fn ($value) => (string) $value)
+                ->all();
+        }
+
+        return response()->json(['options' => $options]);
+    }
+
+    /**
      * Cari per kolom: setiap kata wajib ada di kolom itu, antar kolom AND.
      * Cari global: setiap kata wajib ada di salah satu kolom SEARCH_COLUMNS (termasuk nama UoM/PCA/Category/Item Group).
+     * Filter lanjutan (modal): satu grup berkurung, AND dengan pencarian lain.
      *
      * @param  array<string, list<string>>  $columnSearch
      * @param  list<string>  $globalSearch
      */
-    private function applySearch($query, array $columnSearch, array $globalSearch): void
+    private function applySearch($query, array $columnSearch, array $globalSearch, ?AdvancedFilter $advanced = null): void
     {
+        $advanced?->apply($query);
+
         foreach ($columnSearch as $column => $terms) {
             foreach ($terms as $term) {
                 $this->whereContains($query, self::SEARCH_COLUMNS[$column], $term);

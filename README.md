@@ -250,6 +250,37 @@ jadi **tamu** bisa menjalankan `?update=1`, `?install=1`, `?require=vendor/paket
 MASTER_MAINTENANCE_ABILITY=is_admin
 ```
 
+## Filter Lanjutan di Daftar Master (sejak v3.7.0, Item Code)
+
+Tombol **Filter Lanjutan** di atas daftar `master/item-code` membuka modal pembuat kondisi: grup utama (tingkat 1) berisi
+kondisi dan subgrup, subgrup bisa berisi subgrup lagi sampai **tingkat 3**. Tiap grup memilih **AND** (semua cocok, bawaan)
+atau **OR** (cukup salah satu). Contoh: Description mengandung `Excavator` AND (Description mengandung `[Remark]` OR
+Description mengandung `[Brand]`) AND Category sama dengan `EQUIPMENT`.
+
+- **Operator**: mengandung, tidak mengandung, sama dengan, tidak sama dengan, diawali, diakhiri, kosong, tidak kosong.
+  Nilai dicari utuh (frasa, termasuk spasi dan koma), tanpa beda huruf besar/kecil (`LIKE ... ESCAPE '!'`, juga untuk
+  "sama dengan"; `%` dan `_` = huruf biasa). "Tidak ..." dan "kosong" ikut memasukkan item tanpa referensi (NULL).
+  Kondisi tanpa nilai dilewati; filter yang semuanya kosong = tanpa filter.
+- **Request**: parameter `advanced_filter` (JSON `{"logic":"and","rules":[{"field","op","value"} | {grup}]}`) ikut setiap
+  request DataTables (`ajax.data` layout memanggil `window.masterAdvancedFilter.payload()`), digabung AND dengan cari per
+  kolom dan cari global. Grup utama selalu dibungkus kurung, jadi OR tidak lepas dari filter data terhapus / scope.
+- **Server** (`Bangsamu\Master\Support\AdvancedFilter`): field hanya dari whitelist controller (Item Code:
+  `SEARCH_COLUMNS`), nilai lewat binding. Ditolak **422** `{"message": ...}`: lebih dari 3 tingkat, lebih dari 20 kondisi,
+  nilai lebih dari 100 karakter, field/operator/logika tak dikenal, bukan JSON. Layout melepas filter dan memuat ulang
+  daftar dengan pesan merah (dibatasi 20 kondisi karena filter dikirim lewat query string GET).
+- **Saran nilai**: kolom UoM, PCA, Category, Item Group memakai `<datalist>` dari `GET master/item-code?advanced_filter_options=1`
+  (AJAX, dimuat saat modal pertama dibuka): nama referensi yang dipakai item di daftar itu (filter data terhapus +
+  setting aplikasi sama dengan daftar), maks 500 per kolom.
+- **Tersimpan per tab browser** (`sessionStorage`, kunci `master-advanced-filter:{path}`): filter tetap terpasang sesudah
+  membuka View/Update lalu kembali ke daftar; tab baru mulai tanpa filter. Badge jumlah kondisi + ringkasan kondisi
+  tampil di atas tabel, tombol **Hapus Filter** melepasnya.
+- **Layout** `layouts.dashboard.index` (opt-in): controller mengisi
+  `$data['datatable']['advanced_filter'] = AdvancedFilter::viewConfig($labels, $suggest, $optionsUrl)` di `index()` lalu
+  memanggil `AdvancedFilter::fromRequest($request->input('advanced_filter'), $whitelist)` dan `->apply($query)` di
+  `dataJson()`. Partial `master::partials.advanced-filter.toolbar` dan `.modal` memakai kelas Bootstrap 4 + 5 (modal lewat
+  `bootstrap.Modal` BS5, `$.fn.modal` BS4, atau cadangan tanpa Bootstrap). Belum untuk tema `_meridian`.
+- **Belum**: Export Item Code masih mengekspor semua data (tidak ikut cari kolom maupun filter lanjutan).
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
