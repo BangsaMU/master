@@ -107,6 +107,10 @@ php artisan master:launch-key --register=APP32 --modules=master_item_code,master
    - `aud`, masa berlaku (`LAUNCH_TTL`, default 120 detik), dan jti sekali pakai;
    - user aktif dan terdaftar di aplikasi asal (`list_apps_id`);
    - allowlist modul.
+   Bila modul halaman tujuan (mis. Department) tidak ikut didelegasikan, hub menolak 403 dengan alasannya (belum ada
+   di allowlist aplikasi, user tidak punya izin di aplikasi asal, atau tabel global) tanpa me-login-kan user. Sebelum
+   v3.2.3 user dialihkan tanpa pesan ke modul delegasi pertama. Allowlist bisa diubah admin hub lewat perintah di atas
+   atau Setting → Dashboard Settings grup `master_launch` (JSON daftar tabel; nama tabel tidak dicek di form itu).
 4. Hub me-login-kan user dan menyimpan session `master_delegasi`, lalu membuka halaman edit.
 5. Daftar master di hub dibatasi ke data bersama + milik aplikasi/company asal. Banner
    `@include('master::partials.delegation-banner')` menampilkan scope dan tombol Kembali.

@@ -196,6 +196,33 @@ class MasterLaunchTokenTest extends TestCase
         $this->assertNull(session(MasterScope::SESSION_KEY)['back']);
     }
 
+    /** dulu modul tujuan di luar delegasi dialihkan diam-diam ke modul delegasi pertama (mis. selalu /master/category) */
+    public function test_hub_menolak_modul_tujuan_yang_tidak_didelegasikan_dengan_alasan(): void
+    {
+        $mods = ['master_category' => ['update'], 'master_uom' => ['update']];
+        $notAllowlisted = $this->issue(['mods' => $mods, 'next' => '/master/category/5/edit']);
+        $notPermitted = $this->issue(['mods' => ['master_uom' => ['update']], 'next' => '/master/category/create']);
+        $global = $this->issue(['next' => '/master/company/3/edit']);
+        $allowed = $this->issue(['mods' => $mods, 'next' => '/master/uom/7/edit']);
+        $this->asHub();
+        app(MasterLaunchToken::class)->setAllowedTables('APP27', ['master_uom']);
+
+        $this->post('/master-launch', ['token' => $notAllowlisted])->assertForbidden()
+            ->assertSee('Modul Category belum diizinkan diubah dari SPB V2 (APP27)')
+            ->assertSee('master_category ke daftar modul yang boleh didelegasikan APP27');
+        $this->assertFalse(Auth::check());
+        $this->assertNull(session(MasterScope::SESSION_KEY));
+
+        $this->post('/master-launch', ['token' => $notPermitted])->assertForbidden()
+            ->assertSee('Akun Anda tidak punya izin mengubah data Category di SPB V2 (APP27).');
+        $this->post('/master-launch', ['token' => $global])->assertForbidden()
+            ->assertSee('Data Company adalah data global Master Data');
+        $this->assertFalse(Auth::check());
+
+        $this->post('/master-launch', ['token' => $allowed])->assertRedirect('/master/uom/7/edit');
+        $this->assertSame(['master_uom' => ['update']], session(MasterScope::SESSION_KEY)['mods']);
+    }
+
     public function test_klien_tombol_edit_mengirim_token_ke_hub(): void
     {
         config(['test.allowed_permissions' => ['update_category', 'create_category']]);

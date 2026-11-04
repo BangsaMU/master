@@ -93,11 +93,13 @@ class MasterLaunchController extends Controller
             abort(404);
         }
 
+        $denied = null;
         try {
             $payload = $this->tokens->verify((string) $request->input('token'));
             [$user, $app] = $this->resolveUserAndApp($payload);
             $mods = $this->allowedModules((string) $payload['iss'], (array) ($payload['mods'] ?? []));
-            if ($mods === []) {
+            $denied = $this->requestedModuleDenial($payload, $mods, $app);
+            if ($denied === null && $mods === []) {
                 throw new RuntimeException('tidak ada modul master yang boleh didelegasikan');
             }
         } catch (RuntimeException $e) {
@@ -108,6 +110,19 @@ class MasterLaunchController extends Controller
             ]);
 
             abort(403, 'Link edit master data tidak valid atau sudah kedaluwarsa. Buka lagi dari aplikasi asal. ('.$e->getMessage().')');
+        }
+
+        // modul tujuan sah tetapi tidak didelegasikan: tolak dengan alasan, jangan dialihkan diam-diam ke modul lain
+        if ($denied !== null) {
+            Log::warning('master-launch ditolak: modul tujuan tidak didelegasikan', [
+                'ip' => $request->ip(),
+                'iss' => $payload['iss'],
+                'sub' => $payload['sub'],
+                'next' => $payload['next'] ?? null,
+                'mods' => array_keys($mods),
+            ]);
+
+            abort(403, $denied);
         }
 
         if (Auth::check() && strcasecmp((string) Auth::user()->email, (string) $user->email) !== 0) {
@@ -205,18 +220,67 @@ class MasterLaunchController extends Controller
     }
 
     /**
+     * Halaman tujuan hanya path modul master yang didelegasikan. Path lain (URL luar, path diubah) jatuh ke modul
+     * delegasi pertama; modul sah yang tidak didelegasikan sudah ditolak lebih dulu oleh requestedModuleDenial().
+     *
      * @param  array<string, list<string>>  $mods
      */
     protected function safeNext(string $next, array $mods): string
     {
-        if (preg_match('#^/master/([a-z-]+)(?:/create|/[0-9]+/edit)?$#', $next, $m)
-            && MasterModules::exists($m[1]) && isset($mods[MasterModules::table($m[1])])) {
+        $slug = $this->requestedSlug($next);
+        if ($slug !== null && isset($mods[MasterModules::table($slug)])) {
             return $next;
         }
 
         $slug = MasterModules::slugForTable((string) array_key_first($mods));
 
         return '/master/'.$slug;
+    }
+
+    /** slug modul master pada path tujuan token (/master/{slug}, /create, /{id}/edit), null bila bukan path modul */
+    protected function requestedSlug(string $next): ?string
+    {
+        if (preg_match('#^/master/([a-z-]+)(?:/create|/[0-9]+/edit)?$#', $next, $m) && MasterModules::exists($m[1])) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Alasan penolakan untuk user bila halaman tujuan token adalah modul master yang sah tetapi tidak ikut
+     * didelegasikan (dulu user dialihkan tanpa pesan ke modul delegasi pertama). Null bila modulnya didelegasikan atau
+     * tujuan bukan path modul.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, list<string>>  $mods
+     */
+    protected function requestedModuleDenial(array $payload, array $mods, object $app): ?string
+    {
+        $slug = $this->requestedSlug((string) ($payload['next'] ?? ''));
+        if ($slug === null) {
+            return null;
+        }
+
+        $table = MasterModules::table($slug);
+        if (isset($mods[$table])) {
+            return null;
+        }
+
+        $appCode = (string) $payload['iss'];
+        $module = ucwords(str_replace('-', ' ', $slug));
+        $origin = filled($app->name ?? null) ? $app->name.' ('.$appCode.')' : $appCode;
+        $claimed = is_array($payload['mods'] ?? null) ? (array) ($payload['mods'][$table] ?? []) : [];
+
+        if (! $this->scope->isScoped($table)) {
+            return "Data {$module} adalah data global Master Data dan tidak dapat diubah dari {$origin}. Hubungi tim Master Data.";
+        }
+        if (array_intersect(['create', 'update', 'delete'], $claimed) === []) {
+            return "Akun Anda tidak punya izin mengubah data {$module} di {$origin}.";
+        }
+
+        return "Modul {$module} belum diizinkan diubah dari {$origin}. Minta admin Master Data menambahkan {$table} ke daftar "
+            ."modul yang boleh didelegasikan {$appCode} (Setting → Dashboard Settings → master_launch).";
     }
 
     /** URL kembali hanya ke host aplikasi asal (master_apps.app_url) */
