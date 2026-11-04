@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
+use Bangsamu\Master\Support\DataTableCell;
 
 class UomController extends Controller
 {
@@ -256,7 +257,7 @@ class UomController extends Controller
                     $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
-                    $nestedData[$c_filed] = @$row->$c_filed;
+                    $nestedData[$c_filed] = DataTableCell::text($row->$c_filed ?? null); // escape: sel DataTables = HTML (stored XSS)
                 }
                 $nestedData['No'] = $DT_RowIndex;
 

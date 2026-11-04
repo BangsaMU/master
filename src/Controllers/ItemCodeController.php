@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
+use Bangsamu\Master\Support\DataTableCell;
 
 class ItemCodeController extends Controller
 {
@@ -264,7 +265,8 @@ class ItemCodeController extends Controller
                     $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
-                    $nestedData[$c_filed] = @$row->$c_filed;
+                    // DataTables memasang sel sebagai HTML: teks wajib di-escape (stored XSS)
+                    $nestedData[$c_filed] = DataTableCell::text($row->$c_filed ?? null);
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
@@ -277,15 +279,8 @@ class ItemCodeController extends Controller
                     $btn .= '<a href="'.route('master.item-code.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $attributesArray = json_decode($nestedData['attributes'], true);
-
-                $nestedData['attributes'] = is_array($attributesArray)
-                    ? implode('<br>', array_map(function ($key, $value) {
-                        $formattedKey = ucfirst(str_replace('_', ' ', $key));
-
-                        return "$formattedKey: $value";
-                    }, array_keys($attributesArray), $attributesArray))
-                    : '';
+                // dari nilai mentah (bukan $nestedData yang sudah di-escape): "Key: value" per baris, key/value di-escape
+                $nestedData['attributes'] = DataTableCell::keyValueLines($row->attributes ?? null);
 
                 $btn .= MasterEditLink::rowButton('item-code', $row->No, $row);
                 $nestedData['action'] = $trash->actions('item-code', $row, $btn);
@@ -706,7 +701,7 @@ class ItemCodeController extends Controller
                     /* remove alias */
                     $column_field = explode(' AS ', $valC);
                     $c_filed = $column_field[1] ?? $column_field[0];
-                    $nestedData[$c_filed] = @$row->$c_filed;
+                    $nestedData[$c_filed] = DataTableCell::text($row->$c_filed ?? null); // escape: sel DataTables = HTML
                 }
                 $nestedData['item_name'] = 'WELD NECK FLANGE  WN RJ #1500 SCH/WT XXS A 105 ASME B16.5';
 
@@ -721,11 +716,7 @@ class ItemCodeController extends Controller
                     $btn .= '<a href="'.route('master.item-code.destroy', $row->No).'" onclick="notificationBeforeDelete(event,this)" class="btn btn-danger btn-sm">Delete</a>';
                 }
 
-                $nestedData['attributes'] = $nestedData['attributes']
-                    ? implode('<br>', array_map(function ($key, $value) {
-                        return "$key: $value";
-                    }, array_keys(json_decode($nestedData['attributes'], true)), json_decode($nestedData['attributes'], true)))
-                    : '';
+                $nestedData['attributes'] = DataTableCell::keyValueLines($row->attributes ?? null);
 
                 $btn .= MasterEditLink::rowButton('item-code', $row->No, $row);
                 $nestedData['action'] = @$btn;

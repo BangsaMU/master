@@ -202,6 +202,21 @@ Category, Item Group, Attributes). Request dikirim 400 ms sesudah berhenti menge
   diambil ke PHP setiap ganti halaman). Urutan dicocokkan lewat nama kolom (dulu indeks `$view_tabel` yang berbeda
   panjang, urut kolom Attributes = error SQL), dengan `mic.id` sebagai pengurut kedua supaya halaman stabil.
 
+## Daftar Master: Nilai Sel Di-escape di Server (sejak v3.6.1)
+
+Layout `layouts.dashboard.index` (DataTables 1.10) memasang data kolom dari `dataJson()` sebagai HTML, tanpa `render`
+text. Dulu nilai dikirim mentah, jadi nama berisi `<img src=x onerror=...>` (lewat form, import Excel, atau sinkron dari
+aplikasi lain) dieksekusi di browser setiap pembuka daftar (stored XSS).
+
+- Semua `dataJson()` controller master (Item Code, UoM, Category, PCA, Item Group, Project, Project Detail, Company,
+  Vendor, Location, Department, Employee, Priority, CRUD tabel generik) mengisi sel lewat
+  `Bangsamu\Master\Support\DataTableCell::text()` = `e()` seperti `{{ }}` Blade; angka dan `null` dibiarkan.
+- HTML yang sengaja dikirim hanya buatan server: kolom `action` (tombol) dan pemisah `<br>` kolom Attributes Item Code
+  (`DataTableCell::keyValueLines()`: tiap key/value di-escape; value bersarang ditulis sebagai JSON, dulu daftar 500).
+- Pemakai JSON yang memasang nilai sebagai teks (bukan HTML) akan melihat entitas (`&amp;`); layout paket tidak.
+- Controller/daftar baru: jangan memasang `$row->kolom` langsung ke data DataTables. `MasterDataTableEscapeTest` menolak
+  pola `$nestedData[$c_filed] = @$row->$c_filed;` di `src/Controllers`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

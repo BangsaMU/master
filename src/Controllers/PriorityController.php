@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Bangsamu\Master\Support\DataTableCell;
 
 class PriorityController extends Controller
 {
@@ -240,7 +241,7 @@ class PriorityController extends Controller
                     $colom_filed = explode(' AS ', $valC);
                     $c_filed = $colom_filed[1] ?? $colom_filed[0];
 
-                    $nestedData[$c_filed] = @$row->$c_filed;
+                    $nestedData[$c_filed] = DataTableCell::text($row->$c_filed ?? null); // escape: sel DataTables = HTML (stored XSS)
                 }
                 $nestedData['No'] = $DT_RowIndex;
 
