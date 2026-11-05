@@ -274,6 +274,11 @@ Description mengandung `[Brand]`) AND Category sama dengan `EQUIPMENT`.
 - **Tersimpan per tab browser** (`sessionStorage`, kunci `master-advanced-filter:{path}`): filter tetap terpasang sesudah
   membuka View/Update lalu kembali ke daftar; tab baru mulai tanpa filter. Badge jumlah kondisi + ringkasan kondisi
   tampil di atas tabel, tombol **Hapus Filter** melepasnya.
+- **Stabilo hasil** (sejak v3.8.1): sesudah setiap draw DataTables, teks sel yang cocok dengan kondisi mengandung / sama
+  dengan / diawali / diakhiri dibungkus `<mark class="maf-hl">` kuning transparan, nilai kondisi itu di ringkasan ikut
+  distabilo. Kolom dicocokkan lewat `data` kolom DataTables = nama field filter; pencocokan tanpa beda huruf besar/kecil,
+  rentang yang bertumpuk/bersambung digabung. Hanya simpul teks yang dipecah (tanpa `innerHTML`); kondisi "tidak ..." dan
+  kosong tidak ditandai. Warna: `mark.maf-hl` di partial modal.
 - **Layout** `layouts.dashboard.index` (opt-in): controller mengisi
   `$data['datatable']['advanced_filter'] = AdvancedFilter::viewConfig($labels, $suggest, $optionsUrl)` di `index()` lalu
   memanggil `AdvancedFilter::fromRequest($request->input('advanced_filter'), $whitelist)` dan `->apply($query)` di
