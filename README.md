@@ -181,6 +181,9 @@ index unik DB). Dulu form hanya menampilkan *The project code has already been t
   `MasterModules::abilityForRouteAction('restore')` = `delete`, untuk middleware izin aksi tulis di app.
 - Layout `layouts.dashboard.index` menyediakan `#restore-form` dan `notificationBeforeRestore()` (SweetAlert, fallback
   `confirm()`). App yang memakai layout daftar sendiri perlu menyalin keduanya.
+- Butuh `bangsamu/library-clay` ^2.3 (`Loggable::shouldLogActivity()`, `ActivityLog::actorName()`, opt-in log console
+  `libraryclay.activity_log.console`), wajib di `composer.json` sejak v3.8.2. Dengan v2.2 ke bawah aksi `restored` tidak
+  tercatat (dilewati diam-diam) dan log dari console tidak pernah ditulis, sehingga test Restore/pindah pemilik merah.
 
 ## Cari per Kolom di Daftar Master (sejak v3.6.0, Item Code)
 

@@ -4,7 +4,7 @@
     "type": "library",
     "license": "MIT",
     "require": {
-        "bangsamu/library-clay": "*",
+        "bangsamu/library-clay": "^2.3",
         "maatwebsite/excel": "*",
         "jenssegers/agent": "*"
     },
