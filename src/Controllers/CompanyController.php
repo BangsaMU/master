@@ -18,7 +18,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Bangsamu\Master\Services\MasterEditLink;
+use Bangsamu\Master\Support\CompanyTemplate;
 use Bangsamu\Master\Support\DataTableCell;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\ValidationException;
 
 class CompanyController extends Controller
 {
@@ -478,12 +481,24 @@ class CompanyController extends Controller
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
     }
 
+    /**
+     * Simpan template header + upload logo header PDF (Motto/ISO) per App Code Key. Hanya di aplikasi Master Data
+     * (CompanyTemplate::editableHere); aplikasi lain menerima hasilnya lewat sync master_company.
+     */
     public function updateTemplateJson(Request $request, $id)
     {
+        abort_unless(CompanyTemplate::editableHere(), 403, 'Template company dikelola di aplikasi Master Data; ubah di sana.');
+
         $company = Company::findOrFail($id);
 
         $request->validate([
             'template_json' => 'required|json',
+            'logo_pdf_key' => 'nullable|string|max:20',
+            'logo_pdf_file' => 'nullable|array',
+            'logo_pdf_file.*' => 'image|mimes:png,jpg,jpeg|max:2048',
+        ], [], [
+            'logo_pdf_file.logo_2' => CompanyTemplate::LOGO_FIELDS['logo_2'],
+            'logo_pdf_file.iso' => CompanyTemplate::LOGO_FIELDS['iso'],
         ]);
 
         $templateJson = $request->input('template_json');
@@ -508,6 +523,8 @@ class CompanyController extends Controller
             $finalData = $newData;
         }
 
+        $finalData = $this->applyTemplateLogos($request, CompanyTemplate::sanitizeLogos($finalData), $isAdmin, $appCode);
+
         $company->template_json = json_encode($finalData);
         $company->save();
 
@@ -522,6 +539,70 @@ class CompanyController extends Controller
         }
 
         return redirect()->back()->with('success_message', 'Template JSON updated successfully');
+    }
+
+    /**
+     * Upload gambar header PDF (logo_pdf_file[logo_2|iso]) untuk App Code Key logo_pdf_key: file ke master_gallery,
+     * URL-nya ke template_json[key].logo_pdf. Non-admin hanya untuk key aplikasi ini (aturan sama dengan key template).
+     *
+     * @param  array<string, mixed>  $template
+     * @return array<string, mixed>
+     */
+    private function applyTemplateLogos(Request $request, array $template, bool $isAdmin, ?string $appCode): array
+    {
+        $files = array_intersect_key((array) $request->file('logo_pdf_file', []), CompanyTemplate::LOGO_FIELDS);
+        if ($files === []) {
+            return $template;
+        }
+
+        $key = trim((string) $request->input('logo_pdf_key'));
+        if ($key === '' || ! is_array($template[$key] ?? null) || (! $isAdmin && $key !== $appCode)) {
+            throw ValidationException::withMessages(['logo_pdf_key' => 'App Code Key untuk logo tidak valid; pilih key lalu upload ulang.']);
+        }
+
+        $logos = is_array($template[$key][CompanyTemplate::LOGO_KEY] ?? null) ? $template[$key][CompanyTemplate::LOGO_KEY] : [];
+        foreach ($files as $field => $file) {
+            if ($file instanceof UploadedFile) {
+                $logos[$field] = $this->storeTemplateLogo($file);
+            }
+        }
+        $template[$key][CompanyTemplate::LOGO_KEY] = $logos;
+
+        return $template;
+    }
+
+    /** simpan satu gambar header PDF ke disk master + master_gallery (pola sama dengan Company Logo), kembalikan URL-nya */
+    private function storeTemplateLogo(UploadedFile $file): string
+    {
+        $disk = config('app.storage_disk_master');
+        $extension = strtolower($file->extension() ?: $file->getClientOriginalExtension());
+        $path = 'company/'.$extension;
+
+        $gallery = Gallery::create([
+            'user_id' => auth()->id(),
+            'caption' => $file->getClientOriginalName(),
+            'path' => $path,
+            'size' => $file->getSize(),
+            'header_type' => $file->getMimeType(),
+            'file_type' => $extension,
+        ]);
+
+        $filename = $gallery->id.'-'.(Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'logo').'.'.$extension;
+        $stored = Storage::disk($disk)->putFileAs($path, $file, $filename);
+        if (! $stored || ! Storage::disk($disk)->exists($stored)) {
+            $gallery->forceDelete();
+            Log::error('user: '.auth()->id().' url: '.url()->current().' message: Upload logo template gagal json:'.json_encode($stored));
+            abort(500, 'Upload logo gagal atau file tidak ditemukan.');
+        }
+
+        // aplikasi penyalin mengambil gambar lewat HTTP: URL disk relatif dijadikan absolut ke aplikasi Master Data
+        $url = Storage::disk($disk)->url($path.'/'.$filename);
+        if (! CompanyTemplate::isHttpUrl($url)) {
+            $url = url($url);
+        }
+        $gallery->update(['filename' => $filename, 'url' => $url]);
+
+        return $url;
     }
 
     public function show($id)
@@ -540,7 +621,8 @@ class CompanyController extends Controller
         $data['page']['slug'] = $sheet_slug;
         $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
-        $data['page']['readonly'] = $this->readonly;
+        // MASTER_DIRECT_EDIT=false: data company hasil sync hub, ubahnya di aplikasi Master Data (halaman edit = hanya baca)
+        $data['page']['readonly'] = $this->readonly || ! config('MasterCrudConfig.MASTER_DIRECT_EDIT');
         $param = DB::table('master_'.$this->sheet_slug.' as tbl1')
             ->leftJoin('master_gallery as tbl2', 'tbl2.id', '=', 'tbl1.company_logo_id')
             ->where('tbl1.id', $id)
@@ -551,11 +633,23 @@ class CompanyController extends Controller
             ->first();
 
         $appCode = config('SsoConfig.main.APP_CODE');
+        // template + logo header PDF hanya diubah di aplikasi Master Data; di aplikasi lain kartu Template hanya baca
+        $templateEditable = ! $this->readonly && CompanyTemplate::editableHere();
+        $appNames = CompanyTemplate::appNames();
+        $logoFields = CompanyTemplate::LOGO_FIELDS;
+        $masterEditUrl = $param && ! $templateEditable && MasterEditLink::allowed('company', 'update', $param)
+            ? MasterEditLink::url('company', $param->id)
+            : null;
+
         $templateData = [];
         if ($param && ! empty($param->template_json)) {
             $templateData = json_decode($param->template_json, true);
         }
-        if (empty($templateData)) {
+        if (! is_array($templateData)) {
+            $templateData = [];
+        }
+        // contoh isi hanya untuk template baru yang bisa disimpan; hanya baca = tampilkan apa adanya (kosong)
+        if (empty($templateData) && $templateEditable) {
             $key = $appCode ?: 'APP32';
             $templateData = [
                 $key => [
@@ -582,7 +676,9 @@ class CompanyController extends Controller
 
         // dd($param);
         // return view('company.form', compact('data', 'param'));
-        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param', 'templateData', 'appCode'));
+        return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact(
+            'data', 'param', 'templateData', 'appCode', 'templateEditable', 'appNames', 'logoFields', 'masterEditUrl'
+        ));
     }
 
     public function insertNew(Request $request, $query, $id = null)

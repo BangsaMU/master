@@ -281,6 +281,27 @@ Description mengandung `[Brand]`) AND Category sama dengan `EQUIPMENT`.
   `bootstrap.Modal` BS5, `$.fn.modal` BS4, atau cadangan tanpa Bootstrap). Belum untuk tema `_meridian`.
 - **Belum**: Export Item Code masih mengekspor semua data (tidak ikut cari kolom maupun filter lanjutan).
 
+## Template Company: Logo Header PDF per Aplikasi, Edit Hanya di Master Data (sejak v3.8.0)
+
+Kartu **Template JSON** di form company (`master/company/{id}` dan `/edit`, tiga tema):
+
+- **Dropdown App Code Key** berlabel `kode | nama` dari `master_apps` (mis. `APP32 | SPB V2`). Nama dibaca dari DB aplikasi
+  dulu, lalu koneksi `db_master` (di aplikasi penyalin tabel `master_apps` lokal biasanya kosong); kode yang tidak
+  terdaftar tampil kodenya saja. **Add Key** memberi konfirmasi bila kode tidak ada di `master_apps`.
+- **Logo Header PDF per App Code Key**: Motto (`logo_2`) dan ISO, upload PNG/JPG maks. 2 MB + preview, tersimpan saat
+  **Save Template**. File masuk disk `app.storage_disk_master` + baris `master_gallery` (pola sama dengan Company Logo), yang
+  disimpan ke template hanya **URL http(s)**-nya: `{"APP32": {"form_no": {...}, "logo_pdf": {"logo_2": "https://...",
+  "iso": "https://..."}}}`. URL dipakai (bukan id gallery) karena `master_gallery` tidak ikut sync ke aplikasi penyalin.
+  Logo utama tetap **Company Logo** (`company_logo_id`). Saat simpan, isi `logo_pdf` selain `logo_2`/`iso` berisi URL
+  http(s) dibuang (path lokal seperti `storage/../.env` atau `file://` tidak bisa dipakai membaca file server).
+- **Edit hanya di aplikasi Master Data** (`MasterCrudConfig.MASTER_HUB=true`, `Support\CompanyTemplate::editableHere()`):
+  aplikasi lain menampilkan kartu hanya baca (tanpa Save Template, Add Key/Field, upload) dengan link **Edit di Master
+  Data** bila user berhak (`MasterEditLink`), dan `POST master/company/{id}/update-template-json` dibalas **403**. Dulu
+  aplikasi dengan `MASTER_DIRECT_EDIT=true` boleh menyimpan key-nya sendiri lalu mendorong ke DB master. Halaman
+  `/edit` company juga hanya baca bila `MASTER_DIRECT_EDIT=false` (dulu tombol Submit tampil lalu ditolak middleware app).
+- **Membaca logo di aplikasi** (mis. header Req-Slip SPB): `CompanyTemplate::logoUrls($company->template_json, $appCode)`
+  mengembalikan `['logo_2' => url, 'iso' => url]` milik aplikasi itu, hanya URL http(s); kosong = pakai default aplikasi.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

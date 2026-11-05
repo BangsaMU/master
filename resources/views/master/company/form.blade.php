@@ -69,21 +69,44 @@
                         <a href="{{route('master.company.index')}}" class="btn btn-default">
                             Back
                         </a>
+                        @if (!empty($masterEditUrl))
+                            <a href="{{ $masterEditUrl }}" target="_blank" rel="noopener" class="btn btn-warning">Edit di Master Data</a>
+                        @endif
                     </form>
                 </div>
             </div>
         </div>
 
         @if ($param)
+        @php
+            $templateEditable = $templateEditable ?? false;
+            $appNames = $appNames ?? [];
+            $logoFields = $logoFields ?? \Bangsamu\Master\Support\CompanyTemplate::LOGO_FIELDS;
+        @endphp
         <div class="col-12 col-lg-4">
             <div class="card card-outline card-primary">
                 <div class="card-header font-weight-bold fw-bold">
-                    Edit Template JSON
+                    {{ $templateEditable ? 'Edit Template JSON' : 'Template JSON' }}
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('master.company.update_template_json', $param->id) }}" method="POST" autocomplete="off">
+                    <form action="{{ route('master.company.update_template_json', $param->id) }}" method="POST" autocomplete="off" enctype="multipart/form-data">
                         @csrf
                         <input type="hidden" name="template_json" id="template_json_input" value="{{ json_encode($templateData) }}">
+                        <input type="hidden" name="logo_pdf_key" id="logo_pdf_key" value="">
+
+                        @if (!$templateEditable)
+                            <div class="alert alert-info py-2 small">
+                                Template dan logo header PDF dikelola di aplikasi Master Data (pusat); di sini hanya baca.
+                                @if (!empty($masterEditUrl))
+                                    <a href="{{ $masterEditUrl }}" target="_blank" rel="noopener" class="alert-link">Edit di Master Data</a>
+                                @endif
+                            </div>
+                        @endif
+                        @error('template_json') <div class="text-danger small mb-2">{{ $message }}</div> @enderror
+                        @error('logo_pdf_key') <div class="text-danger small mb-2">{{ $message }}</div> @enderror
+                        @foreach (array_keys($logoFields) as $logoField)
+                            @error('logo_pdf_file.'.$logoField) <div class="text-danger small mb-2">{{ $message }}</div> @enderror
+                        @endforeach
 
                         @if (checkPermission('is_admin'))
                             <div class="form-group mb-3">
@@ -91,51 +114,41 @@
                                 <div class="input-group">
                                     <select class="form-control" id="selected_key">
                                         @foreach (array_keys($templateData) as $key)
-                                            <option value="{{ $key }}" {{ $key == $appCode ? 'selected' : '' }}>{{ $key }}</option>
+                                            <option value="{{ $key }}" {{ $key == $appCode ? 'selected' : '' }}>{{ \Bangsamu\Master\Support\CompanyTemplate::appLabel((string) $key, $appNames) }}</option>
                                         @endforeach
                                     </select>
-                                    
+                                    @if ($templateEditable)
                                         <button type="button" class="btn btn-outline-secondary" id="btn_add_key">Add Key</button>
                                         <button type="button" class="btn btn-outline-info" id="btn_add_field">+ Add Field</button>
-                                    
+                                    @endif
                                 </div>
                             </div>
                         @else
                             <div class="form-group mb-3">
                                 <label>App Code Key</label>
-                                <input type="text" class="form-control" value="{{ $appCode }}" readonly>
+                                <input type="text" class="form-control" value="{{ \Bangsamu\Master\Support\CompanyTemplate::appLabel((string) $appCode, $appNames) }}" readonly>
                                 <input type="hidden" id="selected_key" value="{{ $appCode }}">
                             </div>
                         @endif
 
+                        <div id="template-empty-note" class="text-muted small mb-3" style="display: none;">
+                            Belum ada template untuk App Code Key ini.
+                        </div>
+
                         <div id="dynamic-form-fields">
-                            <div class="form-group mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <label class="mb-0">Form No</label>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_form_no">
-                                        + Add Form No
-                                    </button>
+                            @foreach (['form_no' => 'Form No', 'rev_no' => 'Rev No', 'issued_date' => 'Issued Date'] as $templateField => $templateLabel)
+                                <div class="form-group mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="mb-0">{{ $templateLabel }}</label>
+                                        @if ($templateEditable)
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_{{ $templateField }}">
+                                                + Add {{ $templateLabel }}
+                                            </button>
+                                        @endif
+                                    </div>
+                                    <div id="{{ $templateField }}_container"></div>
                                 </div>
-                                <div id="form_no_container"></div>
-                            </div>
-                            <div class="form-group mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <label class="mb-0">Rev No</label>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rev_no">
-                                        + Add Rev No
-                                    </button>
-                                </div>
-                                <div id="rev_no_container"></div>
-                            </div>
-                            <div class="form-group mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <label class="mb-0">Issued Date</label>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_issued_date">
-                                        + Add Issued Date
-                                    </button>
-                                </div>
-                                <div id="issued_date_container"></div>
-                            </div>
+                            @endforeach
                             <div class="form-group mb-3">
                                 <label for="field_format_date">Format Date</label>
                                 <input type="text" class="form-control" id="field_format_date" required>
@@ -146,9 +159,34 @@
                             </div>
                         </div>
 
-                        <div class="mt-3">
-                            <button type="submit" class="btn btn-primary">Save Template</button>
+                        <div class="form-group mb-3" id="template-logo-pdf">
+                            <label class="mb-0">Logo Header PDF</label>
+                            <small class="text-muted d-block mb-2">Per App Code Key. Kosong = aplikasi memakai logo default-nya. Logo utama = Company Logo.</small>
+                            @foreach ($logoFields as $logoField => $logoLabel)
+                                <div class="border rounded p-2 mb-2 template-logo" data-field="{{ $logoField }}">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span>{{ $logoLabel }}</span>
+                                        @if ($templateEditable)
+                                            <button type="button" class="btn btn-sm btn-outline-danger template-logo-remove" style="display: none;">Hapus</button>
+                                        @endif
+                                    </div>
+                                    <img class="template-logo-preview" alt="{{ $logoLabel }}" style="display: none; max-height: 60px; max-width: 100%;">
+                                    <small class="text-muted template-logo-empty">Belum diisi</small>
+                                    @if ($templateEditable)
+                                        <input type="file" name="logo_pdf_file[{{ $logoField }}]" class="form-control form-control-sm mt-1 template-logo-file" accept=".png,.jpg,.jpeg">
+                                    @endif
+                                </div>
+                            @endforeach
+                            @if ($templateEditable)
+                                <small class="text-muted d-block">PNG/JPG maks. 2 MB, tersimpan saat Save Template.</small>
+                            @endif
                         </div>
+
+                        @if ($templateEditable)
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary">Save Template</button>
+                            </div>
+                        @endif
                     </form>
                 </div>
             </div>
@@ -163,307 +201,6 @@
     @endif
 
     @if ($param)
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const templateData = @json($templateData);
-            const selectedKeySelect = document.getElementById('selected_key');
-            const templateJsonInput = document.getElementById('template_json_input');
-            const dynamicFields = ['form_no', 'rev_no', 'issued_date'];
-
-            function updateHiddenInput() {
-                if (templateJsonInput) {
-                    templateJsonInput.value = JSON.stringify(templateData);
-                }
-            }
-
-            function syncFieldData(fieldName) {
-                const key = selectedKeySelect.value;
-                if (!key) return;
-                if (!templateData[key]) {
-                    templateData[key] = {};
-                }
-
-                const container = document.getElementById(`${fieldName}_container`);
-                if (!container) return;
-
-                const rows = container.querySelectorAll(`.${fieldName}-row`);
-                
-                if (rows.length === 0) {
-                    templateData[key][fieldName] = "";
-                    updateHiddenInput();
-                    return;
-                }
-
-                if (rows.length === 1) {
-                    const firstKey = rows[0].querySelector(`.${fieldName}-key`).value.trim();
-                    const firstVal = rows[0].querySelector(`.${fieldName}-value`).value.trim();
-                    if (firstKey === '') {
-                        templateData[key][fieldName] = firstVal;
-                        updateHiddenInput();
-                        return;
-                    }
-                }
-
-                const obj = {};
-                rows.forEach(row => {
-                    const k = row.querySelector(`.${fieldName}-key`).value.trim();
-                    const v = row.querySelector(`.${fieldName}-value`).value.trim();
-                    if (k !== '') {
-                        obj[k] = v;
-                    }
-                });
-                templateData[key][fieldName] = obj;
-                updateHiddenInput();
-            }
-
-            function createFieldRow(containerId, subKey = '', subVal = '', fieldName = 'form_no') {
-                const container = document.getElementById(containerId);
-                if (!container) return;
-
-                let labelText = fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                let placeholderVal = `${labelText} (e.g. value)`;
-
-                const row = document.createElement('div');
-                row.className = `input-group mb-2 ${fieldName}-row`;
-                row.innerHTML = `
-                    <input type="text" class="form-control ${fieldName}-key" style="max-width: 35%;" placeholder="Key (e.g. spb)" value="${subKey}">
-                    <input type="text" class="form-control ${fieldName}-value" placeholder="${placeholderVal}" value="${subVal}">
-                    
-                        <button type="button" class="btn btn-outline-danger btn-remove-row" title="Remove">&times;</button>
-                    
-                `;
-
-                const keyInput = row.querySelector(`.${fieldName}-key`);
-                const valInput = row.querySelector(`.${fieldName}-value`);
-                const btnRemove = row.querySelector('.btn-remove-row');
-
-                keyInput.addEventListener('input', () => syncFieldData(fieldName));
-                valInput.addEventListener('input', () => syncFieldData(fieldName));
-                btnRemove.addEventListener('click', function() {
-                    row.remove();
-                    syncFieldData(fieldName);
-                });
-
-                container.appendChild(row);
-            }
-
-            function renderFieldContainer(fieldName, fieldValue) {
-                const containerId = `${fieldName}_container`;
-                const container = document.getElementById(containerId);
-                if (!container) return;
-                container.innerHTML = '';
-
-                if (typeof fieldValue === 'string' || typeof fieldValue === 'number') {
-                    createFieldRow(containerId, '', fieldValue, fieldName);
-                } else if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
-                    const keys = Object.keys(fieldValue);
-                    if (keys.length === 0) {
-                        createFieldRow(containerId, '', '', fieldName);
-                    } else {
-                        keys.forEach(k => {
-                            createFieldRow(containerId, k, fieldValue[k], fieldName);
-                        });
-                    }
-                } else {
-                    createFieldRow(containerId, '', '', fieldName);
-                }
-            }
-
-            function ensureFieldContainer(fieldName) {
-                let container = document.getElementById(`${fieldName}_container`);
-                if (container) return container;
-
-                const dynamicFieldsWrapper = document.getElementById('dynamic-form-fields');
-                if (!dynamicFieldsWrapper) return null;
-
-                const labelText = fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-                const fieldGroup = document.createElement('div');
-                fieldGroup.className = 'form-group mb-3 custom-dynamic-field-group';
-                fieldGroup.id = `field_group_${fieldName}`;
-
-                fieldGroup.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="mb-0">${labelText}</label>
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_${fieldName}">
-                            + Add ${labelText}
-                        </button>
-                    </div>
-                    <div id="${fieldName}_container"></div>
-                `;
-
-                const formatDateEl = document.getElementById('field_format_date');
-                const formatDateGroup = formatDateEl ? formatDateEl.closest('.form-group') : null;
-
-                if (formatDateGroup && formatDateGroup.parentNode === dynamicFieldsWrapper) {
-                    dynamicFieldsWrapper.insertBefore(fieldGroup, formatDateGroup);
-                } else {
-                    dynamicFieldsWrapper.appendChild(fieldGroup);
-                }
-
-                const btnAdd = fieldGroup.querySelector(`#btn_add_${fieldName}`);
-                if (btnAdd) {
-                    btnAdd.addEventListener('click', function() {
-                        createFieldRow(`${fieldName}_container`, '', '', fieldName);
-                        syncFieldData(fieldName);
-                    });
-                }
-
-                return document.getElementById(`${fieldName}_container`);
-            }
-
-            function loadKeyData(key) {
-                if (!templateData[key]) {
-                    templateData[key] = {
-                        form_no: {
-                            spb: 'MEI-FLK-SPB-001',
-                            spj: 'MEI-FLK-SPJ-001',
-                            spa: 'MEI-FLK-SPA-001'
-                        },
-                        rev_no: {
-                            spb: '1-spb',
-                            spj: '1-spj',
-                            spa: '1-spa'
-                        },
-                        issued_date: {
-                            spb: '2026-07-09',
-                            spj: '2026-07-10',
-                            spa: '2026-07-11'
-                        },
-                        format_date: 'F,Y',
-                        template_header: 1
-                    };
-                }
-                const data = templateData[key];
-                
-                document.querySelectorAll('.custom-dynamic-field-group').forEach(el => el.remove());
-
-                const allKeys = Object.keys(data);
-                allKeys.forEach(fieldName => {
-                    if (fieldName === 'format_date') {
-                        const el = document.getElementById('field_format_date');
-                        if (el) el.value = data.format_date || '';
-                    } else if (fieldName === 'template_header') {
-                        const el = document.getElementById('field_template_header');
-                        if (el) el.value = data.template_header !== undefined ? data.template_header : 1;
-                    } else {
-                        ensureFieldContainer(fieldName);
-                        renderFieldContainer(fieldName, data[fieldName]);
-                    }
-                });
-
-                updateHiddenInput();
-            }
-
-            dynamicFields.forEach(fieldName => {
-                const btnAdd = document.getElementById(`btn_add_${fieldName}`);
-                if (btnAdd) {
-                    btnAdd.addEventListener('click', function() {
-                        createFieldRow(`${fieldName}_container`, '', '', fieldName);
-                        syncFieldData(fieldName);
-                    });
-                }
-            });
-
-            const scalarFields = ['format_date', 'template_header'];
-            scalarFields.forEach(field => {
-                const el = document.getElementById('field_' + field);
-                if (el) {
-                    const updateValue = function() {
-                        const key = selectedKeySelect.value;
-                        if (!templateData[key]) {
-                            templateData[key] = {};
-                        }
-                        if (field === 'template_header') {
-                            templateData[key][field] = /^\d+$/.test(el.value.trim()) ? parseInt(el.value.trim()) : el.value.trim();
-                        } else {
-                            templateData[key][field] = el.value;
-                        }
-                        updateHiddenInput();
-                    };
-                    el.addEventListener('input', updateValue);
-                    el.addEventListener('change', updateValue);
-                }
-            });
-
-            if (selectedKeySelect) {
-                selectedKeySelect.addEventListener('change', function() {
-                    loadKeyData(this.value);
-                });
-
-                loadKeyData(selectedKeySelect.value);
-            }
-
-            const btnAddKey = document.getElementById('btn_add_key');
-            if (btnAddKey) {
-                btnAddKey.addEventListener('click', function() {
-                    const newKey = prompt('Enter new App Code key (e.g. APP09):');
-                    if (newKey) {
-                        const sanitizedKey = newKey.trim().toUpperCase();
-                        if (sanitizedKey === '') return;
-
-                        if (templateData[sanitizedKey]) {
-                            alert('Key already exists!');
-                            selectedKeySelect.value = sanitizedKey;
-                            loadKeyData(sanitizedKey);
-                            return;
-                        }
-
-                        templateData[sanitizedKey] = {
-                            form_no: {
-                                spb: 'MEI-FLK-SPB-001',
-                                spj: 'MEI-FLK-SPJ-001',
-                                spa: 'MEI-FLK-SPA-001'
-                            },
-                            rev_no: {
-                                spb: '1-spb',
-                                spj: '1-spj',
-                                spa: '1-spa'
-                            },
-                            issued_date: {
-                                spb: '2026-07-09',
-                                spj: '2026-07-10',
-                                spa: '2026-07-11'
-                            },
-                            format_date: 'F,Y',
-                            template_header: 1
-                        };
-
-                        const opt = document.createElement('option');
-                        opt.value = sanitizedKey;
-                        opt.innerHTML = sanitizedKey;
-                        selectedKeySelect.appendChild(opt);
-
-                        selectedKeySelect.value = sanitizedKey;
-                        loadKeyData(sanitizedKey);
-                    }
-                });
-            }
-
-            const btnAddField = document.getElementById('btn_add_field');
-            if (btnAddField) {
-                btnAddField.addEventListener('click', function() {
-                    const newFieldName = prompt('Enter new field name (e.g. header, footer, remarks):');
-                    if (newFieldName) {
-                        const sanitizedField = newFieldName.trim().toLowerCase().replace(/\s+/g, '_');
-                        if (sanitizedField === '') return;
-
-                        const key = selectedKeySelect.value;
-                        if (!templateData[key]) {
-                            templateData[key] = {};
-                        }
-
-                        if (templateData[key][sanitizedField] !== undefined) {
-                            alert('Field already exists!');
-                            return;
-                        }
-
-                        templateData[key][sanitizedField] = "";
-                        loadKeyData(key);
-                    }
-                });
-            }
-        });
-    </script>
+        @include('master::partials.company-template-script', ['ui' => ['row' => 'input-group mb-2', 'keyInput' => 'form-control', 'valueInput' => 'form-control', 'removeButton' => 'btn btn-outline-danger', 'fieldGroup' => 'form-group mb-3', 'fieldHead' => 'd-flex justify-content-between align-items-center mb-2', 'label' => 'mb-0', 'addButton' => 'btn btn-sm btn-outline-primary', 'container' => '', 'groupSelector' => '.form-group']])
     @endif
 @endpush
