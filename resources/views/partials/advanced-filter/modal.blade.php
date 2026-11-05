@@ -8,6 +8,10 @@
     window.masterAdvancedFilter.payload() di ajax.data layout. Disimpan per tab browser (sessionStorage) supaya tetap
     terpasang sesudah membuka View/Update lalu kembali ke daftar. Semua teks dari user/server dipasang lewat .text()/.val().
     Markup memakai kelas Bootstrap 4 + 5 sekaligus (paket dipakai aplikasi AdminLTE 3 dan 4).
+
+    Stabilo: sesudah setiap draw DataTables, teks sel yang cocok dengan kondisi mengandung / sama dengan / diawali /
+    diakhiri diberi <mark class="maf-hl"> (kolom dicocokkan lewat `data` kolom DataTables = nama field filter). Hanya
+    simpul teks yang dipecah (tanpa innerHTML), kondisi "tidak ..." dan kosong tidak ditandai.
 --}}
 <style>
     .master-advanced-filter .maf-group {
@@ -108,6 +112,20 @@
     .maf-summary {
         white-space: normal;
         overflow-wrap: anywhere;
+    }
+
+    /* stabilo kuning transparan: teks yang cocok dengan filter lanjutan (sel daftar + nilai di ringkasan filter) */
+    mark.maf-hl {
+        padding: 0 .1em;
+        border-radius: .2em;
+        background-color: rgba(255, 225, 0, .45);
+        color: inherit;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+    }
+
+    [data-bs-theme="dark"] mark.maf-hl {
+        background-color: rgba(255, 214, 10, .35);
     }
 </style>
 
@@ -215,17 +233,161 @@
             return n;
         }
 
+        /* ringkasan filter sebagai simpul DOM; nilai kondisi yang distabilo di daftar ikut distabilo di sini */
         function describe(group) {
-            var parts = [];
+            var nodes = [];
+            var text = function (value) { return document.createTextNode(value); };
             $.each(group.rules, function (i, item) {
+                if (i > 0) {
+                    nodes.push(text(' ' + group.logic.toUpperCase() + ' '));
+                }
                 if (isGroup(item)) {
-                    parts.push('(' + describe(item) + ')');
+                    nodes.push(text('('));
+                    nodes = nodes.concat(describe(item));
+                    nodes.push(text(')'));
                     return;
                 }
-                parts.push(fields[item.field].label + ' ' + operators[item.op].label
-                    + (needsValue(item.op) ? ' "' + item.value + '"' : ''));
+                nodes.push(text(fields[item.field].label + ' ' + operators[item.op].label));
+                if (needsValue(item.op)) {
+                    nodes.push(text(' "'), HIGHLIGHT_OPS[item.op] ? $('<mark class="maf-hl"></mark>').text(item.value)[0] : text(item.value), text('"'));
+                }
             });
-            return parts.join(' ' + group.logic.toUpperCase() + ' ');
+            return nodes;
+        }
+
+        /* ---------- stabilo hasil filter di daftar ---------- */
+
+        /* operator yang teks cocoknya ditandai; "tidak ..." / kosong / tidak kosong tidak punya teks untuk ditandai */
+        var HIGHLIGHT_OPS = { contains: true, equals: true, starts_with: true, ends_with: true };
+
+        function escapeRegExp(value) {
+            return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        /* kondisi yang ditandai, dikelompokkan per field: { description: [{op, value}, ...], ... } */
+        function highlightRules(group, out) {
+            out = out || {};
+            $.each(group ? group.rules : [], function (i, item) {
+                if (isGroup(item)) {
+                    highlightRules(item, out);
+                } else if (HIGHLIGHT_OPS[item.op] && item.value !== '') {
+                    (out[item.field] = out[item.field] || []).push(item);
+                }
+            });
+            return out;
+        }
+
+        /* rentang [awal, akhir) teks sel yang cocok, tanpa beda huruf besar/kecil (sama dengan LIKE di server); rentang
+           yang bertumpuk digabung supaya mis. "hel" + "helmet" jadi satu tanda */
+        function matchRanges(text, rules) {
+            var trimmed = $.trim(text);
+            var lead = trimmed === '' ? 0 : text.indexOf(trimmed);
+            var ranges = [];
+            $.each(rules, function (i, rule) {
+                var pattern = escapeRegExp(rule.value);
+                var re, m;
+                if (rule.op === 'contains') {
+                    re = new RegExp(pattern, 'gi');
+                    while ((m = re.exec(text)) !== null) {
+                        ranges.push([m.index, m.index + m[0].length]);
+                    }
+                } else if (rule.op === 'equals') {
+                    if (new RegExp('^' + pattern + '$', 'i').test(trimmed)) {
+                        ranges.push([lead, lead + trimmed.length]);
+                    }
+                } else if (rule.op === 'starts_with') {
+                    if ((m = new RegExp('^' + pattern, 'i').exec(trimmed))) {
+                        ranges.push([lead, lead + m[0].length]);
+                    }
+                } else if (rule.op === 'ends_with') {
+                    if ((m = new RegExp(pattern + '$', 'i').exec(trimmed))) {
+                        ranges.push([lead + m.index, lead + m.index + m[0].length]);
+                    }
+                }
+            });
+            ranges.sort(function (a, b) { return a[0] - b[0]; });
+            var merged = [];
+            $.each(ranges, function (i, range) {
+                var last = merged[merged.length - 1];
+                if (last && range[0] <= last[1]) {
+                    last[1] = Math.max(last[1], range[1]);
+                } else {
+                    merged.push(range.slice());
+                }
+            });
+            return merged;
+        }
+
+        /* lepas tanda lama (dipakai bila baris tidak digambar ulang, mis. DataTables tanpa serverSide) */
+        function unhighlight(container) {
+            $(container).find('mark.maf-hl').each(function () {
+                var parent = this.parentNode;
+                parent.replaceChild(document.createTextNode(this.textContent), this);
+                parent.normalize();
+            });
+        }
+
+        /* bungkus bagian teks yang cocok dengan <mark>; teks sel dibaca dari simpul teks (sudah di-escape server), tanpa innerHTML */
+        function highlightCell(cell, rules) {
+            var nodes = [];
+            var text = '';
+            var walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, null, false);
+            while (walker.nextNode()) {
+                nodes.push({ node: walker.currentNode, start: text.length });
+                text += walker.currentNode.nodeValue;
+            }
+            var ranges = text === '' ? [] : matchRanges(text, rules);
+            if (!ranges.length) {
+                return;
+            }
+
+            $.each(nodes, function (i, item) {
+                var start = item.start;
+                var end = start + item.node.nodeValue.length;
+                var pos = start;
+                var parts = [];
+                $.each(ranges, function (j, range) {
+                    var from = Math.max(range[0], start);
+                    var to = Math.min(range[1], end);
+                    if (from >= to) {
+                        return;
+                    }
+                    if (from > pos) {
+                        parts.push(document.createTextNode(text.slice(pos, from)));
+                    }
+                    parts.push($('<mark class="maf-hl"></mark>').text(text.slice(from, to))[0]);
+                    pos = to;
+                });
+                if (!parts.length) {
+                    return;
+                }
+                if (pos < end) {
+                    parts.push(document.createTextNode(text.slice(pos, end)));
+                }
+                $(item.node).replaceWith(parts);
+            });
+        }
+
+        function highlightTable() {
+            if (!$.fn.dataTable || !$.fn.dataTable.isDataTable(tableSelector)) {
+                return;
+            }
+            unhighlight($(tableSelector).children('tbody'));
+            if (!applied) {
+                return;
+            }
+            var byField = highlightRules(applied);
+            var api = $(tableSelector).DataTable();
+            api.columns().indexes().each(function (index) {
+                var column = api.column(index);
+                var rules = byField[column.dataSrc()];
+                if (!rules) {
+                    return;
+                }
+                $.each(column.nodes().toArray(), function (i, cell) {
+                    highlightCell(cell, rules);
+                });
+            });
         }
 
         /* ---------- tampilan pembuat kondisi ---------- */
@@ -441,7 +603,8 @@
             if (message) {
                 $summary.removeClass('d-none text-muted').addClass('text-danger').text(message);
             } else if (count) {
-                $summary.removeClass('d-none text-danger').addClass('text-muted').text('Filter lanjutan: ' + describe(applied));
+                $summary.removeClass('d-none text-danger').addClass('text-muted').empty()
+                    .append(document.createTextNode('Filter lanjutan: '), describe(applied));
             } else {
                 $summary.addClass('d-none').text('');
             }
@@ -569,6 +732,10 @@
         restore();
         $(function () {
             refreshToolbar();
+            // dipasang di elemen tabel (bukan document): DataTables 2 tidak menggelembungkan event draw.
+            // Tabel yang sudah tergambar sebelum listener terpasang langsung ditandai.
+            $(tableSelector).on('draw.dt', highlightTable);
+            highlightTable();
         });
 
         window.masterAdvancedFilter = {

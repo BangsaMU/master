@@ -248,5 +248,10 @@ class ItemCodeAdvancedFilterTest extends TestCase
         $this->assertStringContainsString('"field":"description","label":"Description","suggest":false', $html);
         $this->assertStringContainsString('"field":"category","label":"Category","suggest":true', $html);
         $this->assertStringContainsString('advanced_filter_options=1', $html);
+
+        // stabilo hasil filter: dipasang di event draw tabel daftar, gaya mark.maf-hl ikut dimuat
+        $this->assertStringContainsString("$(tableSelector).on('draw.dt', highlightTable);", $html);
+        $this->assertStringContainsString('mark.maf-hl {', $html);
+        $this->assertMatchesRegularExpression('/var tableSelector = "#[\w-]+_tabel";/', $html);
     }
 }
