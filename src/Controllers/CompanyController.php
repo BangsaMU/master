@@ -22,10 +22,14 @@ use Bangsamu\Master\Support\CompanyTemplate;
 use Bangsamu\Master\Support\DataTableCell;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CompanyController extends Controller
 {
     use DynamicFilterable;
+
+    /** file Company Logo dan logo header PDF template: gambar PNG/JPG maks. 2 MB (jenis dibaca dari isi file, bukan nama) */
+    public const LOGO_RULES = ['image', 'mimes:png,jpg,jpeg', 'max:2048'];
 
     protected $readonly = false;
 
@@ -303,179 +307,74 @@ class CompanyController extends Controller
         $request->validate([
             'company_code' => ['required', app(MasterScope::class)->uniqueRule('master_company', 'company_code', [], $request->id)],
             'company_name' => 'required',
-        ]);
-        $message = '';
+            'company_logo' => ['nullable', ...self::LOGO_RULES],
+        ], [], ['company_logo' => 'Company Logo']);
 
-        if ($request->id) {
-            // Update existing company
-            $company = Company::findOrFail($request->id);
-            $update = $company->update([
-                'company_code' => $request->company_code,
-                'company_name' => $request->company_name,
-                'company_short' => $request->company_short,
-                'company_attention' => $request->company_attention,
-                'company_address' => $request->company_address,
-            ]);
+        // File logo disimpan ke disk DULU, database belakangan. Upload gagal = pesan di form tanpa menulis apa pun ke
+        // database (dulu baris master_gallery dibuat dulu demi id untuk nama file, lalu tertinggal kosong saat disk gagal).
+        $logo = $request->hasFile('company_logo') ? $this->putLogoFile($request->file('company_logo'), 'company_logo') : null;
 
-            if ($request->file('company_logo') && $company->company_logo_id) {
-                $existingGallery = Gallery::find($company->company_logo_id);
-                if ($existingGallery) {
-                    $existingPath = $existingGallery->path.'/'.$existingGallery->filename;
-
-                    if (Storage::disk(config('app.storage_disk_master'))->exists($existingPath)) {
-                        Storage::disk(config('app.storage_disk_master'))->delete($existingPath);
-                        $existingGallery->delete();
-                    }
-                }
-            }
-
-            if ($update && $company->wasChanged()) {
-                /* sync callback */
-                $id = $company->id;
-                $sync_tabel = 'master_'.$this->sheet_slug;
-                $sync_id = $id;
-                $sync_row = $company->toArray();
-                // $sync_row['deleted_at'] = null;
-                $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                // update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
-                }
-                $message .= ' '.$this->sheet_name.' updated successfully';
-            } else {
-                $message .= ' '.$this->sheet_name.' no data changed';
-            }
-        } else {
-            // Create new company
-            $company = Company::create([
-                'company_code' => $request->company_code,
-                'company_name' => $request->company_name,
-                'company_short' => $request->company_short,
-                'company_attention' => $request->company_attention,
-                'company_address' => $request->company_address,
-            ]);
-
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                // Create new company
-                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
-
-                $modelClass::create([
+        try {
+            [$company, $gallery, $companyChanged, $message] = DB::transaction(function () use ($request, $logo) {
+                $fields = [
                     'company_code' => $request->company_code,
                     'company_name' => $request->company_name,
                     'company_short' => $request->company_short,
                     'company_attention' => $request->company_attention,
                     'company_address' => $request->company_address,
-                    'created_at' => now(),
-                ]);
+                ];
+
+                if ($request->id) {
+                    $company = Company::findOrFail($request->id);
+                    $company->update($fields);
+                    $companyChanged = $company->wasChanged();
+                    $message = $this->sheet_name.($companyChanged ? ' updated successfully' : ' no data changed');
+                } else {
+                    $company = Company::create($fields);
+                    $companyChanged = false;
+                    if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
+                        $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_'.$this->sheet_slug);
+                        $modelClass::create($fields + ['created_at' => now()]);
+                    }
+                    $message = $this->sheet_name.' created successfully';
+                }
+
+                $gallery = null;
+                if ($logo !== null) {
+                    $gallery = $this->createLogoGallery($logo);
+                    $oldLogoId = $company->company_logo_id;
+                    $company->company_logo_id = $gallery->id;
+                    $company->save();
+                    $companyChanged = true;
+
+                    // Logo lama dilepas setelah logo baru pasti tersimpan: barisnya di-soft delete, filenya dibiarkan supaya
+                    // baris itu masih bisa dipulihkan (dulu file + baris lama dihapus SEBELUM upload baru dicoba).
+                    if ($oldLogoId && (int) $oldLogoId !== (int) $gallery->id) {
+                        Gallery::whereKey($oldLogoId)->first()?->delete();
+                    }
+                    $message .= ', Logo '.$this->sheet_name.' updated successfully';
+                }
+
+                return [$company, $gallery, $companyChanged, $message];
+            });
+        } catch (Throwable $e) {
+            // database gagal: file yang telanjur tersimpan dihapus lagi supaya tidak ada file tanpa baris gallery
+            if ($logo !== null) {
+                $this->deleteLogoFile($logo);
             }
 
-            $message .= ' '.$this->sheet_name.' created successfully';
+            throw $e;
         }
 
-        if ($request->file('company_logo')) {
-            $file = $request->file('company_logo');
-            $user_id = auth()->user()->id;
-
-            $prefix = $file->getClientOriginalExtension();
-            $caption = $file->getClientOriginalName();
-            $url = null;
-            $path = 'company/'.$prefix;
-            $filename = null;
-            $size = $file->getSize();
-            $header_type = $file->getClientMimeType();
-            $file_group = null;
-            $hash_file = null;
-            $file_type = $prefix;
-
-            $gallery = Gallery::create([
-                'user_id' => $user_id,
-                'caption' => $caption,
-                'url' => $url,
-                'path' => $path,
-                'filename' => $filename,
-                'size' => $size,
-                'header_type' => $header_type,
-                'file_group' => $file_group,
-                'hash_file' => $hash_file,
-                'file_type' => $file_type,
-            ]);
-
-            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                // Create new gallery
-                $modelClass = LibraryClayController::resolveModelFromSheetSlug('master_gallery');
-
-                $modelClass::create([
-                    'user_id' => $user_id,
-                    'caption' => $caption,
-                    'url' => $url,
-                    'path' => $path,
-                    'filename' => $filename,
-                    'size' => $size,
-                    'header_type' => $header_type,
-                    'file_group' => $file_group,
-                    'hash_file' => $hash_file,
-                    'file_type' => $file_type,
-                    'created_at' => now(),
-                ]);
+        // sinkron ke DB master setelah commit (aplikasi MASTER_DIRECT_EDIT dengan DB master terpisah)
+        if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
+            $sync_list_callback = config('AppConfig.CALLBACK_URL');
+            if ($gallery !== null) {
+                LibraryClayController::updateMaster(['sync_tabel' => 'master_gallery', 'sync_id' => $gallery->id, 'sync_row' => $gallery->toArray(), 'sync_list_callback' => $sync_list_callback]);
             }
-
-            $filename = $gallery->id.'-'.$file->getClientOriginalName();
-            $filePath = $file->storeAs('company/'.$prefix, $filename, config('app.storage_disk_master'));
-            // dd($filePath);
-            if ($filePath && Storage::disk(config('app.storage_disk_master'))->exists($filePath)) {
-                // Upload sukses dan file ada di storage
-                // Log::info("Upload sukses: " . $filePath);
-
-                Log::info('user: sys url: '.url()->current().' message: Upload sukses json:'.json_encode($filePath));
-            } else {
-                // Gagal upload atau file tidak ada
-                // Log::error("Gagal upload file ke: " . $filePath);
-                Log::error('user: sys url: '.url()->current().' message: Upload Gagal json:'.json_encode($filePath));
-                abort(500, 'Upload gagal atau file tidak ditemukan.');
+            if ($companyChanged) {
+                LibraryClayController::updateMaster(['sync_tabel' => 'master_'.$this->sheet_slug, 'sync_id' => $company->id, 'sync_row' => $company->toArray(), 'sync_list_callback' => $sync_list_callback]);
             }
-
-            $gallery->filename = $filename;
-            $gallery->url = Storage::disk(config('app.storage_disk_master'))->url($path.'/'.$filename);
-            $gallery->save();
-
-            $company->company_logo_id = $gallery->id;
-            $company->save();
-
-            if ($gallery->wasChanged()) {
-                /* sync callback gallery */
-                $id = $gallery->id;
-                $sync_tabel = 'master_gallery';
-                $sync_id = $id;
-                $sync_row = $gallery->toArray();
-                // $sync_row['deleted_at'] = null;
-                $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                // update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                    // dd(2,compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
-                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
-                }
-                $message .= ' '.'Gallery updated successfully';
-            } else {
-                $message .= ' '.'Gallery no data changed';
-            }
-
-            if ($company->wasChanged()) {
-                /* sync callback */
-                $id = $company->id;
-                $sync_tabel = 'master_'.$this->sheet_slug;
-                $sync_id = $id;
-                $sync_row = $company->toArray();
-                // $sync_row['deleted_at'] = null;
-                $sync_list_callback = config('AppConfig.CALLBACK_URL');
-                // update ke master DB saja
-                if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
-                    $callbackSyncMaster = LibraryClayController::updateMaster(compact('sync_tabel', 'sync_id', 'sync_row', 'sync_list_callback'));
-                }
-                $message .= ' Logo '.$this->sheet_name.' updated successfully';
-            } else {
-                $message .= ' Logo '.$this->sheet_name.' no data changed';
-            }
-
         }
 
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success_message', $message);
@@ -495,7 +394,7 @@ class CompanyController extends Controller
             'template_json' => 'required|json',
             'logo_pdf_key' => 'nullable|string|max:20',
             'logo_pdf_file' => 'nullable|array',
-            'logo_pdf_file.*' => 'image|mimes:png,jpg,jpeg|max:2048',
+            'logo_pdf_file.*' => self::LOGO_RULES,
         ], [], [
             'logo_pdf_file.logo_2' => CompanyTemplate::LOGO_FIELDS['logo_2'],
             'logo_pdf_file.iso' => CompanyTemplate::LOGO_FIELDS['iso'],
@@ -523,10 +422,26 @@ class CompanyController extends Controller
             $finalData = $newData;
         }
 
-        $finalData = $this->applyTemplateLogos($request, CompanyTemplate::sanitizeLogos($finalData), $isAdmin, $appCode);
+        // file logo header PDF disimpan dulu, baris gallery + template ditulis dalam satu transaksi sesudahnya
+        $stored = [];
+        try {
+            $finalData = $this->applyTemplateLogos($request, CompanyTemplate::sanitizeLogos($finalData), $isAdmin, $appCode, $stored);
 
-        $company->template_json = json_encode($finalData);
-        $company->save();
+            DB::transaction(function () use ($company, $finalData, $stored) {
+                foreach ($stored as $logo) {
+                    $this->createLogoGallery($logo);
+                }
+                $company->template_json = json_encode($finalData);
+                $company->save();
+            });
+        } catch (Throwable $e) {
+            // logo berikutnya atau database gagal: file yang telanjur tersimpan dihapus lagi
+            foreach ($stored as $logo) {
+                $this->deleteLogoFile($logo);
+            }
+
+            throw $e;
+        }
 
         // Sync ke master db jika MASTER_DIRECT_EDIT aktif
         if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
@@ -542,13 +457,15 @@ class CompanyController extends Controller
     }
 
     /**
-     * Upload gambar header PDF (logo_pdf_file[logo_2|iso]) untuk App Code Key logo_pdf_key: file ke master_gallery,
+     * Upload gambar header PDF (logo_pdf_file[logo_2|iso]) untuk App Code Key logo_pdf_key: file ke disk master,
      * URL-nya ke template_json[key].logo_pdf. Non-admin hanya untuk key aplikasi ini (aturan sama dengan key template).
+     * File yang sudah tersimpan dicatat di $stored (baris gallery dibuat pemanggil setelah semua file berhasil).
      *
      * @param  array<string, mixed>  $template
+     * @param  list<array<string, mixed>>  $stored
      * @return array<string, mixed>
      */
-    private function applyTemplateLogos(Request $request, array $template, bool $isAdmin, ?string $appCode): array
+    private function applyTemplateLogos(Request $request, array $template, bool $isAdmin, ?string $appCode, array &$stored): array
     {
         $files = array_intersect_key((array) $request->file('logo_pdf_file', []), CompanyTemplate::LOGO_FIELDS);
         if ($files === []) {
@@ -563,7 +480,9 @@ class CompanyController extends Controller
         $logos = is_array($template[$key][CompanyTemplate::LOGO_KEY] ?? null) ? $template[$key][CompanyTemplate::LOGO_KEY] : [];
         foreach ($files as $field => $file) {
             if ($file instanceof UploadedFile) {
-                $logos[$field] = $this->storeTemplateLogo($file);
+                $logo = $this->putLogoFile($file, 'logo_pdf_file.'.$field);
+                $stored[] = $logo;
+                $logos[$field] = $logo['url'];
             }
         }
         $template[$key][CompanyTemplate::LOGO_KEY] = $logos;
@@ -571,38 +490,98 @@ class CompanyController extends Controller
         return $template;
     }
 
-    /** simpan satu gambar header PDF ke disk master + master_gallery (pola sama dengan Company Logo), kembalikan URL-nya */
-    private function storeTemplateLogo(UploadedFile $file): string
+    /**
+     * Simpan satu file logo (Company Logo / logo header PDF) ke disk app.storage_disk_master SEBELUM database ditulis.
+     * Nama file = nama asli (slug) + acak, tidak memakai id gallery; ekstensi dari isi file (png/jpg/jpeg), bukan dari
+     * nama kiriman browser. Disk gagal (exception seperti UnableToCreateDirectory, atau putFileAs false) = pesan validasi
+     * pada $field, bukan error 500, dan belum ada baris database yang ditulis.
+     *
+     * @return array{disk: string, path: string, filename: string, url: string, caption: string, size: int|false, header_type: ?string, file_type: string, hash_file: ?string}
+     */
+    private function putLogoFile(UploadedFile $file, string $field): array
     {
-        $disk = config('app.storage_disk_master');
-        $extension = strtolower($file->extension() ?: $file->getClientOriginalExtension());
-        $path = 'company/'.$extension;
+        $extension = strtolower((string) $file->extension());
+        if (! in_array($extension, ['png', 'jpg', 'jpeg'], true)) {
+            throw ValidationException::withMessages([$field => 'Logo harus gambar PNG atau JPG.']);
+        }
 
-        $gallery = Gallery::create([
-            'user_id' => auth()->id(),
-            'caption' => $file->getClientOriginalName(),
+        $disk = (string) config('app.storage_disk_master');
+        $path = 'company/'.$extension;
+        $name = Str::limit(Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)), 80, '') ?: 'logo';
+        $filename = $name.'-'.Str::lower(Str::random(12)).'.'.$extension;
+        $hash = $file->getRealPath() ? hash_file('sha256', $file->getRealPath()) : false;
+
+        $url = null;
+        $error = null;
+        try {
+            $stored = Storage::disk($disk)->putFileAs($path, $file, $filename);
+            if ($stored === false || ! Storage::disk($disk)->exists($path.'/'.$filename)) {
+                $error = 'putFileAs: '.json_encode($stored);
+            } else {
+                // aplikasi lain mengambil gambar lewat HTTP: URL disk relatif dijadikan absolut ke aplikasi ini
+                $url = Storage::disk($disk)->url($path.'/'.$filename);
+                if (! CompanyTemplate::isHttpUrl($url)) {
+                    $url = url($url);
+                }
+            }
+        } catch (Throwable $e) {
+            $error = get_class($e).': '.$e->getMessage();
+        }
+
+        if ($error !== null) {
+            $this->deleteLogoFile(['disk' => $disk, 'path' => $path, 'filename' => $filename]);
+            Log::error('user: '.auth()->id().' url: '.url()->current().' message: Upload logo gagal disk='.$disk.' file='.$path.'/'.$filename.' error='.$error);
+
+            throw ValidationException::withMessages([$field => 'Logo gagal disimpan ke penyimpanan file (folder tidak bisa ditulis atau penuh). Belum ada data yang disimpan; coba lagi atau hubungi admin.']);
+        }
+        Log::info('user: '.auth()->id().' url: '.url()->current().' message: Upload logo sukses disk='.$disk.' file='.$path.'/'.$filename);
+
+        return [
+            'disk' => $disk,
             'path' => $path,
+            'filename' => $filename,
+            'url' => $url,
+            'caption' => $file->getClientOriginalName(),
             'size' => $file->getSize(),
             'header_type' => $file->getMimeType(),
             'file_type' => $extension,
+            'hash_file' => $hash ?: null,
+        ];
+    }
+
+    /**
+     * Baris master_gallery untuk file logo yang sudah pasti tersimpan (hasil putLogoFile).
+     *
+     * @param  array<string, mixed>  $logo
+     */
+    private function createLogoGallery(array $logo): Gallery
+    {
+        return Gallery::create([
+            'user_id' => auth()->id(),
+            'caption' => $logo['caption'],
+            'url' => $logo['url'],
+            'path' => $logo['path'],
+            'filename' => $logo['filename'],
+            'size' => $logo['size'],
+            'header_type' => $logo['header_type'],
+            'file_group' => null,
+            'hash_file' => $logo['hash_file'],
+            'file_type' => $logo['file_type'],
         ]);
+    }
 
-        $filename = $gallery->id.'-'.(Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'logo').'.'.$extension;
-        $stored = Storage::disk($disk)->putFileAs($path, $file, $filename);
-        if (! $stored || ! Storage::disk($disk)->exists($stored)) {
-            $gallery->forceDelete();
-            Log::error('user: '.auth()->id().' url: '.url()->current().' message: Upload logo template gagal json:'.json_encode($stored));
-            abort(500, 'Upload logo gagal atau file tidak ditemukan.');
+    /**
+     * Hapus file logo yang telanjur tersimpan (kompensasi bila langkah berikutnya gagal); gagal hapus hanya dicatat.
+     *
+     * @param  array<string, mixed>  $logo
+     */
+    private function deleteLogoFile(array $logo): void
+    {
+        try {
+            Storage::disk($logo['disk'])->delete($logo['path'].'/'.$logo['filename']);
+        } catch (Throwable $e) {
+            Log::warning('user: '.auth()->id().' message: file logo '.$logo['path'].'/'.$logo['filename'].' tidak bisa dihapus: '.$e->getMessage());
         }
-
-        // aplikasi penyalin mengambil gambar lewat HTTP: URL disk relatif dijadikan absolut ke aplikasi Master Data
-        $url = Storage::disk($disk)->url($path.'/'.$filename);
-        if (! CompanyTemplate::isHttpUrl($url)) {
-            $url = url($url);
-        }
-        $gallery->update(['filename' => $filename, 'url' => $url]);
-
-        return $url;
     }
 
     public function show($id)

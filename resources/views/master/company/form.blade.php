@@ -47,7 +47,7 @@
                         <div class="form-group mb-3">
                             <label for="company_logo">Company Logo</label>
                             @if ($data['page']['readonly']==false)
-                              <input {{ $data['page']['readonly'] ? 'readonly' : '' }} {{ $data['page']['readonly'] ? 'readonly' : '' }} type="file" name="company_logo" id="company_logo" class="form-control-file @error('company_logo') is-invalid @enderror " >
+                              <input {{ $data['page']['readonly'] ? 'readonly' : '' }} {{ $data['page']['readonly'] ? 'readonly' : '' }} type="file" name="company_logo" id="company_logo" accept=".png,.jpg,.jpeg" class="form-control-file @error('company_logo') is-invalid @enderror " >
                               @error('company_logo') <span class="text-danger">{{ $message }}</span> @enderror
                             @endif
                         </div>

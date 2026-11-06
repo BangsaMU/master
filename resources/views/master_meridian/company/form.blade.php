@@ -72,7 +72,7 @@
                         <div class="field flex flex-col gap-1">
                             <label class="field__label text-sm font-medium text-foreground" for="company_logo">Company Logo</label>
                             @if ($data['page']['readonly']==false)
-                              <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="file" name="company_logo" id="company_logo" class="input w-full @error('company_logo') border-danger @enderror">
+                              <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="file" name="company_logo" id="company_logo" accept=".png,.jpg,.jpeg" class="input w-full @error('company_logo') border-danger @enderror">
                               @error('company_logo') <span class="field__error text-xs text-danger mt-1">{{ $message }}</span> @enderror
                             @endif
                         </div>

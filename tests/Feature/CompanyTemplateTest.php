@@ -167,7 +167,7 @@ class CompanyTemplateTest extends TestCase
 
         $saved = $this->template();
         $iso = $saved['APP32']['logo_pdf']['iso'] ?? '';
-        $this->assertMatchesRegularExpression('#^http://master\.test/files/company/png/\d+-iso-cert\.png$#', $iso);
+        $this->assertMatchesRegularExpression('#^http://master\.test/files/company/png/iso-cert-[a-z0-9]{12}\.png$#', $iso);
         $this->assertSame(['iso'], array_keys($saved['APP32']['logo_pdf']));
         $this->assertSame('FM-PGD-B01-001', $saved['APP32']['form_no']['spb']);
         $this->assertArrayNotHasKey('logo_pdf', $saved['APP09']);

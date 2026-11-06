@@ -310,6 +310,30 @@ Kartu **Template JSON** di form company (`master/company/{id}` dan `/edit`, tiga
 - **Membaca logo di aplikasi** (mis. header Req-Slip SPB): `CompanyTemplate::logoUrls($company->template_json, $appCode)`
   mengembalikan `['logo_2' => url, 'iso' => url]` milik aplikasi itu, hanya URL http(s); kosong = pakai default aplikasi.
 
+## Upload Logo Company: File Dulu, Database Belakangan (sejak v3.8.3)
+
+Berlaku untuk **Company Logo** (`POST master/company`) dan **logo header PDF** Template JSON
+(`POST master/company/{id}/update-template-json`):
+
+- **Hanya gambar PNG/JPG maks. 2 MB** (`CompanyController::LOGO_RULES` = `image|mimes:png,jpg,jpeg|max:2048`, jenis
+  dibaca dari isi file). Ekstensi file tersimpan diambil dari isi file, bukan dari nama kiriman browser. Dulu Company Logo
+  tidak divalidasi sama sekali: `shell.php` tersimpan sebagai `company/php/{id}-shell.php` di disk publik dan bisa
+  dijalankan web server bila folder publiknya menunjuk ke disk itu. Input file diberi `accept=".png,.jpg,.jpeg"`.
+- **Urutan**: validasi → simpan file ke disk `app.storage_disk_master` → satu transaksi DB (baris `master_gallery` lengkap
+  dengan `filename`, `url`, `hash_file` sha256, lalu `company_logo_id` / `template_json`) → sinkron ke DB master setelah
+  commit. Nama file `{nama-asli-slug}-{acak 12}.{png|jpg}`, tidak lagi memakai id gallery (dulu baris gallery dibuat dulu
+  demi id itu).
+- **Disk gagal** (folder tidak bisa dibuat/ditulis, `putFileAs` false): pesan di field `company_logo` /
+  `logo_pdf_file.{logo_2|iso}`, bukan error 500, dan **tidak ada yang ditulis ke database** (data company lain juga belum
+  disimpan). Dulu tertinggal baris `master_gallery` dengan `filename`/`url` kosong. Bila transaksi DB atau file berikutnya
+  gagal, file yang telanjur tersimpan dihapus lagi.
+- **Logo lama** dilepas setelah logo baru pasti tersimpan: barisnya di-soft delete, filenya dibiarkan supaya baris itu
+  masih bisa dipulihkan. Dulu file + baris lama dihapus sebelum upload baru dicoba, sehingga upload gagal membuat company
+  kehilangan logo.
+- Aplikasi `MASTER_DIRECT_EDIT` dengan DB master terpisah tidak lagi membuat baris gallery kosong tambahan di DB master;
+  baris gallery dikirim lewat `updateMaster` setelah commit seperti baris company.
+- Belum diubah: `CompanyController::uploadFile()` (tanpa route) masih memakai pola lama.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
