@@ -2,6 +2,7 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -27,7 +28,7 @@ class DashboardSettings extends Model
             // FIX: Gunakan string langsung, jangan 'new static'
             $tableName = 'dashboard_settings';
 
-            if (! Schema::hasTable($tableName)) {
+            if (! SchemaColumns::hasTable($tableName)) {
                 Schema::create($tableName, function (Blueprint $table) {
                     $table->id();
                     $table->string('key')->unique();

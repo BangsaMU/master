@@ -42,6 +42,9 @@ class MasterPackageServiceProvider extends ServiceProvider
         // pemilik data (app_code + company_id) dan aturan izin master per baris
         $this->app->singleton(\Bangsamu\Master\Services\MasterScope::class);
         $this->app->singleton(\Bangsamu\Master\Services\MasterAccess::class);
+
+        // daftar kolom tabel (pengganti Schema::hasColumn di jalur panas): memo per request/job
+        $this->app->scoped(\Bangsamu\Master\Services\SchemaColumns::class);
     }
 
     /**
@@ -57,6 +60,11 @@ class MasterPackageServiceProvider extends ServiceProvider
         View::share('agent', $agent);
         //
         $this->loadConfig();
+        // struktur tabel bisa berubah setelah migrate: cache daftar kolom SchemaColumns dikosongkan
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Database\Events\MigrationsEnded::class,
+            fn () => \Bangsamu\Master\Services\MasterDataSyncService::flushSchemaCache()
+        );
         $this->loadRoutesFrom(__DIR__.'/routes.php');
         // migration paket (mis. app_code di master_department) ikut `php artisan migrate` app pemasang
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');

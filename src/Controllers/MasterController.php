@@ -5,12 +5,12 @@ namespace Bangsamu\Master\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Telegram;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Services\SchemaColumns;
 use Bangsamu\Master\Services\TableAccessPolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Response;
 
@@ -213,7 +213,7 @@ class MasterController extends Controller
             return $rows;
         }
 
-        $columns = array_flip(array_map('strtolower', Schema::getColumnListing((new $modelLokal)->getTable())));
+        $columns = array_flip(array_map('strtolower', SchemaColumns::listing((new $modelLokal)->getTable())));
         if ($columns === []) {
             return $rows;
         }
@@ -228,7 +228,7 @@ class MasterController extends Controller
     {
         $policy = app(TableAccessPolicy::class);
 
-        if ($this->validIdToken($request, $id) && $policy->isReadableTable($tabel) && Schema::hasTable($tabel)) {
+        if ($this->validIdToken($request, $id) && $policy->isReadableTable($tabel) && SchemaColumns::hasTable($tabel)) {
             $data_array = DB::table($tabel)->where('id', $id)->get()
                 ->map(fn ($row) => $policy->withoutHiddenColumns($row))->all();
             $respon['data'] = $data_array;

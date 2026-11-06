@@ -6,7 +6,6 @@ namespace Bangsamu\Master\Services;
 
 use Bangsamu\Master\Models\DashboardSettings;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -183,7 +182,7 @@ class MasterLaunchToken
 
     protected function setting(string $key): ?string
     {
-        if (! Schema::hasTable('dashboard_settings')) {
+        if (! SchemaColumns::hasTable('dashboard_settings')) {
             return null;
         }
         $value = DashboardSettings::query()->where('key', self::SETTING_GROUP.'.'.$key)->value('value');

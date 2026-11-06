@@ -10,13 +10,13 @@ use App\Models\User;
 use App\Models\UserDetail;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Services\AnnotationLaunchTokenService;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 // jika punya routing skema dari spb enl contohnya
 use Illuminate\Support\Facades\Storage;
@@ -1105,7 +1105,7 @@ class ApiAnnotationController extends Controller
         $user_id = $user->id ?? 0;
         $user_email = $user->email ?? null;
 
-        if (! Schema::hasTable('user_details')) {
+        if (! SchemaColumns::hasTable('user_details')) {
             $paraf = null;
         } else {
             $paraf_query = UserDetail::select('field_value')->where('field_key', 'paraf')
@@ -1166,7 +1166,7 @@ class ApiAnnotationController extends Controller
         $user_email = $user->email ?? null;
         $signature_query = null;
 
-        if (! Schema::hasTable('user_details')) {
+        if (! SchemaColumns::hasTable('user_details')) {
             // Handle jika tabel tidak ditemukan (misal: return default atau log error)
             $signature = null;
             $message_error = 'tabel user_details tidak ditemukan';

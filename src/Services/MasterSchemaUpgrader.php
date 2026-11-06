@@ -39,7 +39,12 @@ class MasterSchemaUpgrader
         self::$ensured[$table] = true;
 
         try {
-            return $this->{self::UPGRADES[$table]}();
+            $changes = $this->{self::UPGRADES[$table]}();
+            if ($changes !== []) {
+                MasterDataSyncService::flushSchemaCache(); // kolom/index baru: daftar kolom SchemaColumns dibaca ulang
+            }
+
+            return $changes;
         } catch (Throwable $e) {
             unset(self::$ensured[$table]); // coba lagi di pemanggilan berikutnya
             report($e);

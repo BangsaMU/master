@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -96,7 +97,7 @@ class CrudTabelController extends Controller
         abort_unless(is_string($this->table) && in_array($this->table, (array) config('MasterCrudConfig.CRUD_TABLES', []), true), 404);
         abort_unless(checkPermission('is_admin'), 403);
 
-        $this->columns = Schema::getColumnListing($this->table);
+        $this->columns = SchemaColumns::listing($this->table);
     }
 
     public function indexX()
@@ -373,7 +374,7 @@ class CrudTabelController extends Controller
         $view_tabel_index = $this->view_tabel_index;
         $tabel = $this->tabel ?? $request->route('table');
 
-        $columns = Schema::getColumnListing($this->table);
+        $columns = SchemaColumns::listing($this->table);
 
         // misalnya kamu ingin 'id' selalu pertama, kemudian sisanya sesuai urutan abjad:
         $id = ['id']; // yang harus di awal

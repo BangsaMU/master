@@ -2,6 +2,7 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -25,7 +26,7 @@ class Gallery extends Model
         if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (! Schema::hasTable((new static)->getTable())) {
+            if (! SchemaColumns::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('user_id');

@@ -4,8 +4,8 @@ namespace Bangsamu\Master\Exports\Master;
 
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -41,7 +41,7 @@ class ItemCodeExport implements FromCollection, ShouldAutoSize, WithHeadings
                     $column = $setting->name ?? $setting->key;
                     $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
 
-                    if (! empty($column) && ! empty($values) && Schema::hasColumn('master_item_code', $column)) {
+                    if (! empty($column) && ! empty($values) && SchemaColumns::hasColumn('master_item_code', $column)) {
                         $q->orWhereIn("mic.$column", $values);
                     }
                 }

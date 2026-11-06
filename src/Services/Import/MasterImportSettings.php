@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Bangsamu\Master\Services\Import;
 
 use Bangsamu\Master\Models\DashboardSettings;
-use Illuminate\Support\Facades\Schema;
+use Bangsamu\Master\Services\SchemaColumns;
 use Throwable;
 
 /**
@@ -26,7 +26,7 @@ final class MasterImportSettings
     public static function ensure(): void
     {
         try {
-            if (! Schema::hasTable('dashboard_settings')) {
+            if (! SchemaColumns::hasTable('dashboard_settings')) {
                 return;
             }
 

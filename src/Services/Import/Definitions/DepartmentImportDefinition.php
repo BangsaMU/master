@@ -7,8 +7,8 @@ namespace Bangsamu\Master\Services\Import\Definitions;
 use Bangsamu\Master\Models\Department;
 use Bangsamu\Master\Services\Import\SimpleCodeImportDefinition;
 use Bangsamu\Master\Services\MasterSchemaUpgrader;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Unik: department_code + app_code. app_code = aplikasi yang mengimport (config SsoConfig.main.APP_CODE),
@@ -113,7 +113,7 @@ class DepartmentImportDefinition extends SimpleCodeImportDefinition
     {
         if ($this->hasAppCode === null) {
             app(MasterSchemaUpgrader::class)->ensure('master_department');
-            $this->hasAppCode = Schema::hasColumn('master_department', 'app_code');
+            $this->hasAppCode = SchemaColumns::hasColumn('master_department', 'app_code');
         }
 
         return $this->hasAppCode;

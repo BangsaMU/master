@@ -7,7 +7,6 @@ namespace Bangsamu\Master\Services;
 use Bangsamu\Master\Support\MasterModules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Aturan izin data master per modul + per baris (pemilik app_code/company_id, lihat MasterScope):
@@ -206,7 +205,7 @@ class MasterAccess
         if ($withRow && $delegation !== null) {
             return 'Data ini bukan milik '.$this->scope->ownerLabel(['app_code' => $delegation['app_code'], 'company_id' => (int) $delegation['company_id']]).', tidak dapat diubah.';
         }
-        if ($withRow && Schema::hasTable(MasterModules::table($slug)) && $this->scope->isScoped(MasterModules::table($slug)) && ! $this->scope->isHub()) {
+        if ($withRow && SchemaColumns::hasTable(MasterModules::table($slug)) && $this->scope->isScoped(MasterModules::table($slug)) && ! $this->scope->isHub()) {
             return 'Data ini bukan milik aplikasi/company Anda, tidak dapat diubah.';
         }
 

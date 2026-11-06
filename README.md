@@ -334,6 +334,24 @@ Berlaku untuk **Company Logo** (`POST master/company`) dan **logo header PDF** T
   baris gallery dikirim lewat `updateMaster` setelah commit seperti baris company.
 - Belum diubah: `CompanyController::uploadFile()` (tanpa route) masih memakai pola lama.
 
+## Cache Daftar Kolom Tabel (sejak v3.9.0)
+
+Cek `Schema::hasTable` / `hasColumn` / `getColumnListing` di jalur panas paket (dropdown `api/getmaster_*byparams`,
+`MasterScope`, filter Setting `DynamicFilterable`, daftar/CRUD/launch master, `TableAccessPolicy`, boot model) kini lewat
+`Bangsamu\Master\Services\SchemaColumns`. Dulu setiap cek = satu query `information_schema`: 5-11 query per panggilan
+dropdown dan sekali per model per request (di meb_spb ±14% dari semua query web).
+
+- **Memo per request/job** (instance `scoped`) + **cache lintas request** di store cache default, kunci per koneksi +
+  database + tabel, selama `MasterConfig.schema_cache_ttl` detik (`MASTER_SCHEMA_CACHE_TTL`, bawaan 3600; `0` = hanya
+  memo per request). Hanya tabel yang ada yang di-cache: tabel yang belum ada selalu dicek ulang (installer/boot model
+  bisa membuatnya kapan saja).
+- **Dikosongkan otomatis** setelah `php artisan migrate` (event `MigrationsEnded`), `MasterDataSyncService::flushSchemaCache()`
+  (MasterTableInstaller, `master:scope-upgrade`, `master:schema-columns`), dan upgrade otomatis `MasterSchemaUpgrader`.
+  ALTER manual di luar itu terlihat setelah TTL habis atau `php artisan cache:clear`.
+- Store cache bermasalah tidak mematikan halaman: dianggap belum ada cache, kolom dibaca dari database.
+- Tidak berubah: `MasterSchemaStatus` (banner skema, punya cache sendiri), `MasterSchemaUpgrader`, `MasterDataSyncService`,
+  command, dan migration tetap membaca skema langsung.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

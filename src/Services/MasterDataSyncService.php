@@ -344,11 +344,13 @@ class MasterDataSyncService
     }
 
     /**
-     * Kosongkan cache cek tabel (dipanggil setelah tabel master_* atau dashboard_settings dibuat).
+     * Kosongkan cache cek tabel dan daftar kolom SchemaColumns (dipanggil setelah tabel master_* atau
+     * dashboard_settings dibuat/diubah, dan setelah migrate).
      */
     public static function flushSchemaCache(): void
     {
         self::$masterColumnCache = [];
+        SchemaColumns::flush();
         foreach (['allowed_tables', 'dashboard_settings'] as $name) {
             try {
                 Cache::forget(self::schemaCacheKey($name));

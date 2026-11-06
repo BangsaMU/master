@@ -5,7 +5,6 @@ namespace Bangsamu\Master\Services;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Schema;
 
 class DynamicAssetService
 {
@@ -24,9 +23,9 @@ class DynamicAssetService
             return null;
         }
 
-        $userDetailTable = Schema::hasTable('master_user_details')
+        $userDetailTable = SchemaColumns::hasTable('master_user_details')
             ? 'master_user_details'
-            : (Schema::hasTable('user_details') ? 'user_details' : null);
+            : (SchemaColumns::hasTable('user_details') ? 'user_details' : null);
 
         if (! $userDetailTable) {
             return null;
@@ -73,9 +72,9 @@ class DynamicAssetService
         if (Auth::check()) {
             try {
                 $user = Auth::user();
-                $userDetailTable = Schema::hasTable('master_user_details')
+                $userDetailTable = SchemaColumns::hasTable('master_user_details')
                     ? 'master_user_details'
-                    : (Schema::hasTable('user_details') ? 'user_details' : null);
+                    : (SchemaColumns::hasTable('user_details') ? 'user_details' : null);
 
                 if ($userDetailTable) {
                     $gallery = DB::table($userDetailTable.' as ud')

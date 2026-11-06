@@ -2,6 +2,7 @@
 
 namespace Bangsamu\Master\Models;
 
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -297,7 +298,7 @@ class Requisition extends Model
         if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (! Schema::hasTable((new static)->getTable())) {
+            if (! SchemaColumns::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id(); // bigint unsigned auto_increment
 

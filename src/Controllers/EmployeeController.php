@@ -16,13 +16,13 @@ use Bangsamu\Master\Models\MasterIncrement;
 use Bangsamu\Master\Models\MasterLocation;
 use Bangsamu\Master\Models\MasterStatus;
 use Bangsamu\Master\Services\MasterBroadcastService;
+use Bangsamu\Master\Services\SchemaColumns;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 // use Bangsamu\Master\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
@@ -1631,7 +1631,7 @@ class EmployeeController extends Controller
         // 5. Fallback to querying master_user_details or user_details table directly
         try {
             if ($userId) {
-                if (Schema::hasTable('master_user_details')) {
+                if (SchemaColumns::hasTable('master_user_details')) {
                     $locationId = DB::table('master_user_details')
                         ->where('user_id', $userId)
                         ->where('field_key', 'location_id')
@@ -1639,7 +1639,7 @@ class EmployeeController extends Controller
                     if (! empty($locationId)) {
                         return (string) $locationId;
                     }
-                } elseif (Schema::hasTable('user_details')) {
+                } elseif (SchemaColumns::hasTable('user_details')) {
                     $locationId = DB::table('user_details')
                         ->where('user_id', $userId)
                         ->where('field_key', 'location_id')

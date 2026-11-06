@@ -8,7 +8,6 @@ use Bangsamu\Master\Rules\MasterUnique;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -85,7 +84,7 @@ class MasterScope
         $key = DB::getDefaultConnection().'.'.$table;
         if (! isset(self::$columns[$key])) {
             try {
-                $listing = Schema::hasTable($table) ? Schema::getColumnListing($table) : [];
+                $listing = SchemaColumns::hasTable($table) ? SchemaColumns::listing($table) : [];
             } catch (Throwable $e) {
                 $listing = [];
             }
@@ -149,7 +148,7 @@ class MasterScope
         }
 
         foreach (['user_details', 'master_user_details'] as $table) {
-            if (! Schema::hasTable($table)) {
+            if (! SchemaColumns::hasTable($table)) {
                 continue;
             }
             $company = DB::table($table)
@@ -157,7 +156,7 @@ class MasterScope
                     $query->where('user_email', $user->email ?? '')->orWhere('user_id', $user->getAuthIdentifier());
                 })
                 ->where('field_key', 'company_id')
-                ->when(Schema::hasColumn($table, 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
+                ->when(SchemaColumns::hasColumn($table, 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
                 ->value('field_value');
             if (filled($company)) {
                 return (int) $company;
@@ -322,25 +321,25 @@ class MasterScope
         if ($this->sameAppCode($appCode, $this->globalAppCode()) || $this->sameAppCode($appCode, $this->appCode())) {
             return true;
         }
-        if (! Schema::hasTable('master_apps')) {
+        if (! SchemaColumns::hasTable('master_apps')) {
             return false;
         }
 
         return DB::table('master_apps')
             ->where('app_code', strtoupper(trim($appCode)))
-            ->when(Schema::hasColumn('master_apps', 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
+            ->when(SchemaColumns::hasColumn('master_apps', 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
             ->exists();
     }
 
     public function companyRegistered(int $companyId): bool
     {
-        if (! Schema::hasTable('master_company')) {
+        if (! SchemaColumns::hasTable('master_company')) {
             return false;
         }
 
         return DB::table('master_company')
             ->where('id', $companyId)
-            ->when(Schema::hasColumn('master_company', 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
+            ->when(SchemaColumns::hasColumn('master_company', 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
             ->exists();
     }
 
@@ -454,7 +453,7 @@ class MasterScope
             ->where($column, $value)
             ->where('app_code', $owner['app_code'])
             ->when($owner['company_id'] === 0, fn ($query) => $query->where('company_id', '!=', 0), fn ($query) => $query->where('company_id', 0))
-            ->when(Schema::hasColumn($table, 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
+            ->when(SchemaColumns::hasColumn($table, 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
             ->when($ignoreId !== null && $ignoreId !== '', fn ($query) => $query->where('id', '!=', $ignoreId))
             ->first(['company_id']);
 
@@ -501,7 +500,7 @@ class MasterScope
 
     public function companyCode(int $companyId): ?string
     {
-        if (! Schema::hasTable('master_company')) {
+        if (! SchemaColumns::hasTable('master_company')) {
             return null;
         }
         $code = DB::table('master_company')->where('id', $companyId)->value('company_code');

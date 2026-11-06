@@ -2,7 +2,6 @@
 
 namespace Bangsamu\Master\Services;
 
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -87,6 +86,6 @@ class TableAccessPolicy
      */
     public function visibleColumns(string $tabel): array
     {
-        return array_values(array_filter(Schema::getColumnListing($tabel), fn ($column) => ! $this->isHiddenColumn($column)));
+        return array_values(array_filter(SchemaColumns::listing($tabel), fn ($column) => ! $this->isHiddenColumn($column)));
     }
 }

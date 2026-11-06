@@ -5,8 +5,8 @@ namespace Bangsamu\Master\Traits;
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Setting;
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Filter daftar/dropdown master dari setting aplikasi.
@@ -92,7 +92,7 @@ trait DynamicFilterable
             $group = [];
             foreach ($decoded as $column => $values) {
                 $values = array_values(array_filter(array_map(fn ($value) => trim((string) $value), (array) $values), fn ($value) => $value !== ''));
-                if (! is_string($column) || $values === [] || ! Schema::hasColumn($table, $column)) {
+                if (! is_string($column) || $values === [] || ! SchemaColumns::hasColumn($table, $column)) {
                     return []; // baris scope dengan kolom tidak dikenal diabaikan utuh, bukan dilonggarkan
                 }
                 $group[$column] = $values;
@@ -102,7 +102,7 @@ trait DynamicFilterable
         }
 
         $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
-        if ($name === '' || $values === [] || ! Schema::hasColumn($table, $name)) {
+        if ($name === '' || $values === [] || ! SchemaColumns::hasColumn($table, $name)) {
             return [];
         }
 

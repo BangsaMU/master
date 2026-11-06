@@ -6,13 +6,13 @@ use Bangsamu\Master\Services\MasterAccess;
 use Bangsamu\Master\Services\MasterEditLink;
 use Bangsamu\Master\Services\MasterLaunchToken;
 use Bangsamu\Master\Services\MasterScope;
+use Bangsamu\Master\Services\SchemaColumns;
 use Bangsamu\Master\Support\MasterModules;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 /**
@@ -37,7 +37,7 @@ class MasterLaunchController extends Controller
 
         $table = MasterModules::table($slug);
         if ($id !== null) {
-            $row = Schema::hasTable($table) ? DB::table($table)->where('id', $id)->first() : null;
+            $row = SchemaColumns::hasTable($table) ? DB::table($table)->where('id', $id)->first() : null;
             $this->access->authorize($slug, 'update', $row ?? $id);
         } else {
             $this->access->authorize($slug, 'create');
@@ -166,7 +166,7 @@ class MasterLaunchController extends Controller
      */
     protected function resolveUserAndApp(array $payload): array
     {
-        $app = Schema::hasTable('master_apps')
+        $app = SchemaColumns::hasTable('master_apps')
             ? DB::table('master_apps')->where('app_code', $payload['iss'])->whereNull('deleted_at')->first()
             : null;
         if ($app === null) {

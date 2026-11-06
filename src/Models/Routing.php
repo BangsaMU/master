@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Models;
 
 use App\Models\Requisition;
 use App\Models\User;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 // use Auth;
@@ -649,7 +650,7 @@ class Routing extends Model
         if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (! Schema::hasTable((new static)->getTable())) {
+            if (! SchemaColumns::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id(); // BigInt AUTO_INCREMENT (default = 20 digit cukup)
                     $table->unsignedBigInteger('object_id');

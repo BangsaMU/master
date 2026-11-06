@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Models;
 
 use Bangsamu\LibraryClay\Traits\Loggable;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -27,7 +28,7 @@ class Increment extends Model
         if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (! Schema::hasTable((new static)->getTable())) {
+            if (! SchemaColumns::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
                     $table->id();
                     $table->string('unique_group', 20)->charset('utf8mb4')->collation('utf8mb4_unicode_ci');

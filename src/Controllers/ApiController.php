@@ -17,6 +17,7 @@ use Bangsamu\Master\Models\Pca;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\Uom;
 use Bangsamu\Master\Models\Vendor;
+use Bangsamu\Master\Services\SchemaColumns;
 use Bangsamu\Master\Services\TableAccessPolicy;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -100,7 +101,7 @@ class ApiController extends Controller
 
         foreach ($field as $kolom) {
             /* validasi kolom tabel */
-            if (Schema::hasColumn($tabel, $kolom)) {
+            if (SchemaColumns::hasColumn($tabel, $kolom)) {
                 $select[] = "$alias_tabel.$kolom";
             }
             /* validasi kolom tabel join */
@@ -183,7 +184,7 @@ class ApiController extends Controller
             $field = @$set['field'];
         }
         if (isset($change_id)) {
-            if (Schema::hasColumn($tabel, $change_id)) {
+            if (SchemaColumns::hasColumn($tabel, $change_id)) {
                 $select[] = $alias_tabel.'.'.$change_id.' AS id';
             } else {
                 abort(403, 'set id not valid');
@@ -280,7 +281,7 @@ class ApiController extends Controller
                         /* pemisah dari key set[text][...] wajib dikutip PDO (dulu ditempel mentah ke SQL: celah injeksi) */
                         $sparator = $sparator !== '' ? ','.DB::getPdo()->quote((string) $sparator).',' : '';
                         // dd(array_key_last($text),$text,$sparator,$last,$field_text);
-                        if (Schema::hasColumn($tabel, $field_text)) {
+                        if (SchemaColumns::hasColumn($tabel, $field_text)) {
                             $text_concat .= 'coalesce('.$alias_tabel.'.'.$field_text.',"")'.$sparator;
                             // select concat(`mp`.`project_code`,'|',`mp`.`project_name`) as `text` from `master_project` as `mp`
                         } else {
@@ -288,7 +289,7 @@ class ApiController extends Controller
                             if (is_array(@$join_tabel)) {
                                 foreach ($join_tabel as $key_index => $join_val) {
                                     // dd($join_val['tabel']);
-                                    if (Schema::hasColumn($join_val['tabel'], $field_text)) {
+                                    if (SchemaColumns::hasColumn($join_val['tabel'], $field_text)) {
                                         // jik pakek joint
                                         $text_concat .= 'coalesce('.$field_text.',"")'.$sparator;
                                     } else {
@@ -316,7 +317,7 @@ class ApiController extends Controller
                     // dd($text_concat);
                     // dd($selectRaw,$text_concat, $text);
                 } else {
-                    if (Schema::hasColumn($tabel, $text)) {
+                    if (SchemaColumns::hasColumn($tabel, $text)) {
                         $select[] = "$text AS text";
                     }
                 }
@@ -327,7 +328,7 @@ class ApiController extends Controller
             }
         }
 
-        $tabel_exist = Schema::hasTable($tabel);
+        $tabel_exist = SchemaColumns::hasTable($tabel);
         if ($tabel_exist) {
             $select_text = implode(',', $select);
             $list_select = ! empty($selectRaw) ? $selectRaw.','.$select_text : $select_text;
@@ -337,7 +338,7 @@ class ApiController extends Controller
 
             if (empty($request->deleted_at)) {
                 // buang delete_at
-                if (Schema::hasColumn($tabel, 'deleted_at')) {
+                if (SchemaColumns::hasColumn($tabel, 'deleted_at')) {
                     $data_array = $data_array->whereNull($alias_tabel.'.deleted_at');
                 }
             }
@@ -411,7 +412,7 @@ class ApiController extends Controller
 
                             foreach ($search as $searchKey => $searchVal) {
                                 /* validasi kolom pencarian di tabel */
-                                if (Schema::hasColumn($tabel, $searchKey)) {
+                                if (SchemaColumns::hasColumn($tabel, $searchKey)) {
                                     // cek where or atau and
                                     if (is_array($searchVal)) {
                                         // cek jika int gunakan where selian itu like
@@ -436,7 +437,7 @@ class ApiController extends Controller
                                 } elseif (is_array($join_tabel)) {
                                     foreach ($join_tabel as $key_index => $join_val) {
                                         // jik pakek joint
-                                        if (Schema::hasColumn($join_val['tabel'], $searchKey)) {
+                                        if (SchemaColumns::hasColumn($join_val['tabel'], $searchKey)) {
                                             // dd($join_val,$join_val['tabel'],$searchKey,$searchVal);
                                             // array:5 [▼ // vendor/bangsamu/master/src/Controllers/ApiController.php:372
                                             //         "tabel" => "master_item_code"
@@ -486,7 +487,7 @@ class ApiController extends Controller
 
                         foreach ($where as $whereKey => $whereVal) {
                             /* validasi kolom pencarian di tabel */
-                            if (Schema::hasColumn($tabel, $whereKey)) {
+                            if (SchemaColumns::hasColumn($tabel, $whereKey)) {
                                 // cek where or atau and
                                 if (is_array($whereVal)) {
                                     // cek jika int gunakan where selian itu like
@@ -514,7 +515,7 @@ class ApiController extends Controller
                         foreach ($find_in_set as $findKey => $findVal) {
                             // dd($tabel,$findKey);
                             /* validasi kolom pencarian di tabel */
-                            if (Schema::hasColumn($tabel, $findKey)) {
+                            if (SchemaColumns::hasColumn($tabel, $findKey)) {
                                 // cek where or atau and
                                 //    dd(1,$findVal);
                                 //    dd(array_values($findVal),array_values($findVal)[0],is_numeric(array_values($findVal)[0]),is_array($findVal),$findVal);
@@ -546,7 +547,7 @@ class ApiController extends Controller
                         foreach ($not_null as $findKey => $findVal) {
                             // dd(11,'array',$tabel, $findKey,Schema::hasColumn($tabel, $findVal));
                             /* validasi kolom pencarian di tabel */
-                            if (Schema::hasColumn($tabel, $findVal)) {
+                            if (SchemaColumns::hasColumn($tabel, $findVal)) {
                                 // cek where or atau and
                                 if (is_array($findVal)) {
                                     $query->whereNotNull($findVal);
@@ -772,7 +773,7 @@ class ApiController extends Controller
         $search = $request->search;
 
         // department_code unik per app_code: tampilkan pemilik bila bukan aplikasi ini supaya kode kembar bisa dibedakan
-        $hasAppCode = Schema::hasColumn('master_department', 'app_code');
+        $hasAppCode = SchemaColumns::hasColumn('master_department', 'app_code');
         $columns = $hasAppCode ? ['id', 'department_code', 'app_code'] : ['id', 'department_code'];
 
         if ($search == '') {

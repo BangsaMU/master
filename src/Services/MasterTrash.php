@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -36,7 +35,7 @@ class MasterTrash
     /** admin melihat baris terhapus di daftar master */
     public function canSeeTrashed(string $slug): bool
     {
-        return $this->seeTrashed[$slug] ??= $this->access->isAdmin() && Schema::hasColumn(MasterModules::table($slug), self::COLUMN);
+        return $this->seeTrashed[$slug] ??= $this->access->isAdmin() && SchemaColumns::hasColumn(MasterModules::table($slug), self::COLUMN);
     }
 
     /** pulihkan = admin, dan di aplikasi klien baris harus milik aplikasinya (aturan hapus MasterAccess) */
@@ -134,7 +133,7 @@ class MasterTrash
         }
 
         try {
-            if (! Schema::hasTable('activity_logs')) {
+            if (! SchemaColumns::hasTable('activity_logs')) {
                 return null;
             }
             $studly = Str::studly($slug);

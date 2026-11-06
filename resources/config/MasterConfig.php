@@ -90,6 +90,10 @@ return [
         'browser_cooldown' => (int) env('MASTER_SYNC_BROWSER_COOLDOWN', 300), // 5 minutes cooldown for browser catch-up
         'browser_auto_catchup' => env('MASTER_SYNC_BROWSER_AUTO_CATCHUP', true),
     ],
+    // detik cache daftar kolom tabel (SchemaColumns: cek kolom dropdown/daftar master tanpa query information_schema
+    // tiap request); 0 = hanya memo per request. Dikosongkan otomatis setelah migrate / master:scope-upgrade.
+    'schema_cache_ttl' => (int) env('MASTER_SCHEMA_CACHE_TTL', 3600),
+
     // route perawatan /optimize dan /composer: wajib login + ability ini (Gate / permission Spatie), mis. is_root di SPB
     'maintenance' => [
         'ability' => env('MASTER_MAINTENANCE_ABILITY', 'is_admin'),

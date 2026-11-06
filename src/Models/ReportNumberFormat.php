@@ -3,6 +3,7 @@
 namespace Bangsamu\Master\Models;
 
 use Bangsamu\LibraryClay\Traits\Loggable;
+use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -25,7 +26,7 @@ class ReportNumberFormat extends Model
         if (! self::$hasCheckedTable) {
             self::$hasCheckedTable = true;
 
-            if (! Schema::hasTable((new static)->getTable())) {
+            if (! SchemaColumns::hasTable((new static)->getTable())) {
                 Schema::create((new static)->getTable(), function (Blueprint $table) {
 
                     $table->tinyIncrements('id'); // tinyint unsigned auto_increment primary key
