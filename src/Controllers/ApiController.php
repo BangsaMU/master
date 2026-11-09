@@ -317,7 +317,8 @@ class ApiController extends Controller
                     // dd($text_concat);
                     // dd($selectRaw,$text_concat, $text);
                 } else {
-                    if (SchemaColumns::hasColumn($tabel, $text)) {
+                    /* set[field] tanpa set[text] (mis. atribut Item Group di form Item Code): tanpa kolom text */
+                    if (is_string($text) && SchemaColumns::hasColumn($tabel, $text)) {
                         $select[] = "$text AS text";
                     }
                 }

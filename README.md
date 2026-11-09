@@ -351,6 +351,10 @@ dropdown dan sekali per model per request (di meb_spb ±14% dari semua query web
 - Store cache bermasalah tidak mematikan halaman: dianggap belum ada cache, kolom dibaca dari database.
 - Tidak berubah: `MasterSchemaStatus` (banner skema, punya cache sendiri), `MasterSchemaUpgrader`, `MasterDataSyncService`,
   command, dan migration tetap membaca skema langsung.
+- `SchemaColumns::hasColumn()` menerima nama kolom bukan string (v3.9.1): `null`, kosong, atau array = `false`, sama
+  dengan `Schema::hasColumn` lama. Di v3.9.0 parameternya wajib string, jadi request tanpa `set[text]` (ajax atribut
+  Item Group di form Item Code: `set[field][]=item_group_attributes&where[id]=…`) = TypeError 500. Akibatnya isian
+  atribut tidak tampil, dan Save di Edit Item Code mengganti nilai atribut item dengan template grup (kosong).
 
 ## Konfigurasi Database (`config/database.php`)
 

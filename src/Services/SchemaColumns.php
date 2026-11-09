@@ -48,9 +48,19 @@ class SchemaColumns
         return self::listing($table, $connection) !== [];
     }
 
-    /** Sama dengan Schema::hasColumn: nama kolom tidak peka huruf besar/kecil. */
-    public static function hasColumn(string $table, string $column, ?string $connection = null): bool
+    /**
+     * Sama dengan Schema::hasColumn: nama kolom tidak peka huruf besar/kecil.
+     *
+     * Nama kolom sering berasal dari parameter request (set[text], set[id], search[...]) yang boleh tidak dikirim.
+     * Schema::hasColumn tanpa tipe parameter menjawab false untuk null; di sini juga false untuk nilai bukan string
+     * atau kosong, bukan TypeError (v3.9.0: form Item Code memanggil set[field] tanpa set[text] = 500).
+     */
+    public static function hasColumn(string $table, mixed $column, ?string $connection = null): bool
     {
+        if (! is_string($column) || $column === '') {
+            return false;
+        }
+
         return in_array(strtolower($column), array_map('strtolower', self::listing($table, $connection)), true);
     }
 

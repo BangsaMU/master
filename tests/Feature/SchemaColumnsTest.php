@@ -86,6 +86,15 @@ class SchemaColumnsTest extends TestCase
         $this->assertTrue(SchemaColumns::hasColumn('master_uji', 'company_id'));
     }
 
+    /** Nama kolom dari parameter request yang tidak dikirim (null) = false seperti Schema::hasColumn, bukan TypeError. */
+    public function test_nama_kolom_bukan_string_atau_kosong_dianggap_tidak_ada(): void
+    {
+        $this->assertFalse(SchemaColumns::hasColumn('master_uji', null));
+        $this->assertFalse(SchemaColumns::hasColumn('master_uji', ''));
+        $this->assertFalse(SchemaColumns::hasColumn('master_uji', ['kode_uji']));
+        $this->assertTrue(SchemaColumns::hasColumn('master_uji', 'kode_uji'));
+    }
+
     public function test_ttl_nol_hanya_memo_per_request(): void
     {
         config(['MasterConfig.schema_cache_ttl' => 0]);

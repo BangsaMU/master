@@ -49,6 +49,28 @@ class ItemCodeDropdownKodeNamaTest extends TestCase
         $this->assertSame(['PCS | Pieces'], $cari('piece'));
     }
 
+    /**
+     * Pilih Item Group di form Item Code memuat isian atribut lewat set[field][]=item_group_attributes tanpa set[text].
+     * v3.9.0: SchemaColumns::hasColumn($tabel, null) = TypeError 500, isian atribut hilang dan Save mengosongkan nilainya.
+     */
+    public function test_atribut_item_group_tanpa_set_text_tetap_ok(): void
+    {
+        $group = DB::table('master_item_group')->insertGetId([
+            'item_group_code' => 'ABR',
+            'item_group_name' => 'ABRASSIVE',
+            'item_group_attributes' => '{"size":null,"grit":null}',
+        ]);
+
+        // URL sama persis dengan ajax select2:select di form Item Code
+        $response = $this->getJson('/api/getmaster_item_groupbyparams?set[field][]=item_group_attributes&where[id]='.$group)
+            ->assertOk()
+            ->json();
+
+        $this->assertSame($group, (int) $response[0]['id']);
+        $this->assertSame('{"size":null,"grit":null}', $response[0]['item_group_attributes']);
+        $this->assertArrayNotHasKey('text', $response[0]);
+    }
+
     public function test_form_create_memakai_kode_nama_dan_skrip_keyboard(): void
     {
         $html = $this->get(route('master.item-code.create'))->assertOk()->getContent();
