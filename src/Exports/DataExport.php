@@ -4,7 +4,10 @@ namespace Bangsamu\Master\Exports;
 
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\MasterFilterGroups;
+use Bangsamu\Master\Services\MasterScope;
 use Bangsamu\Master\Services\TableAccessPolicy;
+use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -14,6 +17,8 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
 {
+    use DynamicFilterable;
+
     protected $table;
 
     public function setTable($table)
@@ -40,7 +45,40 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
             });
         }
 
+        // kolom relasi (MasterCrudConfig.RELATION_FILTERS) tidak ada di tabel ini sehingga terbuang di atas: dipasang
+        // sebagai syarat AND, sama dengan daftar master dan dropdown (tanpa ini export memuat semua baris)
+        MasterFilterGroups::apply($query, (string) $this->table, $this->relationFilterGroups());
+
         return $query->get();
+    }
+
+    /**
+     * Baris Setting tabel ini yang berisi kolom relasi, hanya kolom relasinya, placeholder sudah diganti.
+     *
+     * @return list<array<string, list<string>>>
+     */
+    protected function relationFilterGroups(): array
+    {
+        $table = (string) $this->table;
+        if (empty(config('MasterCrudConfig.RELATION_FILTERS')[$table] ?? null)) {
+            return []; // bawaan: tidak ada filter relasi, tanpa query tambahan
+        }
+
+        $placeholders = app(MasterScope::class)->placeholders();
+        $groups = [];
+        foreach ($this->getSettingsForTable($table) as $setting) {
+            $group = [];
+            foreach ($this->settingFilterGroup($table, $setting) as $column => $values) {
+                if (MasterFilterGroups::isRelationColumn($table, (string) $column)) {
+                    $group[$column] = array_map(fn ($value) => strtr((string) $value, $placeholders), $values);
+                }
+            }
+            if ($group !== []) {
+                $groups[] = $group;
+            }
+        }
+
+        return $groups;
     }
 
     public function headings(): array

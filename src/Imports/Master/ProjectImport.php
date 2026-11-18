@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bangsamu\Master\Imports\Master;
 
 use Bangsamu\Master\Models\Project;
+use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Bangsamu\Master\Traits\HandlesBatchImportBroadcast;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -24,8 +25,13 @@ class ProjectImport implements ToCollection, WithChunkReading, WithEvents, WithH
 
     private $success = [];
 
-    /** Pre-loaded company with code 'ME' for auto-creating project_detail */
-    protected ?object $defaultCompany = null;
+    /**
+     * Company yang diberi project_detail untuk project baru (company pemilik, lalu company pembuat bila lewat
+     * delegasi), diambil sekali per import: ProjectOwnerDetail::companyIdsForNewProject().
+     *
+     * @var list<int>|null
+     */
+    protected ?array $detailCompanyIds = null;
 
     protected ?Collection $existingProjects = null;
 
@@ -34,7 +40,7 @@ class ProjectImport implements ToCollection, WithChunkReading, WithEvents, WithH
         return 'master_project';
     }
 
-    public function collection(Collection $rows)
+    public function collection(Collection $rows): void
     {
         // Pre-load existing projects once per chunk (avoid N+1)
         if ($this->existingProjects === null) {
@@ -44,13 +50,9 @@ class ProjectImport implements ToCollection, WithChunkReading, WithEvents, WithH
                 ->keyBy(fn ($proj) => strtoupper(trim((string) $proj->project_code)));
         }
 
-        // Pre-load default company once per chunk (avoid N+1)
-        if ($this->defaultCompany === null) {
-            $this->defaultCompany = DB::table('master_company')
-                ->where('company_code', 'ME')
-                ->select('id', 'company_code')
-                ->first() ?? DB::table('master_company')->select('id', 'company_code')->first();
-        }
+        // Company baris project_detail, sekali per import (avoid N+1)
+        $ownerDetail = app(ProjectOwnerDetail::class);
+        $this->detailCompanyIds ??= $ownerDetail->companyIdsForNewProject();
 
         // Pre-load existing project_detail for duplicate check (avoid N+1)
         $existingDetails = DB::table('master_project_detail')
@@ -117,22 +119,20 @@ class ProjectImport implements ToCollection, WithChunkReading, WithEvents, WithH
                         'deleted_at'   => null,
                     ]);
 
-                    // Auto-create project_detail (konsisten dengan store() manual)
-                    // Hanya buat jika belum ada project_detail untuk project ini
-                    if ($this->defaultCompany && ! isset($existingDetails[$data->id])) {
-                        try {
-                            DB::table('master_project_detail')->insert([
-                                'project_id'          => $data->id,
-                                'project_code_client' => $projectCode,
-                                'project_name_client' => $projectName,
-                                'company_id'          => $this->defaultCompany->id,
-                                'created_at'          => now(),
-                                'updated_at'          => now(),
-                            ]);
-                            // Update local cache
-                            $existingDetails->put($data->id, true);
-                        } catch (Throwable $e) {
-                            // Gagal buat detail tidak menggagalkan import project
+                    // Auto-create project_detail (konsisten dengan store() manual): baris company pemilik, lalu
+                    // company pembuat bila lewat delegasi. Hanya buat jika belum ada project_detail untuk project ini
+                    if (! isset($existingDetails[$data->id])) {
+                        foreach ($ownerDetail->rowsForNewProject($data, $this->detailCompanyIds) as $detailRow) {
+                            try {
+                                DB::table('master_project_detail')->insert($detailRow + [
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                                // Update local cache
+                                $existingDetails->put($data->id, true);
+                            } catch (Throwable $e) {
+                                // Gagal buat detail tidak menggagalkan import project
+                            }
                         }
                     }
 

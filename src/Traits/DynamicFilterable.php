@@ -4,6 +4,7 @@ namespace Bangsamu\Master\Traits;
 
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\MasterFilterGroups;
 use Bangsamu\Master\Services\MasterScope;
 use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Support\Collection;
@@ -17,6 +18,8 @@ use Illuminate\Support\Collection;
  *  - baris scope: name `scope` / `scope.<label>` (dashboard_settings key `{tabel}.scope.<label>`), value JSON
  *    {"kolom": [nilai, ...], ...} -> AND di dalam baris, mis. {"app_code":["{APP_CODE}"],"company_id":["{USER_COMPANY}",0]}.
  * Placeholder nilai: {APP_CODE}, {USER_COMPANY}, {GLOBAL_APP_CODE} (MasterScope::placeholders()).
+ * Kolom relasi (MasterCrudConfig.RELATION_FILTERS, mis. master_project.company_id lewat master_project_detail) tidak
+ * ikut OR: selalu syarat AND tersendiri, lihat Services\MasterFilterGroups.
  *
  * Di aplikasi Master Data dengan session delegasi, tabel ber-scope dibatasi ke data bersama + milik aplikasi/company
  * asal delegasi.
@@ -59,21 +62,20 @@ trait DynamicFilterable
         }
 
         $placeholders = app(MasterScope::class)->placeholders();
-
-        $query->where(function ($q) use ($groups, $alias, $placeholders): void {
-            foreach ($groups as $group) {
-                $q->orWhere(function ($inner) use ($group, $alias, $placeholders): void {
-                    foreach ($group as $column => $values) {
-                        $values = array_values(array_unique(array_map(fn ($value) => strtr((string) $value, $placeholders), $values)));
-                        $inner->whereIn($alias ? $alias.'.'.$column : $column, $values);
-                    }
-                });
+        foreach ($groups as $index => $group) {
+            foreach ($group as $column => $values) {
+                $groups[$index][$column] = array_values(array_unique(array_map(fn ($value) => strtr((string) $value, $placeholders), $values)));
             }
-        });
+        }
+
+        // kolom biasa: OR antar baris; kolom relasi (MasterCrudConfig.RELATION_FILTERS): syarat AND tersendiri
+        MasterFilterGroups::apply($query, $table, $groups, $alias);
     }
 
     /**
      * Satu baris setting -> [kolom => nilai] (AND); kosong bila tidak berlaku (kolom tidak ada, nilai kosong).
+     * Kolom relasi yang terdaftar di MasterCrudConfig.RELATION_FILTERS ikut diterima walau tabel tidak punya kolomnya
+     * (dipasang MasterFilterGroups lewat tabel relasi).
      *
      * @return array<string, list<string>>
      */
@@ -92,7 +94,7 @@ trait DynamicFilterable
             $group = [];
             foreach ($decoded as $column => $values) {
                 $values = array_values(array_filter(array_map(fn ($value) => trim((string) $value), (array) $values), fn ($value) => $value !== ''));
-                if (! is_string($column) || $values === [] || ! SchemaColumns::hasColumn($table, $column)) {
+                if (! is_string($column) || $values === [] || ! $this->isSettingFilterColumn($table, $column)) {
                     return []; // baris scope dengan kolom tidak dikenal diabaikan utuh, bukan dilonggarkan
                 }
                 $group[$column] = $values;
@@ -102,11 +104,17 @@ trait DynamicFilterable
         }
 
         $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
-        if ($name === '' || $values === [] || ! SchemaColumns::hasColumn($table, $name)) {
+        if ($name === '' || $values === [] || ! $this->isSettingFilterColumn($table, $name)) {
             return [];
         }
 
         return [$name => $values];
+    }
+
+    /** kolom tabel itu sendiri, atau kolom relasi yang terdaftar (MasterCrudConfig.RELATION_FILTERS) */
+    protected function isSettingFilterColumn(string $table, string $column): bool
+    {
+        return SchemaColumns::hasColumn($table, $column) || MasterFilterGroups::isRelationColumn($table, $column);
     }
 
     /** hub + session delegasi: tabel ber-scope hanya data bersama + milik aplikasi/company asal */

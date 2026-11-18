@@ -10,7 +10,6 @@ use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\ProjectTemplateExport;
 // use App\Imports\Master\ProjectImport;
 use Bangsamu\Master\Imports\Master\ProjectImport;
-use Bangsamu\Master\Models\Company;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\ActivityLogService;
@@ -430,6 +429,7 @@ class ProjectController extends Controller
         if ($request->id) {
             // Update existing Project
             $project = Project::findOrFail($request->id);
+            $kodeLama = (string) $project->project_code;
             $update = $project->update(app(MasterScope::class)->stamp('master_project', [
                 'project_code' => $request->project_code,
                 'project_name' => $request->project_name,
@@ -440,6 +440,11 @@ class ProjectController extends Controller
             ], $owner));
 
             if ($update && $project->wasChanged()) {
+                // cermin 1:1: baris detail company pemilik yang kodenya = kode lama ikut kode/nama baru
+                if ($project->wasChanged(['project_code', 'project_name'])) {
+                    app(ProjectOwnerDetail::class)->mirror($project, $kodeLama);
+                }
+
                 /* sync callback */
                 $id = $project->id;
                 $sync_tabel = 'master_'.$this->sheet_slug;
@@ -466,16 +471,14 @@ class ProjectController extends Controller
                 'project_complete_date' => $request->project_complete_date,
             ], $owner));
 
-            // auto add project detail
-            $company = Company::where('company_code', 'ME')->first() ?? Company::first();
-            if ($company) {
+            // auto add project detail: baris company pemilik (PROJECT_OWNER_COMPANY_ID), lalu baris company pembuat
+            // bila project dibuat lewat session delegasi company lain (ProjectOwnerDetail::rowsForNewProject)
+            foreach (app(ProjectOwnerDetail::class)->rowsForNewProject($project) as $detailRow) {
                 $modelClass = LibraryClayController::resolveModelFromSheetSlug('project_detail');
-                $modelClass::create(app(MasterScope::class)->stamp('master_project', [
-                    'project_id' => $project->id,
-                    'project_code_client' => $request->project_code,
-                    'project_name_client' => $request->project_name,
-                    'company_id' => $company->id,
-                ], $owner)); // ini akan trigger Loggable
+                $data = app(MasterScope::class)->stamp('master_project', $detailRow, $owner);
+                // company_id di tabel ini = company client, bukan pemilik data
+                $data['company_id'] = $detailRow['company_id'];
+                $modelClass::create($data); // ini akan trigger Loggable
             }
 
             // DB::table('master_project_detail')->insert([

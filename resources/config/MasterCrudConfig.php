@@ -52,6 +52,15 @@ return [
     'LAUNCH_SESSION_MINUTES' => (int) env('MASTER_LAUNCH_SESSION_MINUTES', 120),
     // dropdown api/getmaster_*byparams ikut filter Setting/DashboardSettings (kategori = nama tabel) seperti list master
     'SELECT2_SETTING_FILTER' => env('MASTER_SELECT2_SETTING_FILTER', false),
+    // filter Setting untuk kolom yang tidak ada di tabel itu melainkan di tabel relasi (Services\MasterFilterGroups).
+    // Kosong (bawaan) = perilaku lama. Contoh: baris Setting master_project `company_id` = {USER_COMPANY} menyaring
+    // project lewat master_project_detail. Filter relasi selalu AND (tidak dilonggarkan baris Setting lain).
+    //   'master_project' => ['company_id' => [
+    //       'table' => 'master_project_detail', 'local' => 'id', 'foreign' => 'project_id',
+    //       'owner' => 1,                // opsional: company pemilik, barisnya ada di semua project
+    //       'exclusive' => [647, 648],   // opsional: project ber-baris company ini tidak tampil untuk owner;
+    //   ]],                              //           boleh class invokable / nama fungsi yang mengembalikan daftar id
+    'RELATION_FILTERS' => [],
 
     // middleware route api/get*byparams (select2); default wajib login. ['api'] = publik (batas tabel/kolom tetap berlaku)
     'SELECT2_MIDDLEWARE' => ['web', 'auth'],

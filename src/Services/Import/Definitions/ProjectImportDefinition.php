@@ -7,21 +7,27 @@ namespace Bangsamu\Master\Services\Import\Definitions;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\Import\MasterImportDefinition;
+use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use Throwable;
 
 /**
  * Unik: project_code (project_name juga unik).
- * Project baru otomatis dibuatkan project_detail untuk company default (ME), sama seperti import lama.
+ * Project baru otomatis dibuatkan project_detail untuk company pemilik (PROJECT_OWNER_COMPANY_ID), ditambah company
+ * pembuat bila import dijalankan lewat session delegasi company lain; project lama yang namanya diubah ikut mengubah
+ * baris cermin company pemilik (ProjectOwnerDetail).
  */
 class ProjectImportDefinition extends MasterImportDefinition
 {
     protected Collection $existing;
 
     protected Collection $existingNames;
+
+    /** @var list<int>|null company baris project_detail untuk project baru, diambil sekali per proses import */
+    protected ?array $detailCompanyIds = null;
 
     public function entity(): string
     {
@@ -146,14 +152,13 @@ class ProjectImportDefinition extends MasterImportDefinition
         }
         $logs = [$this->saveNew($model)];
 
-        $company = DB::table('master_company')->where('company_code', 'ME')->select('id')->first()
-            ?? DB::table('master_company')->select('id')->first();
-        if ($company) {
+        $ownerDetail = app(ProjectOwnerDetail::class);
+        $this->detailCompanyIds ??= $ownerDetail->companyIdsForNewProject();
+        foreach ($ownerDetail->rowsForNewProject($model, $this->detailCompanyIds) as $row) {
             $detail = new ProjectDetail;
-            $detail->project_id = $model->id;
-            $detail->project_code_client = $model->project_code;
-            $detail->project_name_client = $model->project_name;
-            $detail->company_id = $company->id;
+            foreach ($row as $field => $value) {
+                $detail->{$field} = $value;
+            }
             $logs[] = $this->saveNew($detail);
         }
 
@@ -162,9 +167,38 @@ class ProjectImportDefinition extends MasterImportDefinition
 
     public function update(int $id, array $changes, array $data): array
     {
-        $log = $this->saveChanges(Project::findOrFail($id), array_map(fn ($c) => $c['new'], $changes));
+        $project = Project::findOrFail($id);
+        $oldCode = (string) $project->project_code;
 
-        return $log ? [$log] : [];
+        $log = $this->saveChanges($project, array_map(fn ($c) => $c['new'], $changes));
+        if (! $log) {
+            return [];
+        }
+        $logs = [$log];
+
+        // cermin 1:1: baris detail company pemilik ikut kode/nama baru. Disimpan diam-diam seperti baris import
+        // lain (log ditulis engine, lengkap dengan alasan update); disebar setelah commit lewat syncToMaster().
+        if ($project->wasChanged(['project_code', 'project_name'])) {
+            foreach (app(ProjectOwnerDetail::class)->pendingMirror($project, $oldCode) as $detail) {
+                if ($mirrorLog = $this->saveChanges($detail, [])) {
+                    $logs[] = $mirrorLog;
+                }
+            }
+        }
+
+        return $logs;
+    }
+
+    /** Baris cermin pemilik yang ikut berubah disebar seperti edit manual Project Detail (broadcast + callback DB master). */
+    public function syncToMaster(Model $model): void
+    {
+        if ($model instanceof ProjectDetail && ! $model->wasRecentlyCreated) {
+            app(ProjectOwnerDetail::class)->publish($model);
+
+            return;
+        }
+
+        parent::syncToMaster($model);
     }
 
     protected function date(mixed $value): string

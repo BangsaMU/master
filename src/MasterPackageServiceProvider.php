@@ -118,6 +118,7 @@ class MasterPackageServiceProvider extends ServiceProvider
                 \Bangsamu\Master\Commands\MasterLaunchKeyCommand::class,
                 \Bangsamu\Master\Commands\MasterScopeDoctorCommand::class,
                 \Bangsamu\Master\Commands\MasterSchemaColumnsCommand::class,
+                \Bangsamu\Master\Commands\ProjectDetailMirrorCommand::class,
             ]);
 
             // Auto-register scheduled master sync catch-up if enabled

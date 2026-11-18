@@ -87,7 +87,9 @@ Detail: [docs/scope-multi-company.md](docs/scope-multi-company.md).
 `setting` dengan `category` = nama tabel (fallback `dashboard_settings.group`), `name`/`key` = kolom, `value` = daftar
 nilai dipisah koma; antar setting digabung OR. Lookup nilai terpilih (`?id=`) tidak difilter, jadi data lama tetap tampil.
 List master selalu memakai filter ini (tanpa config). Sejak v2.4.9 list Location ikut membaca kolom apa pun (mis.
-`loc_code`); sebelumnya hanya setting `group_type`.
+`loc_code`); sebelumnya hanya setting `group_type`. Sejak v3.12.0 kolom yang ada di tabel relasi (mis.
+`master_project.company_id` lewat `master_project_detail`) bisa didaftarkan sebagai filter relasi yang selalu AND,
+lihat "Filter relasi dan cermin detail pemilik".
 
 ## Edit di Aplikasi Master Data (sejak v2.4.7, opt-in)
 
@@ -387,6 +389,80 @@ Tiga tambahan di halaman `master/project` (permintaan tim master-data):
 - **Card ringkasan** di atas daftar (`$data['page']['top_partial']`, partial `partials.project-owner-summary`,
   `ProjectOwnerDetail::summary()`): company aktif, project aktif, Project Code Client aktif per company, status 1:1
   project dengan detail pemilik (belum punya / ganda), serta detail yatim (company atau project sudah terhapus).
+
+## Filter relasi dan cermin detail pemilik (sejak v3.12.0)
+
+**Filter relasi.** Filter Setting master (kategori = nama tabel) dulu hanya bisa memakai kolom tabel itu sendiri; baris
+ber-kolom lain dibuang. `master_project` tidak punya `company_id` (pemilik per company ada di
+`master_project_detail`), jadi "project milik company X" tidak bisa ditulis. Kini kolom seperti itu didaftarkan di
+config (bawaan kosong = perilaku lama persis):
+
+```php
+// config/MasterCrudConfig.php aplikasi
+'RELATION_FILTERS' => [
+    'master_project' => [
+        'company_id' => [
+            'table' => 'master_project_detail', 'local' => 'id', 'foreign' => 'project_id',
+            'owner' => 1,                               // opsional
+            'exclusive' => [647, 648],                  // opsional: array, class invokable, nama fungsi, atau callable
+        ],
+    ],
+],
+```
+
+Baris Setting `master_project` bernama `company_id` dengan nilai V (mis. `{USER_COMPANY}`) lalu menjadi:
+
+```sql
+mp.id IN (SELECT project_id FROM master_project_detail WHERE company_id IN (V) AND project_id IS NOT NULL AND deleted_at IS NULL)
+-- hanya bila owner termasuk V dan masih ada nilai exclusive di luar V:
+AND mp.id NOT IN (SELECT project_id FROM master_project_detail WHERE company_id IN (exclusive - V) AND project_id IS NOT NULL AND deleted_at IS NULL)
+```
+
+- `owner` = nilai yang barisnya ada di semua data (company pemilik, cermin 1:1). `exclusive` = nilai yang "mengambil"
+  data dari pemilik: project yang diberi baris company 647 tidak lagi tampil untuk company 1, tetapi tetap tampil untuk
+  647. Company lain di luar `exclusive` (mis. baris klien) tidak menyembunyikan apa pun. Contoh: V=[647] hanya IN;
+  V=[1] = IN (1) AND NOT IN (647, 648); V=[1, 647] = IN (1, 647) AND NOT IN (648). Tanpa `owner` atau `exclusive`
+  kosong = tanpa NOT IN.
+- `exclusive` berupa nama class (invokable, dibuat lewat container) dipanggil tiap filter dipasang, jadi daftar bisa
+  dibaca dari setting aplikasi. Config yang di-cache (`config:cache`) tidak bisa memuat closure: pakai nama class. Nama
+  class/fungsi yang tidak ditemukan melempar `InvalidArgumentException` (bukan diam-diam tanpa pengecualian).
+- **Selalu AND.** Baris Setting biasa digabung OR antar baris; baris relasi tidak masuk kelompok OR itu dan dipasang
+  sebagai syarat AND tersendiri, jadi baris lain di kategori yang sama (mis. `app_code`, `project_code`) tidak bisa
+  melonggarkannya, hanya mempersempit. Kolom relasi di dalam baris `scope...` (JSON) ikut dikeluarkan menjadi syarat
+  AND; sisa kolomnya tetap satu kelompok OR, dan baris yang hanya berisi kolom relasi tidak menyisakan kelompok kosong.
+- `deleted_at IS NULL` hanya bila tabel relasi punya kolomnya. Tabel relasi yang belum ada atau belum punya kolom
+  `foreign`/kolom filternya = tidak ada baris yang lolos (bukan semua baris). Kolom yang tidak ada di tabel dan tidak
+  terdaftar tetap diabaikan utuh seperti dulu.
+- Berlaku lewat `DynamicFilterable::applyDynamicFilter()`: daftar master (`dataJson`), dropdown
+  `api/get{tabel}byparams` (`SELECT2_SETTING_FILTER`), dan export `master/get{table}/export` (`DataExport`, kolom relasi
+  saja; kolom biasa di export tetap seperti dulu). Lookup nilai terpilih (`?id=`) tetap tidak difilter.
+- Aplikasi yang menyusun query sendiri memakai kelas publiknya:
+  `MasterFilterGroups::apply($query, string $table, array $groups, ?string $alias = null): void` (`$groups` = hasil
+  `settingFilterGroup()` per baris Setting, placeholder sudah diganti nilai; `$query` Query Builder atau Eloquent
+  Builder) dan `MasterFilterGroups::isRelationColumn(string $table, string $column): bool`. Bentuk hasil
+  `settingFilterGroup()` tidak berubah (`kolom => daftar nilai`), hanya kolom relasi kini ikut dikembalikan: kode yang
+  menulis `whereIn` sendiri dari hasil itu wajib pindah ke `apply()` sebelum mendaftarkan `RELATION_FILTERS`.
+- Test: `RelationFilterTest`.
+
+**Baris pemilik dan cermin** (`ProjectOwnerDetail`, melengkapi aturan v3.11.0):
+
+- Project baru (form Project, import preview `ProjectImportDefinition`, import lama `ProjectImport`): baris detail
+  pemilik dibuat untuk `PROJECT_OWNER_COMPANY_ID`, bukan lagi company berkode `ME`. Bila company itu tidak terdaftar
+  aktif, aturan lama tetap berlaku (company berkode `ME`, lalu company pertama). Bila project dibuat lewat session
+  delegasi (user aplikasi lain yang membuka hub) dan company delegasinya > 0 serta bukan company pemilik, baris
+  company pembuat **ditambahkan** setelah baris pemilik (`project_code_client`/`project_name_client` = kode/nama
+  project). Tanpa delegasi hanya baris pemilik.
+- Project diubah (form, import preview): bila `project_code` atau `project_name` berubah, baris detail aktif company
+  pemilik yang sebelumnya cermin (`project_code_client` = kode lama) ikut kode/nama baru
+  (`ProjectOwnerDetail::mirror()`). Baris company lain dan baris ber-kode client sendiri (klien) tidak disentuh. Dari
+  form perubahan itu lewat model (Loggable + broadcast) dan callback DB master seperti edit manual Project Detail;
+  dari import disimpan diam-diam, dicatat engine import (lengkap dengan alasan update), lalu dibroadcast per baris.
+- Perintah `php artisan master:project-detail-mirror [--dry-run]` (hanya hub) merapikan data lama: tiap project aktif
+  dipastikan punya baris pemilik (dibuat, atau dipulihkan bila terhapus, lewat `ensure()`) dan kode/nama cerminnya
+  disamakan dengan project. Menampilkan tabel yang diubah (sebelum/sesudah); `--dry-run` hanya menampilkan. Project
+  dengan baris pemilik ganda dilewati dan dilaporkan; exit code 1 bila ada yang gagal. Perubahannya tercatat di
+  `activity_logs` hanya bila `libraryclay.activity_log.console` aktif.
+- Test: `ProjectOwnerMirrorTest`.
 
 ## Konfigurasi Database (`config/database.php`)
 
