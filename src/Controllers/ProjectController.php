@@ -16,6 +16,7 @@ use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
+use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -211,6 +212,18 @@ class ProjectController extends Controller
             $data['datatable']['btn']['export']['url'] = route('master.table.export', ['table' => 'master_project']);
         }
 
+        // admin: saklar tampil/sembunyikan data terhapus (bawaan sembunyi, pilihan diingat di browser)
+        if (app(MasterTrash::class)->canSeeTrashed('project')) {
+            $data['datatable']['trash_toggle'] = ['default' => false, 'label' => 'Tampilkan data terhapus'];
+        }
+
+        // hub: card company vs project code client + tombol "Buat Detail" untuk project tanpa detail company pemilik
+        $owner = app(ProjectOwnerDetail::class);
+        if ($owner->enabled() && app(MasterAccess::class)->can('project', 'read')) {
+            $data['page']['top_partial'] = 'master::partials.project-owner-summary';
+            $data['page']['owner_summary'] = $owner->summary();
+        }
+
         $data['page']['import']['layout'] = 'layouts.import.form';
         $data['page']['import']['post'] = route('master.import.preview', 'project');
         $data['page']['import']['label'] = 'Preview Import';
@@ -326,6 +339,12 @@ class ProjectController extends Controller
 
         $data = [];
         if (! empty($data_tabel)) {
+            // project di halaman ini yang belum punya detail company pemilik (tombol "Buat Detail")
+            $ownerDetail = app(ProjectOwnerDetail::class);
+            $bisaBuatDetail = $ownerDetail->canCreate();
+            $sudahPunyaDetail = $bisaBuatDetail
+                ? array_flip($ownerDetail->projectIdsWithDetail(collect($data_tabel)->pluck('No')->all()))
+                : [];
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -352,6 +371,11 @@ class ProjectController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('project', $row->No, $row);
+                if ($bisaBuatDetail && ! $trash->isTrashed($row) && ! isset($sudahPunyaDetail[(int) $row->No])) {
+                    $btn .= ' <a href="'.e(route('master.project.owner-detail', $row->No)).'" onclick="notificationBeforeOwnerDetail(event,this)"'
+                        .' class="btn btn-warning btn-sm" title="Project ini belum punya Project Detail untuk company pemilik (id '.$ownerDetail->companyId().'). Klik untuk membuatnya otomatis.">'
+                        .'<i class="fas fa-plus mr-1 me-1" aria-hidden="true"></i>Buat Detail</a>';
+                }
                 $nestedData['action'] = $trash->actions('project', $row, $btn);
                 $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
@@ -567,6 +591,34 @@ class ProjectController extends Controller
         }
 
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
+    }
+
+    /**
+     * Buat otomatis Project Detail company pemilik (1 project = 1 detail Meindo) untuk project yang belum punya.
+     * Hanya hub; izin tambah Project Detail (admin selalu). Idempoten, detail terhapus dipulihkan bukan digandakan.
+     */
+    public function createOwnerDetail(string $id)
+    {
+        $service = app(ProjectOwnerDetail::class);
+        abort_unless($service->enabled(), 404);
+        app(MasterAccess::class)->authorize('project-detail', 'create');
+
+        $project = DB::table('master_project')->where('id', $id)->first() ?? abort(404);
+        $label = 'Project '.e($project->project_code);
+
+        try {
+            $result = $service->ensure($project);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('master.project.index')->with('error_message', e($e->validator->errors()->first()));
+        }
+
+        $pesan = match ($result['status']) {
+            'created' => $label.': Project Detail company pemilik berhasil dibuat.',
+            'restored' => $label.': Project Detail company pemilik yang terhapus dipulihkan.',
+            default => $label.' sudah punya Project Detail company pemilik, tidak ada yang dibuat.',
+        };
+
+        return redirect()->route('master.project.index')->with('success_message', $pesan);
     }
 
     public function import(Request $request)

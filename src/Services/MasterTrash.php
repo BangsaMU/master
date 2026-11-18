@@ -24,6 +24,9 @@ class MasterTrash
     /** kolom bantu di query daftar master */
     public const COLUMN = 'deleted_at';
 
+    /** parameter request saklar tampil/sembunyikan data terhapus (1 = tampil, 0 = sembunyikan) */
+    public const REQUEST_PARAM = 'show_trashed';
+
     /** class baris DataTables (DT_RowClass) untuk baris terhapus */
     public const ROW_CLASS = 'master-row-trashed';
 
@@ -36,6 +39,17 @@ class MasterTrash
     public function canSeeTrashed(string $slug): bool
     {
         return $this->seeTrashed[$slug] ??= $this->access->isAdmin() && SchemaColumns::hasColumn(MasterModules::table($slug), self::COLUMN);
+    }
+
+    /**
+     * Saklar "Tampilkan data terhapus" di atas daftar (opt-in $data['datatable']['trash_toggle']): halaman mengirim
+     * show_trashed=0 untuk menyembunyikan baris terhapus. Tanpa parameter perilaku tetap (admin melihat semua).
+     */
+    public function hideTrashedRequested(): bool
+    {
+        $request = request();
+
+        return $request->has(self::REQUEST_PARAM) && ! $request->boolean(self::REQUEST_PARAM);
     }
 
     /** pulihkan = admin, dan di aplikasi klien baris harus milik aplikasinya (aturan hapus MasterAccess) */
@@ -53,7 +67,7 @@ class MasterTrash
     public function filter(Builder $query, string $slug, string $alias): Builder
     {
         $column = $alias.'.'.self::COLUMN;
-        if (! $this->canSeeTrashed($slug)) {
+        if (! $this->canSeeTrashed($slug) || $this->hideTrashedRequested()) {
             return $query->whereNull($column);
         }
         if ($query->columns !== null) {

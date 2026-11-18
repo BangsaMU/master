@@ -309,6 +309,10 @@
                 @else
                     @include('master::components.formmodal')
                 @endisset
+                {{-- partial opsional di atas tabel (mis. card ringkasan Project: $data['page']['top_partial']) --}}
+                @if (! empty($data['page']['top_partial']))
+                    @include($data['page']['top_partial'])
+                @endif
                 <div class="card">
                     <div class="card-body table-responsive">
                         @isset($data['datatable']['btn'])
@@ -327,6 +331,10 @@
                         @endisset
                         @if (! empty($data['datatable']['advanced_filter']))
                             @include('master::partials.advanced-filter.toolbar')
+                        @endif
+                        {{-- saklar tampilkan data terhapus (admin, opt-in $data['datatable']['trash_toggle']) --}}
+                        @if (! empty($data['datatable']['trash_toggle']))
+                            @include('master::partials.trash-toggle')
                         @endif
 
                         <table id="{{ $data['page']['slug'] }}_tabel" class="table table-hover table-bordered table-striped"
@@ -578,6 +586,10 @@
                                     @endforeach
                                 @endisset
                             });
+                            // saklar "Tampilkan data terhapus" (opt-in trash_toggle): 1 tampil, 0 sembunyikan
+                            if (window.masterTrashToggle) {
+                                d.show_trashed = window.masterTrashToggle.value() ? 1 : 0;
+                            }
                             // filter lanjutan terpasang (modal Filter Lanjutan) ikut setiap request
                             var advancedFilter = window.masterAdvancedFilter ? window.masterAdvancedFilter.payload() : null;
                             if (advancedFilter) {

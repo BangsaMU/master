@@ -120,6 +120,7 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     Route::post('pca/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'pca')->name('pca.import');
 
     Route::get('project/importtemplate', [\Bangsamu\Master\Controllers\ProjectController::class, 'importtemplate'])->name('project.importtemplate');
+    Route::post('project/{id}/owner-detail', [\Bangsamu\Master\Controllers\ProjectController::class, 'createOwnerDetail'])->where('id', '[0-9]+')->name('project.owner-detail');
     Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
     Route::post('project/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'project')->name('project.import');
 

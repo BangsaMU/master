@@ -369,6 +369,25 @@ nilai `user_details` (`field_key` signature/paraf) boleh berupa rujukan Master D
 - Path lokal lama (`/media/...`, path relatif storage, disk `media`) tetap dibaca seperti sebelumnya.
 - Test: `AnnotationLaunchTokenTest::test_signature_and_paraf_with_master_data_reference_read_through_user_media_resolver`.
 
+## Daftar Project: Data Terhapus, Detail Pemilik, Card Ringkasan (sejak v3.11.0)
+
+Tiga tambahan di halaman `master/project` (permintaan tim master-data):
+
+- **Saklar "Tampilkan data terhapus"** (admin). Opt-in per modul lewat `$data['datatable']['trash_toggle']` (partial
+  `partials.trash-toggle`, baru dipasang di Project). Halaman mengirim `show_trashed=1|0`; `MasterTrash::filter()`
+  menyembunyikan baris terhapus bila `0`. Tanpa parameter perilaku lama (admin melihat semua), jadi modul lain tidak
+  berubah. Bawaan saklar mati; pilihan diingat di `localStorage` per halaman.
+- **Tombol "Buat Detail"** di kolom Action. `master_project` milik utama company pemilik
+  (`MasterCrudConfig.PROJECT_OWNER_COMPANY_ID`, bawaan 1 = Meindo), jadi tiap project aktif wajib punya tepat satu
+  `master_project_detail` untuk company itu. Project aktif yang belum punya diberi tombol; `POST
+  master/project/{id}/owner-detail` (`master.project.owner-detail`, `ProjectOwnerDetail::ensure`) membuatnya
+  (`project_code_client`/`project_name_client` = kode/nama project) atau memulihkan detail pemilik yang terhapus,
+  idempoten, ditolak untuk project terhapus atau kode client yang sudah dipakai project lain. Hanya di hub
+  (`MASTER_HUB`) dan butuh izin tambah Project Detail (`MasterAccess`).
+- **Card ringkasan** di atas daftar (`$data['page']['top_partial']`, partial `partials.project-owner-summary`,
+  `ProjectOwnerDetail::summary()`): company aktif, project aktif, Project Code Client aktif per company, status 1:1
+  project dengan detail pemilik (belum punya / ganda), serta detail yatim (company atau project sudah terhapus).
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
