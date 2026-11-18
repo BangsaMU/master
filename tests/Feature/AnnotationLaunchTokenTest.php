@@ -432,6 +432,61 @@ class AnnotationLaunchTokenTest extends TestCase
         $this->get('/api/getSignature?token='.$token)->assertStatus(403);
     }
 
+    public function test_signature_and_paraf_with_master_data_reference_read_through_user_media_resolver(): void
+    {
+        $user = $this->makeUser();
+        $token = md5($user->email);
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+        $file = sys_get_temp_dir().'/user-media-test-'.getmypid().'.png';
+        file_put_contents($file, $png);
+        DB::table('user_details')->insert([
+            ['user_id' => $user->id, 'user_email' => $user->email, 'field_key' => 'signature', 'field_value' => 'app03:signature'],
+            ['user_id' => $user->id, 'user_email' => $user->email, 'field_key' => 'paraf', 'field_value' => 'app03:paraf/abc.png'],
+        ]);
+
+        try {
+            // client gambar (bangsamu/sso) belum terpasang: 503 (coba lagi), bukan 403 "tidak punya tanda tangan"
+            $this->get('/api/getSignature?token='.$token)->assertStatus(503);
+
+            $resolver = new class($file) implements \Bangsamu\Master\Contracts\UserMediaResolver
+            {
+                public array $calls = [];
+
+                public ?string $path;
+
+                public bool $fail = false;
+
+                public function __construct(?string $path)
+                {
+                    $this->path = $path;
+                }
+
+                public function localPath(string $type, string $email): ?string
+                {
+                    $this->calls[] = [$type, $email];
+                    if ($this->fail) {
+                        throw new \RuntimeException('Master Data tidak terjangkau');
+                    }
+
+                    return $this->path;
+                }
+            };
+            $this->app->instance(\Bangsamu\Master\Contracts\UserMediaResolver::class, $resolver);
+
+            $this->assertSame($png, $this->get('/api/getSignature?token='.$token)->assertOk()->streamedContent());
+            $this->assertSame($png, $this->get('/api/getParaf?token='.$token)->assertOk()->streamedContent());
+            $this->assertSame([['signature', $user->email], ['paraf', $user->email]], $resolver->calls);
+
+            $resolver->path = null; // dihapus di Master Data
+            $this->get('/api/getSignature?token='.$token)->assertStatus(403);
+
+            $resolver->fail = true; // tanpa cache dan Master Data mati
+            $this->get('/api/getParaf?token='.$token)->assertStatus(503);
+        } finally {
+            @unlink($file);
+        }
+    }
+
     public function test_signature_and_paraf_without_user_details_table_return_403_not_500(): void
     {
         $user = $this->makeUser();

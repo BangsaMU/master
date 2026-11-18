@@ -9,6 +9,7 @@ use App\Models\Routing;
 use App\Models\User;
 use App\Models\UserDetail;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
+use Bangsamu\Master\Contracts\UserMediaResolver;
 use Bangsamu\Master\Services\AnnotationLaunchTokenService;
 use Bangsamu\Master\Services\SchemaColumns;
 use Illuminate\Http\Request;
@@ -1098,6 +1099,40 @@ class ApiAnnotationController extends Controller
         return $this->getTokenIdOrEmail($token);
     }
 
+    /**
+     * Nilai user_details = rujukan gambar di Master Data (bucket app03, rancangan gambar user 2026-11-18), mis.
+     * "app03:signature" atau "app03:signature/<nama>.png"; bukan path file lokal.
+     */
+    public static function isUserMediaRef(?string $value): bool
+    {
+        return is_string($value) && preg_match('/^app03[a-z0-9-]*:/i', trim($value)) === 1;
+    }
+
+    /**
+     * Path cache lokal gambar Master Data lewat UserMediaResolver (paket bangsamu/sso). Gambar tidak ada = 403 seperti file
+     * lokal hilang; client belum terpasang / Master Data tidak terjangkau tanpa cache = 503 (coba lagi, bukan "tidak punya").
+     */
+    protected static function userMediaPath(string $type, ?string $email, string $notFound): string
+    {
+        if (! $email) {
+            abort(403, $notFound);
+        }
+        if (! app()->bound(UserMediaResolver::class)) {
+            abort(503, 'Gambar Master Data belum bisa dibaca: client gambar user (bangsamu/sso) belum terpasang.');
+        }
+        try {
+            $path = app(UserMediaResolver::class)->localPath($type, $email);
+        } catch (\Throwable $e) {
+            Log::warning('[ApiAnnotationController] gambar Master Data '.$type.' '.$email.' gagal dibaca: '.$e->getMessage());
+            abort(503, 'Gambar Master Data sedang tidak bisa diambil, coba lagi.');
+        }
+        if (! $path || ! is_file($path)) {
+            abort(403, $notFound);
+        }
+
+        return $path;
+    }
+
     public function getParaf(Request $request)
     {
         $token = $request->token;
@@ -1127,7 +1162,9 @@ class ApiAnnotationController extends Controller
             // Bug fix: path di DB sudah ada /media, disk media root-nya sudah di storage/media
             $cleaned_path = str_replace('/media', '', ($paraf?->field_value ?? ''));
 
-            if (Storage::disk('media')->exists($cleaned_path)) {
+            if (self::isUserMediaRef($paraf->field_value)) {
+                $paraf_path = self::userMediaPath('paraf', $user_email, 'Paraf file not found.');
+            } elseif (Storage::disk('media')->exists($cleaned_path)) {
                 $paraf_path = Storage::disk('media')->path($cleaned_path);
             } elseif (file_exists(storage_path($paraf->field_value))) {
                 $paraf_path = storage_path($paraf->field_value);
@@ -1195,10 +1232,13 @@ class ApiAnnotationController extends Controller
             $cleaned_path = str_replace('/media', '', ($signature->field_value ?? ''));
             Log::info('[ApiAnnotationController.getSignature validate path signature]', [
                 'signature->field_value' => $signature->field_value,
-                'file_exists' => Storage::disk('media')->exists($cleaned_path),
+                // rujukan Master Data (app03:) tidak ada di disk media; app tanpa disk media juga tidak boleh 500 di sini
+                'file_exists' => self::isUserMediaRef($signature->field_value) ? null : Storage::disk('media')->exists($cleaned_path),
             ]);
 
-            if (Storage::disk('media')->exists($cleaned_path)) {
+            if (self::isUserMediaRef($signature->field_value)) {
+                $signature_path = self::userMediaPath('signature', $user_email, 'Signature file not found.');
+            } elseif (Storage::disk('media')->exists($cleaned_path)) {
                 $signature_path = Storage::disk('media')->path($cleaned_path);
             } elseif (file_exists(storage_path($signature->field_value))) {
                 $signature_path = storage_path($signature->field_value);

@@ -356,6 +356,19 @@ dropdown dan sekali per model per request (di meb_spb ±14% dari semua query web
   Item Group di form Item Code: `set[field][]=item_group_attributes&where[id]=…`) = TypeError 500. Akibatnya isian
   atribut tidak tampil, dan Save di Edit Item Code mengganti nilai atribut item dengan template grup (kosong).
 
+## Signature/Paraf dari Master Data: rujukan `app03:` di api/getSignature, api/getParaf (sejak v3.10.0)
+
+Signature, paraf, dan foto profil pindah ke bucket MinIO Master Data (rancangan gambar user 2026-11-18). Di aplikasi,
+nilai `user_details` (`field_key` signature/paraf) boleh berupa rujukan Master Data berawalan `app03:` (mis.
+`app03:signature` atau `app03:signature/<nama>.png`), bukan path file lokal.
+
+- `api/getSignature` dan `api/getParaf` membaca rujukan itu lewat `Bangsamu\Master\Contracts\UserMediaResolver`
+  (`localPath($type, $email)`). Implementasinya didaftarkan paket `bangsamu/sso` (v1.2.0+, cache lokal + API Master Data).
+- Gambar tidak ada di Master Data = 403 (sama dengan file lokal hilang). Resolver belum terpasang, atau Master Data tidak
+  terjangkau tanpa cache = **503** (coba lagi), supaya viewer tidak menganggap user belum punya tanda tangan.
+- Path lokal lama (`/media/...`, path relatif storage, disk `media`) tetap dibaca seperti sebelumnya.
+- Test: `AnnotationLaunchTokenTest::test_signature_and_paraf_with_master_data_reference_read_through_user_media_resolver`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
