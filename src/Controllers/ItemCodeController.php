@@ -26,6 +26,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
 use Bangsamu\Master\Support\AdvancedFilter;
 use Bangsamu\Master\Support\DataTableCell;
+use Bangsamu\Master\Support\ListSearch;
 use InvalidArgumentException;
 
 class ItemCodeController extends Controller
@@ -81,9 +82,6 @@ class ItemCodeController extends Controller
         'item_group' => 'mig.item_group_name',
         'attributes' => 'mic.attributes',
     ];
-
-    /** batas kata per kotak cari (tiap kata = satu LIKE) */
-    protected const SEARCH_MAX_TERMS = 5;
 
     /** label kolom di modal Filter Lanjutan (kunci = SEARCH_COLUMNS) */
     protected const ADVANCED_FILTER_LABELS = [
@@ -228,9 +226,8 @@ class ItemCodeController extends Controller
 
         // urutan dicocokkan lewat nama kolom DataTables ke whitelist; dulu memakai indeks $view_tabel yang lebih pendek
         // dari kolom tabel, jadi urut kolom Attributes = error SQL. Kolom No / tak dikenal = mic.id.
-        $orderName = $request->input('columns.'.(int) $request->input('order.0.column', 0).'.data');
-        $order = is_string($orderName) && isset(self::SEARCH_COLUMNS[$orderName]) ? self::SEARCH_COLUMNS[$orderName] : 'mic.id';
-        $dir = strtolower((string) ($request->input('order.0.dir') ?? 'desc')) === 'asc' ? 'asc' : 'desc';
+        $order = ListSearch::orderExpression($request, self::SEARCH_COLUMNS, 'mic.id');
+        $dir = ListSearch::direction($request);
 
         // setting aplikasi: tabel `setting` category master_item_code, fallback dashboard_settings group yang sama (docblock)
         $settings = $this->getSettingsForTable('master_item_code');
@@ -241,8 +238,7 @@ class ItemCodeController extends Controller
         $this->applyDynamicFilter($query, 'master_item_code', $settings, 'mic');
         $totalData = $query->count();
 
-        $columnSearch = $this->columnSearchTerms($request);
-        $globalSearch = $this->searchTerms($request->input('search.value'));
+        $search = ListSearch::fromRequest($request, self::SEARCH_COLUMNS);
         try {
             $advanced = AdvancedFilter::fromRequest($request->input('advanced_filter'), self::SEARCH_COLUMNS);
         } catch (InvalidArgumentException $e) {
@@ -252,14 +248,14 @@ class ItemCodeController extends Controller
         // Join referensi lewat PRIMARY = tepat satu baris per item, jadi tanpa GROUP BY (dulu GROUP BY mic.id memaksa
         // temporary table + filesort) dan jumlah hasil cukup COUNT(*) (dulu semua baris hasil diambil ke PHP lalu dihitung).
         $totalFiltered = $totalData;
-        if ($columnSearch !== [] || $globalSearch !== [] || $advanced !== null) {
+        if (! $search->isEmpty() || $advanced !== null) {
             $totalFiltered = $this->listQuery($trash, $settings)
-                ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch, $advanced))
+                ->tap(fn ($query) => $this->applySearch($query, $search, $advanced))
                 ->count();
         }
 
         $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index)
-            ->tap(fn ($query) => $this->applySearch($query, $columnSearch, $globalSearch, $advanced))
+            ->tap(fn ($query) => $this->applySearch($query, $search, $advanced))
             ->orderBy($order, $dir)
             ->when($order !== 'mic.id', fn ($query) => $query->orderBy('mic.id', $dir)) // urutan stabil antar halaman
             ->offset($start)
@@ -381,66 +377,13 @@ class ItemCodeController extends Controller
     }
 
     /**
-     * Cari per kolom: setiap kata wajib ada di kolom itu, antar kolom AND.
-     * Cari global: setiap kata wajib ada di salah satu kolom SEARCH_COLUMNS (termasuk nama UoM/PCA/Category/Item Group).
+     * Cari per kolom + cari global (ListSearch, whitelist SEARCH_COLUMNS termasuk nama UoM/PCA/Category/Item Group).
      * Filter lanjutan (modal): satu grup berkurung, AND dengan pencarian lain.
-     *
-     * @param  array<string, list<string>>  $columnSearch
-     * @param  list<string>  $globalSearch
      */
-    private function applySearch($query, array $columnSearch, array $globalSearch, ?AdvancedFilter $advanced = null): void
+    private function applySearch($query, ListSearch $search, ?AdvancedFilter $advanced = null): void
     {
         $advanced?->apply($query);
-
-        foreach ($columnSearch as $column => $terms) {
-            foreach ($terms as $term) {
-                $this->whereContains($query, self::SEARCH_COLUMNS[$column], $term);
-            }
-        }
-
-        foreach ($globalSearch as $term) {
-            $query->where(function ($any) use ($term) {
-                foreach (self::SEARCH_COLUMNS as $expression) {
-                    $this->whereContains($any, $expression, $term, 'or');
-                }
-            });
-        }
-    }
-
-    /** LIKE '%nilai%' dengan % dan _ ketikan user dibaca sebagai huruf biasa (ESCAPE '!' berlaku di MariaDB dan SQLite) */
-    private function whereContains($query, string $expression, string $value, string $boolean = 'and'): void
-    {
-        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
-        $query->whereRaw($expression." LIKE ? ESCAPE '!'", ['%'.$escaped.'%'], $boolean);
-    }
-
-    /** @return array<string, list<string>> nama kolom SEARCH_COLUMNS => kata dari columns[i][search][value] */
-    private function columnSearchTerms(Request $request): array
-    {
-        $result = [];
-        foreach ((array) $request->input('columns', []) as $column) {
-            $name = is_array($column) ? ($column['data'] ?? null) : null;
-            if (! is_string($name) || ! isset(self::SEARCH_COLUMNS[$name])) {
-                continue;
-            }
-            $terms = $this->searchTerms($column['search']['value'] ?? null);
-            if ($terms !== []) {
-                $result[$name] = $terms;
-            }
-        }
-
-        return $result;
-    }
-
-    /** @return list<string> kata pencarian dipisah spasi, unik, maksimal SEARCH_MAX_TERMS */
-    private function searchTerms(mixed $value): array
-    {
-        if (! is_string($value) || trim($value) === '') {
-            return [];
-        }
-        $terms = preg_split('/\s+/u', trim($value), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-
-        return array_slice(array_values(array_unique($terms)), 0, self::SEARCH_MAX_TERMS);
+        $search->apply($query);
     }
 
     public function create()

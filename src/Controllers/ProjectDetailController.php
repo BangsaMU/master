@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
 use Bangsamu\Master\Support\DataTableCell;
+use Bangsamu\Master\Support\ListSearch;
 
 class ProjectDetailController extends Controller
 {
@@ -51,6 +52,21 @@ class ProjectDetailController extends Controller
         'mpd.loc_code AS location_code',
         'mpd.loc_name AS location_name',
         '"action" AS action',
+    ];
+
+    /**
+     * Kolom daftar (alias `data` DataTables) => ekspresi SQL yang boleh dicari dan diurutkan (ListSearch). Cari per kolom
+     * dan cari global memakai daftar ini, termasuk kolom join project/company: dulu helper app `datatabelFilterQuery()`
+     * hanya mencari kolom master_project_detail (Project Code Client), jadi cari "21317" tidak menemukan baris company lain
+     * milik project 21317. Project Type dicari sebagai teks yang tampil (Internal/External), bukan kode I/E.
+     */
+    protected const SEARCH_COLUMNS = [
+        'project_type' => "(CASE mp.internal_external WHEN 'I' THEN 'Internal' WHEN 'E' THEN 'External' ELSE mp.internal_external END)",
+        'project_code' => 'mp.project_code',
+        'project_name' => 'mp.project_name',
+        'company_code' => 'mc.company_code',
+        'company_name' => 'mc.company_name',
+        'project_code_client' => 'mpd.project_code_client',
     ];
 
     public function config($id = null, $data = null)
@@ -93,6 +109,9 @@ class ProjectDetailController extends Controller
         $data['page']['title'] = $sheet_name;
 
         $data['tab-menu']['title'] = 'List '.$sheet_name;
+
+        // baris input cari per kolom di bawah judul kolom (kolom = 'filter' true dari dataJson, SEARCH_COLUMNS)
+        $data['datatable']['column_search'] = true;
 
         if ((app(MasterAccess::class)->can('project-detail', 'read') || app(MasterAccess::class)->can('project', 'read'))) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
@@ -140,94 +159,36 @@ class ProjectDetailController extends Controller
     public function dataJson(Request $request)
     {
         $trash = app(MasterTrash::class); // baris terhapus tampil untuk admin, dengan tombol Restore
-        $sheet_name = $this->sheet_name;
         $sheet_slug = $this->sheet_slug;
-        $view_tabel = $this->view_tabel;
         $view_tabel_index = $this->view_tabel_index;
 
-        $limit = strpos('A|-1||', '|'.@$request->input('length').'|') > 0 ? 10 : $request->input('length');
-        $start = $request->input('start') ?? 0;
+        $limit = (int) $request->input('length', 10);
+        $limit = $limit > 0 ? $limit : 10; // -1 (All) dan kosong = 10 seperti dulu
+        $start = max(0, (int) $request->input('start', 0));
 
-        $request_columns = $request->columns;
-        $jml_char_nosearch = strlen(print_r($request_columns, true)); // 0
+        // urutan dicocokkan lewat nama kolom DataTables ke whitelist; dulu memakai indeks $view_tabel (id, loc_code,
+        // loc_name, action) yang tidak sejajar dengan kolom tabel. Kolom No / tak dikenal = waktu dibuat seperti dulu.
+        $order = ListSearch::orderExpression($request, self::SEARCH_COLUMNS, 'mpd.created_at');
+        $dir = ListSearch::direction($request);
 
-        $char_nosearch = 0;
-        $search = $request->input('search.value');
+        // setting aplikasi: tabel `setting` / dashboard_settings category master_project_detail (DynamicFilterable)
+        $settings = $this->getSettingsForTable('master_project_detail');
 
-        $id = $request->id ?? 0;
+        // join project + company lewat PRIMARY = tepat satu baris per detail: tanpa GROUP BY, jumlah cukup COUNT(*)
+        $totalData = $this->listQuery($trash, $settings)->count();
 
-        $offest = 0;
-        $user_id = Auth::user()->id ?? 0;
+        $search = ListSearch::fromRequest($request, self::SEARCH_COLUMNS);
+        $totalFiltered = $search->isEmpty()
+            ? $totalData
+            : $this->listQuery($trash, $settings)->tap(fn ($query) => $search->apply($query))->count();
 
-        if ($request->input('order.0.column')) {
-            /* remove alias */
-            $colom_filed = explode(' AS ', $view_tabel[$request->input('order.0.column')]);
-            $order = $colom_filed[0] ?? 'id';
-        } else {
-            $order = 'mpd.created_at';
-        }
-        $dir = $request->input('order.0.dir') ?? 'desc';
-
-        $array_data_maping = $view_tabel_index;
-
-        $tableName = 'master_project_detail';
-        $category = 'master_project_detail';
-        $settings = $this->getSettingsForTable($category);
-
-        $query = DB::table($tableName.' as mpd')
-            ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
-            ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-            ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
-
-        $this->applyDynamicFilter($query, $tableName, $settings, 'mpd');
-
-        $totalData = $query->count();
-        $totalFiltered = $totalData;
-        if ($request_columns || $search) {
-            $view_tabel = $view_tabel_index;
-
-            $data_tabel = DB::table($tableName.' as mpd')
-                ->select(
-                    DB::raw(implode(',', $view_tabel_index)),
-                )
-                ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
-                ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-                ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
-
-            $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mpd');
-            $data_tabel->groupby('mpd.id');
-
-            $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
-
-            $totalFiltered = $data_tabel->get()->count();
-
-            $data_tabel->offset($start)
-                ->groupby('mpd.id')
-                ->orderBy($order, $dir)
-                ->limit($limit)
-                ->offset($start);
-
-            $data_tabel = $data_tabel->get();
-        } else {
-            $datatb_request = DB::table($tableName.' as mpd')
-                ->select(
-                    DB::raw(implode(',', $view_tabel_index)),
-                )
-                ->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
-                ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
-                ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
-
-            $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mpd');
-
-            $datatb_request = $datatb_request->groupby('mpd.id')
-                ->orderBy($order, $dir)
-                ->limit($limit)
-                ->offset($start);
-
-            $datatb_request = $datatb_request->get();
-
-            $data_tabel = $datatb_request;
-        }
+        $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index)
+            ->tap(fn ($query) => $search->apply($query))
+            ->orderBy(DB::raw($order), $dir)
+            ->orderBy('mpd.id', $dir) // urutan stabil antar halaman
+            ->offset($start)
+            ->limit($limit)
+            ->get();
 
         // $mapping_json[11] = 'action';
         foreach ($view_tabel_index as $keyC => $valC) {
@@ -240,7 +201,7 @@ class ProjectDetailController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
-                'filter' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
+                'filter' => isset(self::SEARCH_COLUMNS[$c_filed]), // kolom ber-input cari per kolom (view: column_search)
             ];
         }
 
@@ -298,6 +259,21 @@ class ProjectDetailController extends Controller
         ];
 
         return response()->json($json_data);
+    }
+
+    /** query daftar Project Detail + project + company, sudah difilter data terhapus dan setting aplikasi */
+    private function listQuery(MasterTrash $trash, $settings, ?array $select = null): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('master_project_detail as mpd');
+        if ($select !== null) {
+            $query->select(DB::raw(implode(',', $select))); // sebelum MasterTrash::filter, yang menambah kolom deleted_at
+        }
+        $query->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
+            ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
+            ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
+        $this->applyDynamicFilter($query, 'master_project_detail', $settings, 'mpd');
+
+        return $query;
     }
 
     public function create()

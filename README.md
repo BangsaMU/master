@@ -187,7 +187,7 @@ index unik DB). Dulu form hanya menampilkan *The project code has already been t
   `libraryclay.activity_log.console`), wajib di `composer.json` sejak v3.8.2. Dengan v2.2 ke bawah aksi `restored` tidak
   tercatat (dilewati diam-diam) dan log dari console tidak pernah ditulis, sehingga test Restore/pindah pemilik merah.
 
-## Cari per Kolom di Daftar Master (sejak v3.6.0, Item Code)
+## Cari per Kolom di Daftar Master (sejak v3.6.0 Item Code, v3.14.0 Project Detail)
 
 Daftar `master/item-code` punya baris input **Cari …** di bawah judul kolom (Item Code, Description, Unit (UoM), PCA,
 Category, Item Group, Attributes). Request dikirim 400 ms sesudah berhenti mengetik (Enter = langsung, tombol × = hapus).
@@ -195,12 +195,25 @@ Category, Item Group, Attributes). Request dikirim 400 ms sesudah berhenti menge
 - **Layout** `layouts.dashboard.index` (opt-in): controller mengisi `$data['datatable']['column_search'] = true` di
   `index()`; input dibuat hanya untuk kolom dengan `'filter' => true` di metadata `columns` dari `dataJson()`. Memakai
   `orderCellsTop` (klik judul = urutkan, input tidak) dan ikut menyembunyikan sel cari saat Responsive melipat kolom.
-  Modul lain belum dinyalakan; backend-nya masih memakai helper app `datatabelFilterQuery()`.
+  Dinyalakan di Item Code dan Project Detail; modul lain belum, backend-nya masih memakai helper app
+  `datatabelFilterQuery()`, yang di Master Data hanya mencari kolom tabel utama (`Schema::hasColumn`), jadi kolom hasil
+  join (nama referensi, kode project/company) tidak ikut cari global.
+- **`Support\ListSearch`** (v3.14.0): logika cari dan urut bersama, dipindah dari `ItemCodeController`.
+  `ListSearch::fromRequest($request, SEARCH_COLUMNS)` membaca `columns[i][search][value]` + `search[value]`,
+  `->apply($query)` memasang syaratnya, `ListSearch::orderExpression($request, SEARCH_COLUMNS, $default)` +
+  `ListSearch::direction($request)` untuk urutan. Modul baru cukup punya whitelist `SEARCH_COLUMNS`, query daftar tanpa
+  `GROUP BY` (join lewat PRIMARY), dan `'filter' => isset(SEARCH_COLUMNS[$kolom])` di metadata kolom.
 - **Item Code** (`ItemCodeController::SEARCH_COLUMNS`): whitelist alias kolom => ekspresi SQL untuk cari per kolom, cari
   global dan urutan; nama kolom dari request hanya dicocokkan ke daftar ini. Tiap kata (maks 5, dipisah spasi) wajib
   ada (`LIKE '%kata%' ESCAPE '!'`, jadi `%` dan `_` ketikan user = huruf biasa); antar kolom AND, cari global = tiap kata
   ada di salah satu kolom, termasuk nama UoM/PCA/Category/Item Group (dulu dilewati). Tidak lagi bergantung pada helper
   app `datatabelFilterQuery()`.
+- **Project Detail** (`ProjectDetailController::SEARCH_COLUMNS`, v3.14.0): Project Type, Project Code, Project Name,
+  Company Code, Company Name, Project Code Client. Dulu cari global hanya mengenai Project Code Client: cari `21317`
+  menampilkan baris ME (client 21317) tanpa baris MEB (client 73029) milik project 21317 yang sama. Project Type dicari
+  sebagai teks yang tampil (`CASE` I/E → Internal/External). Urutan dulu memakai indeks `$view_tabel` (id, loc_code,
+  loc_name) yang tidak sejajar dengan kolom tabel; kini lewat nama kolom, pengurut kedua `mpd.id`, `GROUP BY mpd.id`
+  dibuang, jumlah hasil `COUNT(*)`. Kolom No / tanpa urutan = `mpd.created_at` seperti dulu.
 - **Performa**: `LIKE '%…%'` tidak bisa memakai index B-tree (`EXPLAIN` = `type ALL`), jadi setiap pencarian memindai
   `master_item_code`; ±6 ribu baris = beberapa milidetik. Join referensi memakai PRIMARY (`eq_ref`), sehingga `GROUP BY
   mic.id` dibuang (dulu memaksa temporary table + filesort) dan jumlah hasil dihitung `COUNT(*)` (dulu semua baris hasil
@@ -481,7 +494,7 @@ dan `master_project_detail` berisi company yang memakai project itu. Rancangan +
 | Pindah pemilik | Kartu di Edit Project, POST `master/project/{id}/transfer-owner` (`master.project.transfer-owner`), hanya `is_admin` di hub, wajib centang konfirmasi. Baris company tujuan dipakai bila ada, dipulihkan bila terhapus, dibuat dari kode/nama project bila belum ada; `owner_company_id` = tujuan; `project_code`/`project_name` = kode/nama baris tujuan; baris pemilik lama **tetap ada**. Ditolak bila kode/nama itu sudah dipakai project lain. Tercatat lewat `Loggable` (sebelum/sesudah) |
 | Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris |
 | Import Project | Kolom opsional `Owner Company Code` (template ikut). Kosong = perilaku lama (juga lewat delegasi). Kode company lain = project **baru** milik company itu, aturan sama dengan form (admin / company delegasi sendiri). Project lama: harus sama dengan pemilik sekarang, beda = baris ditolak. Import lama `ProjectImport` (tanpa preview) mengabaikan kolom ini |
-| Daftar Project | Kolom `Pemilik` (kode company, join `master_company` alias `opc`, ikut cari/urut); kartu ringkasan menambah kolom "Project milik" per company dan jumlah project non-Meindo |
+| Daftar Project | Kolom `Pemilik` (kode company, join `master_company` alias `opc`, tampil dan bisa diurut; pencarian mengikuti helper app `datatabelFilterQuery()`, di Master Data tidak ikut cari karena kolom join, lihat "Cari per Kolom di Daftar Master"); kartu ringkasan menambah kolom "Project milik" per company dan jumlah project non-Meindo |
 
 Aplikasi klien yang memakai project per company (SPB) membaca pemilik lewat `ownerCompanyIdOf()`/`ownerSql()`; aturan
 "project milik company C = punya baris detail aktif C" tidak berubah. Test: `ProjectNonDefaultOwnerTest`.
