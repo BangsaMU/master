@@ -124,6 +124,9 @@
         @endif
     </div>
 
+    {{-- company baris terhapus / tidak ada di master: Pindah company (admin hub) atau peringatan --}}
+    @include('master::partials.project-detail-move-company')
+
     {{-- Log perubahan data (termasuk dari import) --}}
     @if (isset($data['page']['logs']))
         <div class="row">

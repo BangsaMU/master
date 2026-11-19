@@ -128,6 +128,9 @@
     </div>
 
     {{-- Kode huruf besar + kunci unik (readonly non-admin, konfirmasi admin) --}}
+    {{-- company baris terhapus / tidak ada di master: Pindah company (admin hub) atau peringatan --}}
+    @include('master::partials.project-detail-move-company')
+
     @include('master::components.unique-key-guard', ['entity' => 'project-detail', 'param' => $param ?? null])
 @stop
 

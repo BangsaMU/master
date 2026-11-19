@@ -492,12 +492,37 @@ dan `master_project_detail` berisi company yang memakai project itu. Rancangan +
 | Create Project | Centang "Pemilik project bukan ME" + Company pemilik (field `project_owner_other`, `project_owner_company_id`; sengaja bukan `owner_company_id` = `MasterScope::OWNER_COMPANY_FIELD`). Dicentang = `owner_company_id` = company itu + **satu** baris detail company itu, tanpa baris Meindo, satu transaksi. Tidak dicentang = perilaku lama (pemilik bawaan, + baris company delegasi). Pilihan hanya di hub: `is_admin` semua company aktif; session delegasi hanya company-nya sendiri, **tercentang dari awal** (bisa dimatikan); user lain tidak melihatnya. Kode project tidak boleh sudah dipakai company itu sebagai Project Code Client project lain (`assertCodeFreeForCompany`) |
 | Edit Project | Pemilik tampil (hanya baca). Form Edit tidak mengubah pemilik |
 | Pindah pemilik | Kartu di Edit Project, POST `master/project/{id}/transfer-owner` (`master.project.transfer-owner`), hanya `is_admin` di hub, wajib centang konfirmasi. Baris company tujuan dipakai bila ada, dipulihkan bila terhapus, dibuat dari kode/nama project bila belum ada; `owner_company_id` = tujuan; `project_code`/`project_name` = kode/nama baris tujuan; baris pemilik lama **tetap ada**. Ditolak bila kode/nama itu sudah dipakai project lain. Tercatat lewat `Loggable` (sebelum/sesudah) |
-| Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris |
+| Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Pengecualian sejak v3.15.0: baris yang company-nya terhapus / tidak ada di master dipindah lewat "Pindah company" (lihat bagian berikut). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris |
 | Import Project | Kolom opsional `Owner Company Code` (template ikut). Kosong = perilaku lama (juga lewat delegasi). Kode company lain = project **baru** milik company itu, aturan sama dengan form (admin / company delegasi sendiri). Project lama: harus sama dengan pemilik sekarang, beda = baris ditolak. Import lama `ProjectImport` (tanpa preview) mengabaikan kolom ini |
 | Daftar Project | Kolom `Pemilik` (kode company, join `master_company` alias `opc`, tampil dan bisa diurut; pencarian mengikuti helper app `datatabelFilterQuery()`, di Master Data tidak ikut cari karena kolom join, lihat "Cari per Kolom di Daftar Master"); kartu ringkasan menambah kolom "Project milik" per company dan jumlah project non-Meindo |
 
 Aplikasi klien yang memakai project per company (SPB) membaca pemilik lewat `ownerCompanyIdOf()`/`ownerSql()`; aturan
 "project milik company C = punya baris detail aktif C" tidak berubah. Test: `ProjectNonDefaultOwnerTest`.
+
+## Project Detail: Baris Bermasalah dan Pindah Company (sejak v3.15.0)
+
+Baris Project Detail yang company-nya sudah dihapus (soft delete) atau tidak ada di `master_company` tidak terhitung di
+company mana pun, dan aplikasi pemakai (SPB) tidak bisa mencocokkannya. Permintaan user 2026-11-19 (DB dev: 5 baris,
+company PHM/MED/PHE yang sudah dihapus):
+
+- **Kolom Action daftar** (`master/project-detail`, semua aplikasi): badge "Company X sudah dihapus dari master" /
+  "Company tidak ada di master". Admin Master Data di hub mendapat tombol **Pindah company** (ke kartu di halaman Edit),
+  atau alasan bila baris tidak bisa dipindah; user lain mendapat petunjuk minta admin.
+- **Pindah company** (Edit Project Detail, POST `master/project-detail/{id}/move-company`,
+  `master.project-detail.move-company`, `ProjectOwnerDetail::moveCompany`): hanya `is_admin` di hub, wajib centang
+  konfirmasi. Pengecualian terbatas keputusan N2: hanya untuk baris aktif yang company-nya terhapus / tidak ada, project-nya
+  aktif, dan bukan baris pemilik project. Yang diganti hanya `company_id`; id baris, project, kode/nama client tetap, jadi
+  rujukan aplikasi lain ke baris ini (mis. dokumen SPB) ikut pindah, dan cek kesiapan SPB (`requisitionsCompanyMismatch`)
+  akan menandai dokumen lama yang dibuat untuk company sebelumnya. Company tujuan: aktif, bukan pemilik project (baris
+  pemilik lewat Buat Detail / Pindah pemilik), belum punya baris di project itu termasuk baris terhapus (index unik
+  `uq_project_company`). Tersimpan lewat model (`Loggable` sebelum/sesudah) + callback DB master.
+- **Card ringkasan** di atas daftar (hub, `$data['page']['top_partial']` = `partials.project-detail-summary`,
+  `ProjectOwnerDetail::detailSummary()`): jumlah baris aktif, company bermasalah (terhapus + tidak ada), project
+  bermasalah, dan tabel baris aktif per company termasuk company yang sudah dihapus. Tombol filter **Semua / Company
+  bermasalah / Project bermasalah** mengirim `masalah=company|project` (`applyDetailProblem`, hanya baris aktif) lewat
+  hook layout baru `window.masterListParams` (fungsi yang mengembalikan parameter tambahan ajax daftar). `?masalah=` di
+  URL halaman langsung memilih filternya; card daftar Project menautkan "detail yatim" ke sana.
+- Test: `ProjectDetailMoveCompanyTest`.
 
 ## Konfigurasi Database (`config/database.php`)
 

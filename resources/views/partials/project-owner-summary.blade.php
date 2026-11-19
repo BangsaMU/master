@@ -101,10 +101,10 @@
                         <li class="text-danger">{{ $nf($s['duplicate']) }} project punya lebih dari satu detail aktif company pemiliknya (seharusnya satu banding satu). Rapikan lewat menu Project Detail.</li>
                     @endif
                     @if ($s['orphan_company'] > 0)
-                        <li class="text-muted">{{ $nf($s['orphan_company']) }} detail aktif memakai company yang sudah terhapus: tidak terhitung di company mana pun di tabel atas.</li>
+                        <li class="text-muted">{{ $nf($s['orphan_company']) }} detail aktif memakai company yang sudah terhapus: tidak terhitung di company mana pun di tabel atas. <a href="{{ route('master.project-detail.index', ['masalah' => 'company']) }}" data-summary-link="company">Lihat dan pindahkan company di Project Detail</a>.</li>
                     @endif
                     @if ($s['orphan_project'] > 0)
-                        <li class="text-muted">{{ $nf($s['orphan_project']) }} detail aktif milik project yang sudah terhapus: tidak ikut dihitung per company.</li>
+                        <li class="text-muted">{{ $nf($s['orphan_project']) }} detail aktif milik project yang sudah terhapus: tidak ikut dihitung per company. <a href="{{ route('master.project-detail.index', ['masalah' => 'project']) }}" data-summary-link="project">Lihat di Project Detail</a>.</li>
                     @endif
                     @if (($s['other_owner'] ?? 0) > 0)
                         <li class="text-muted" data-summary="other_owner">{{ $nf($s['other_owner']) }} project aktif milik company selain {{ $owner['code'] }} (project non-{{ $owner['code'] }}): tidak punya baris {{ $owner['code'] }}, dan itu bukan kekurangan.</li>

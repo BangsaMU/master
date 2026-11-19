@@ -130,6 +130,8 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
     // Route::post('project2/import', [\Bangsamu\Master\Controllers\ProjectController2::class, 'import'])->name('project2.import');
 
     Route::get('project-detail/importtemplate', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'importtemplate'])->name('project-detail.importtemplate');
+    // baris yang company-nya terhapus / tidak ada di master: pindah ke company aktif (admin hub, pengecualian N2)
+    Route::post('project-detail/{id}/move-company', [\Bangsamu\Master\Controllers\ProjectDetailController::class, 'moveCompany'])->where('id', '[0-9]+')->name('project-detail.move-company');
     Route::resource('project-detail', \Bangsamu\Master\Controllers\ProjectDetailController::class);
     Route::post('project-detail/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'project-detail')->name('project-detail.import');
 

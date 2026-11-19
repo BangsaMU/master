@@ -595,6 +595,10 @@
                             if (advancedFilter) {
                                 d.advanced_filter = advancedFilter;
                             }
+                            // parameter tambahan dari partial di atas tabel (mis. filter baris bermasalah Project Detail)
+                            if (typeof window.masterListParams === 'function') {
+                                $.extend(d, window.masterListParams());
+                            }
                         },
                         "error": function(xhr, error, thrown) {
                             if (xhr && (xhr.status === 401 || xhr.status === 419)) {

@@ -56,6 +56,15 @@ class ProjectOwnerDetail
     /** field form Pindah pemilik: company pemilik baru */
     public const FIELD_TRANSFER_COMPANY = 'to_company_id';
 
+    /** field form Pindah company baris Project Detail bermasalah: company tujuan */
+    public const FIELD_MOVE_COMPANY = 'move_company_id';
+
+    /** field form Pindah company: centang konfirmasi */
+    public const FIELD_MOVE_CONFIRM = 'confirm_move_company';
+
+    /** filter daftar Project Detail baris bermasalah (parameter `masalah`, applyDetailProblem) */
+    public const DETAIL_PROBLEMS = ['company', 'project'];
+
     public function __construct(protected MasterScope $scope, protected MasterAccess $access) {}
 
     /** master_company.id pemilik bawaan project (MasterCrudConfig.PROJECT_OWNER_COMPANY_ID, bawaan 1 = Meindo) */
@@ -517,6 +526,193 @@ class ProjectOwnerDetail
         return $this->isOwnerRow($detail)
             ? 'Baris pemilik project ('.$this->companyLabel((int) $detail->company_id).') tidak bisa dihapus. Pindahkan pemilik dulu lewat Edit Project → Pindah pemilik, atau hapus project-nya.'
             : null;
+    }
+
+    // ---- baris bermasalah + pindah company (pengecualian N2) ----
+
+    /**
+     * Status company baris detail di master_company: 'missing' = company_id kosong / barisnya tidak ada, 'deleted' =
+     * company sudah dihapus (soft delete), null = aktif.
+     */
+    public function detailCompanyProblem(object $detail): ?string
+    {
+        $companyId = (int) ($detail->company_id ?? 0);
+        $company = $companyId > 0 ? DB::table(self::TABLE_COMPANY)->where('id', $companyId)->first(['id', 'deleted_at']) : null;
+        if ($company === null) {
+            return 'missing';
+        }
+
+        return filled($company->deleted_at ?? null) ? 'deleted' : null;
+    }
+
+    /** Teks peringatan untuk status detailCompanyProblem() ('missing' / 'deleted'). */
+    public function detailCompanyProblemLabel(string $problem, ?string $companyCode = null): string
+    {
+        return $problem === 'deleted'
+            ? 'Company '.(filled($companyCode) ? $companyCode.' ' : '').'sudah dihapus dari master'
+            : 'Company tidak ada di master';
+    }
+
+    /**
+     * Filter daftar Project Detail baris bermasalah (DETAIL_PROBLEMS, parameter `masalah`): baris aktif yang 'company'-nya
+     * terhapus / tidak ada di master, atau 'project'-nya terhapus / tidak ada (sama dengan hitungan detailSummary; baris
+     * terhapus bukan masalah yang perlu dirapikan). $detail/$project/$company = alias join daftar. Nilai lain diabaikan.
+     */
+    public function applyDetailProblem($query, ?string $problem, string $detail = 'mpd', string $project = 'mp', string $company = 'mc'): void
+    {
+        $missing = match ($problem) {
+            'company' => $company,
+            'project' => $project,
+            default => null,
+        };
+        if ($missing === null) {
+            return;
+        }
+
+        $query->whereNull($detail.'.deleted_at')
+            ->where(fn ($q) => $q->whereNull($missing.'.id')->orWhereNotNull($missing.'.deleted_at'));
+    }
+
+    /** User boleh memindahkan company baris bermasalah: hub + admin Master Data (keputusan pemilik 2026-11-19). */
+    public function canMoveCompany(): bool
+    {
+        return $this->enabled() && $this->access->isAdmin();
+    }
+
+    /**
+     * Alasan baris ini tidak bisa dipindah company, null = boleh. Hanya baris aktif yang company-nya terhapus / tidak ada
+     * di master, project-nya aktif, dan bukan baris pemilik project. Company yang masih aktif tetap tidak bisa diganti
+     * (keputusan N2: hapus baris lalu tambah baris baru).
+     */
+    public function moveCompanyDenial(object $detail): ?string
+    {
+        if (filled($detail->deleted_at ?? null)) {
+            return 'Baris Project Detail ini sudah dihapus: pulihkan (Restore) dulu.';
+        }
+        if ($this->detailCompanyProblem($detail) === null) {
+            return 'Company baris ini masih aktif di master, jadi tidak bisa diganti: hapus baris lalu tambah baris baru untuk company lain.';
+        }
+        $project = filled($detail->project_id ?? null)
+            ? DB::table(self::TABLE_PROJECT)->where('id', (int) $detail->project_id)->first(['id', 'deleted_at'])
+            : null;
+        if ($project === null || filled($project->deleted_at ?? null)) {
+            return 'Project baris ini tidak ada atau sudah dihapus: pulihkan project-nya dulu, atau hapus baris ini.';
+        }
+        if ($this->isOwnerRow($detail)) {
+            return 'Baris ini baris pemilik project: pemilik diganti lewat Edit Project → Pindah pemilik.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Pilihan company tujuan Pindah company: company aktif selain pemilik project (baris pemilik lewat Buat Detail /
+     * Pindah pemilik) yang belum punya baris di project ini, termasuk baris terhapus (index unik project + company).
+     *
+     * @return Collection<int, object{id: int, company_code: string, company_name: ?string}>
+     */
+    public function moveCompanyChoices(object $detail): Collection
+    {
+        if (! $this->canMoveCompany() || $this->moveCompanyDenial($detail) !== null) {
+            return collect();
+        }
+
+        $taken = DB::table(self::TABLE_DETAIL)->where('project_id', (int) $detail->project_id)->whereNotNull('company_id')
+            ->pluck('company_id')->map(fn ($id) => (int) $id)->all();
+        $taken[] = $this->ownerCompanyIdOf((int) $detail->project_id);
+        $columns = array_values(array_filter(['id', 'company_code', SchemaColumns::hasColumn(self::TABLE_COMPANY, 'company_name') ? 'company_name' : null]));
+
+        return DB::table(self::TABLE_COMPANY)->whereNull('deleted_at')->whereNotIn('id', array_values(array_unique($taken)))
+            ->orderBy('company_code')->get($columns)
+            ->map(function ($company) {
+                $company->id = (int) $company->id;
+                $company->company_name ??= null;
+
+                return $company;
+            })
+            ->values();
+    }
+
+    /**
+     * Pindahkan baris Project Detail yang company-nya terhapus / tidak ada di master ke company aktif lain. Pengecualian
+     * terbatas keputusan N2 (keputusan pemilik 2026-11-19): id baris, project, dan kode/nama client tetap, jadi rujukan
+     * aplikasi lain ke baris ini (mis. dokumen SPB) ikut pindah ke company baru. Tersimpan lewat model (Loggable +
+     * broadcast) dan callback DB master, seperti edit manual.
+     *
+     * @return array{from: int, to: int, problem: string}
+     *
+     * @throws ValidationException tidak boleh / baris tidak memenuhi syarat / company tujuan tidak sah
+     */
+    public function moveCompany(int $detailId, int $toCompanyId): array
+    {
+        $field = self::FIELD_MOVE_COMPANY;
+        if (! $this->canMoveCompany()) {
+            throw ValidationException::withMessages([$field => ['Pindah company baris Project Detail hanya untuk admin Master Data di hub.']]);
+        }
+
+        return DB::transaction(function () use ($detailId, $toCompanyId, $field): array {
+            $detail = ProjectDetail::withTrashed()->whereKey($detailId)->lockForUpdate()->first();
+            if ($detail === null) {
+                throw ValidationException::withMessages([$field => ['Baris Project Detail tidak ditemukan.']]);
+            }
+            if (($denial = $this->moveCompanyDenial($detail)) !== null) {
+                throw ValidationException::withMessages([$field => [$denial]]);
+            }
+            if (! DB::table(self::TABLE_COMPANY)->where('id', $toCompanyId)->whereNull('deleted_at')->exists()) {
+                throw ValidationException::withMessages([$field => ['Company tujuan tidak ditemukan atau sudah dihapus.']]);
+            }
+            if ($toCompanyId === $this->ownerCompanyIdOf((int) $detail->project_id)) {
+                throw ValidationException::withMessages([$field => ['Company '.$this->companyLabel($toCompanyId).' pemilik project ini: baris pemilik dibuat lewat tombol Buat Detail di daftar Project, atau ganti pemilik lewat Edit Project → Pindah pemilik.']]);
+            }
+            $other = DB::table(self::TABLE_DETAIL)->where('project_id', (int) $detail->project_id)->where('company_id', $toCompanyId)
+                ->where('id', '!=', $detail->id)->orderByRaw('deleted_at is null desc')->first(['id', 'deleted_at']);
+            if ($other !== null) {
+                throw ValidationException::withMessages([$field => ['Company '.$this->companyLabel($toCompanyId).' sudah punya baris di project ini (id '.$other->id.(filled($other->deleted_at) ? ', terhapus' : '').'): bila baris ini dobel, hapus saja baris ini.']]);
+            }
+
+            $problem = (string) $this->detailCompanyProblem($detail);
+            $from = (int) $detail->company_id;
+            $detail->company_id = $toCompanyId;
+            $detail->save(); // Loggable: company_id sebelum/sesudah
+            $this->syncToMaster($detail);
+
+            return ['from' => $from, 'to' => $toCompanyId, 'problem' => $problem];
+        });
+    }
+
+    /**
+     * Ringkasan untuk card di atas daftar Project Detail (hub): baris detail aktif per company, termasuk company yang
+     * sudah dihapus, dan jumlah baris bermasalah (company / project terhapus atau tidak ada di master).
+     *
+     * @return array{detail_total: int, company_deleted: int, company_missing: int, project_problem: int,
+     *     companies: list<array{id: int, code: string, name: string, detail: int, deleted: bool}>}
+     */
+    public function detailSummary(): array
+    {
+        $aktif = fn () => DB::table(self::TABLE_DETAIL.' as d')->whereNull('d.deleted_at')
+            ->leftJoin(self::TABLE_COMPANY.' as c', 'c.id', '=', 'd.company_id')
+            ->leftJoin(self::TABLE_PROJECT.' as p', 'p.id', '=', 'd.project_id');
+        $name = SchemaColumns::hasColumn(self::TABLE_COMPANY, 'company_name') ? ['c.company_name'] : [];
+
+        $companies = $aktif()->whereNotNull('c.id')
+            ->groupBy('c.id', 'c.company_code', ...$name, ...['c.deleted_at'])
+            ->orderByRaw('c.deleted_at is not null')->orderBy('c.company_code')
+            ->get(['c.id', 'c.company_code', ...$name, 'c.deleted_at', DB::raw('count(*) as detail')])
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'code' => (string) $row->company_code,
+                'name' => (string) ($row->company_name ?? ''),
+                'detail' => (int) $row->detail,
+                'deleted' => filled($row->deleted_at),
+            ])->all();
+
+        return [
+            'detail_total' => $aktif()->count(),
+            'company_deleted' => $aktif()->whereNotNull('c.id')->whereNotNull('c.deleted_at')->count(),
+            'company_missing' => $aktif()->whereNull('c.id')->count(),
+            'project_problem' => $aktif()->where(fn ($q) => $q->whereNull('p.id')->orWhereNotNull('p.deleted_at'))->count(),
+            'companies' => $companies,
+        ];
     }
 
     // ---- pindah pemilik ----

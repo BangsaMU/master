@@ -113,6 +113,13 @@ class ProjectDetailController extends Controller
         // baris input cari per kolom di bawah judul kolom (kolom = 'filter' true dari dataJson, SEARCH_COLUMNS)
         $data['datatable']['column_search'] = true;
 
+        // hub: card ringkasan baris per company + tombol filter baris bermasalah (company/project terhapus atau tidak ada)
+        $owner = app(ProjectOwnerDetail::class);
+        if ($owner->enabled() && (app(MasterAccess::class)->can('project-detail', 'read') || app(MasterAccess::class)->can('project', 'read'))) {
+            $data['page']['top_partial'] = 'master::partials.project-detail-summary';
+            $data['page']['detail_summary'] = $owner->detailSummary();
+        }
+
         if ((app(MasterAccess::class)->can('project-detail', 'read') || app(MasterAccess::class)->can('project', 'read'))) {
             $data['datatable']['btn']['sync']['id'] = 'sync';
             $data['datatable']['btn']['sync']['title'] = 'Sync';
@@ -174,15 +181,19 @@ class ProjectDetailController extends Controller
         // setting aplikasi: tabel `setting` / dashboard_settings category master_project_detail (DynamicFilterable)
         $settings = $this->getSettingsForTable('master_project_detail');
 
+        // tombol filter card ringkasan: hanya baris bermasalah (company / project terhapus atau tidak ada di master)
+        $problem = $request->input('masalah');
+        $problem = is_string($problem) && in_array($problem, ProjectOwnerDetail::DETAIL_PROBLEMS, true) ? $problem : null;
+
         // join project + company lewat PRIMARY = tepat satu baris per detail: tanpa GROUP BY, jumlah cukup COUNT(*)
-        $totalData = $this->listQuery($trash, $settings)->count();
+        $totalData = $this->listQuery($trash, $settings, null, $problem)->count();
 
         $search = ListSearch::fromRequest($request, self::SEARCH_COLUMNS);
         $totalFiltered = $search->isEmpty()
             ? $totalData
-            : $this->listQuery($trash, $settings)->tap(fn ($query) => $search->apply($query))->count();
+            : $this->listQuery($trash, $settings, null, $problem)->tap(fn ($query) => $search->apply($query))->count();
 
-        $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index)
+        $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index, $problem)
             ->tap(fn ($query) => $search->apply($query))
             ->orderBy(DB::raw($order), $dir)
             ->orderBy('mpd.id', $dir) // urutan stabil antar halaman
@@ -207,6 +218,7 @@ class ProjectDetailController extends Controller
 
         $data = [];
         if (! empty($data_tabel)) {
+            $bisaPindahCompany = app(ProjectOwnerDetail::class)->canMoveCompany();
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -242,6 +254,10 @@ class ProjectDetailController extends Controller
                 }
 
                 $btn .= MasterEditLink::rowButton('project-detail', $row->No, $row);
+                // company baris terhapus / tidak ada di master: peringatan + Pindah company (admin hub, pengecualian N2)
+                if (! $trash->isTrashed($row) && ($row->company_ref_id === null || filled($row->company_deleted_at))) {
+                    $btn .= $this->companyProblemAction($row, $bisaPindahCompany);
+                }
                 $nestedData['action'] = $trash->actions('project-detail', $row, $btn);
                 $nestedData['DT_RowClass'] = $trash->rowClass($row);
 
@@ -261,19 +277,49 @@ class ProjectDetailController extends Controller
         return response()->json($json_data);
     }
 
-    /** query daftar Project Detail + project + company, sudah difilter data terhapus dan setting aplikasi */
-    private function listQuery(MasterTrash $trash, $settings, ?array $select = null): \Illuminate\Database\Query\Builder
+    /**
+     * query daftar Project Detail + project + company, sudah difilter data terhapus, setting aplikasi, dan (opsional)
+     * baris bermasalah ProjectOwnerDetail::DETAIL_PROBLEMS
+     */
+    private function listQuery(MasterTrash $trash, $settings, ?array $select = null, ?string $problem = null): \Illuminate\Database\Query\Builder
     {
         $query = DB::table('master_project_detail as mpd');
         if ($select !== null) {
             $query->select(DB::raw(implode(',', $select))); // sebelum MasterTrash::filter, yang menambah kolom deleted_at
+            // status company di master untuk peringatan di kolom Action (null = tidak ada barisnya)
+            $query->addSelect(DB::raw('mc.id AS company_ref_id'), DB::raw('mc.deleted_at AS company_deleted_at'));
         }
         $query->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
             ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')
             ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
         $this->applyDynamicFilter($query, 'master_project_detail', $settings, 'mpd');
+        app(ProjectOwnerDetail::class)->applyDetailProblem($query, $problem);
 
         return $query;
+    }
+
+    /**
+     * Isi kolom Action untuk baris yang company-nya terhapus / tidak ada di master: badge peringatan, lalu tombol
+     * "Pindah company" (ke card di halaman Edit) bila boleh, alasan bila tidak, atau petunjuk untuk user bukan admin.
+     */
+    private function companyProblemAction(object $row, bool $canMove): string
+    {
+        $owner = app(ProjectOwnerDetail::class);
+        $label = $owner->detailCompanyProblemLabel($row->company_ref_id === null ? 'missing' : 'deleted', $row->company_code ?? null);
+        $html = '<div class="mt-1"><span class="badge bg-danger badge-danger text-bg-danger" data-company-problem>'.e($label).'</span></div>';
+
+        if (! $canMove) {
+            return $html.'<div class="small text-muted">Minta admin Master Data memindahkan company baris ini.</div>';
+        }
+
+        $detail = ProjectDetail::withTrashed()->find($row->No);
+        $denial = $detail !== null ? $owner->moveCompanyDenial($detail) : 'Baris Project Detail tidak ditemukan.';
+        if ($denial !== null) {
+            return $html.'<div class="small text-muted" data-company-problem-denial>'.e($denial).'</div>';
+        }
+
+        return $html.'<a href="'.e(route('master.project-detail.edit', $row->No).'#project-detail-move-company').'" class="btn btn-warning btn-sm mt-1"'
+            .' title="Company baris ini sudah tidak ada di master: pindahkan ke company aktif (id baris dan kode client tetap).">Pindah company</a>';
     }
 
     public function create()
@@ -424,9 +470,66 @@ class ProjectDetailController extends Controller
         // kunci form: project/company baris tidak bisa diganti; baris pemilik project juga kode/namanya (ikut Project)
         $data['page']['owner_row'] = $param !== null && app(ProjectOwnerDetail::class)->isOwnerRow($param);
 
+        // company baris terhapus / tidak ada di master: card Pindah company (admin hub) atau peringatan
+        $data['page']['move_company'] = $param !== null ? $this->moveCompanyData($param) : null;
+
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(ProjectDetail::class, $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
+    }
+
+    /**
+     * Data card "Pindah company" di halaman Edit (partial project-detail-move-company): null bila company baris masih
+     * aktif atau baris sudah dihapus.
+     *
+     * @return array{problem: string, label: string, can_move: bool, denial: ?string, choices: \Illuminate\Support\Collection, url: string}|null
+     */
+    private function moveCompanyData(object $param): ?array
+    {
+        $owner = app(ProjectOwnerDetail::class);
+        $problem = $owner->detailCompanyProblem($param);
+        if ($problem === null || filled($param->deleted_at ?? null)) {
+            return null;
+        }
+
+        $canMove = $owner->canMoveCompany() && ! $this->readonly;
+        $denial = $canMove ? $owner->moveCompanyDenial($param) : null;
+
+        return [
+            'problem' => $problem,
+            'label' => $owner->detailCompanyProblemLabel($problem, $param->company_code ?? null),
+            'can_move' => $canMove,
+            'denial' => $denial,
+            'choices' => $canMove && $denial === null ? $owner->moveCompanyChoices($param) : collect(),
+            'url' => route('master.project-detail.move-company', $param->id),
+        ];
+    }
+
+    /**
+     * Pindah company baris Project Detail yang company-nya terhapus / tidak ada di master (Edit Project Detail → Pindah
+     * company): hanya admin Master Data di hub. Id baris, project, kode/nama client tetap (ProjectOwnerDetail::moveCompany).
+     */
+    public function moveCompany(Request $request, string $id)
+    {
+        $service = app(ProjectOwnerDetail::class);
+        abort_unless($service->enabled(), 404);
+        abort_unless(app(MasterAccess::class)->isAdmin(), 403);
+
+        $request->validate([
+            ProjectOwnerDetail::FIELD_MOVE_COMPANY => ['required', 'integer', 'min:1'],
+            ProjectOwnerDetail::FIELD_MOVE_CONFIRM => ['accepted'],
+        ], [
+            ProjectOwnerDetail::FIELD_MOVE_COMPANY.'.required' => 'Pilih company tujuan.',
+            ProjectOwnerDetail::FIELD_MOVE_CONFIRM.'.accepted' => 'Konfirmasi pindah company belum diberikan.',
+        ]);
+
+        $result = $service->moveCompany((int) $id, (int) $request->input(ProjectOwnerDetail::FIELD_MOVE_COMPANY));
+
+        $asal = $result['from'] > 0 ? $service->companyLabel($result['from']) : '(kosong)';
+        $pesan = 'Company baris Project Detail dipindah dari '.e($asal).' ('.($result['problem'] === 'deleted' ? 'sudah dihapus' : 'tidak ada di master')
+            .') ke '.e($service->companyLabel($result['to'])).'. Id baris, Project Code Client, dan Project Name Client tetap.';
+
+        return redirect()->route('master.project-detail.edit', $id)->with('success_message', $pesan);
     }
 
     public function insertNew(Request $request, $query, $id = null)
