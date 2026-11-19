@@ -15,6 +15,7 @@ use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
+use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -344,6 +345,13 @@ class ProjectDetailController extends Controller
         if ($request->id) {
             // Update existing Project Detail
             $project_detail = ProjectDetail::findOrFail($request->id);
+            // project/company baris tidak bisa diganti; baris pemilik project mengikuti Project (ProjectOwnerDetail)
+            app(ProjectOwnerDetail::class)->assertDetailChangeAllowed($project_detail, [
+                'project_id' => $request->project_id,
+                'company_id' => $request->company_id,
+                'project_code_client' => strtoupper((string) $request->project_code_client),
+                'project_name_client' => $request->project_name_client,
+            ]);
             $update = $project_detail->update([
                 'project_id' => $request->project_id,
                 'project_code_client' => strtoupper($request->project_code_client),
@@ -437,7 +445,9 @@ class ProjectDetailController extends Controller
             )
             ->first();
 
-        // dd($param);
+        // kunci form: project/company baris tidak bisa diganti; baris pemilik project juga kode/namanya (ikut Project)
+        $data['page']['owner_row'] = $param !== null && app(ProjectOwnerDetail::class)->isOwnerRow($param);
+
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(ProjectDetail::class, $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
@@ -650,7 +660,12 @@ class ProjectDetailController extends Controller
     {
         app(MasterAccess::class)->authorize('project-detail', 'delete', $id);
         // Route::resource mendaftarkan DELETE master/project-detail/{id}; dulu method ini tidak ada -> 500
-        ProjectDetail::findOrFail($id)->delete(); // soft delete
+        $detail = ProjectDetail::findOrFail($id);
+        // baris pemilik project tidak bisa dihapus (pindah pemilik dulu, atau hapus project-nya)
+        if (($denial = app(ProjectOwnerDetail::class)->detailDeleteDenial($detail)) !== null) {
+            return redirect()->route('master.'.$this->sheet_slug.'.index')->with('error_message', $denial);
+        }
+        $detail->delete(); // soft delete
 
         return redirect()->route('master.'.$this->sheet_slug.'.index')->with('success', $this->sheet_slug.' deleted successfully');
     }

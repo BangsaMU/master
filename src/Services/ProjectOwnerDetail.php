@@ -6,24 +6,32 @@ namespace Bangsamu\Master\Services;
 
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Models\MasterProjectDetail;
+use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Aturan: master_project adalah milik utama company pemilik (Meindo, master_company.id 1) sehingga setiap project
- * aktif wajib punya TEPAT SATU Project Detail untuk company itu, cermin 1:1 dari project (project_code_client =
- * project_code, project_name_client = project_name). Company lain ditambahkan sebagai baris berikutnya. Service ini
- * - mencari project yang detail company pemiliknya belum ada (tombol "Buat Detail" di daftar Project),
- * - membuat (atau memulihkan, bila detailnya terhapus) detail itu,
+ * Aturan: setiap project punya SATU company pemilik (master_project.owner_company_id; kosong = pemilik bawaan
+ * MasterCrudConfig.PROJECT_OWNER_COMPANY_ID, Meindo). Setiap project aktif wajib punya TEPAT SATU Project Detail untuk
+ * company pemiliknya ("baris pemilik"), cermin 1:1 dari project (project_code_client = project_code,
+ * project_name_client = project_name). Company lain ditambahkan sebagai baris berikutnya. Project yang pemiliknya
+ * bukan pemilik bawaan ("project non-Meindo") tidak punya baris Meindo, dan itu bukan kekurangan. Service ini
+ * - mencari project yang baris pemiliknya belum ada (tombol "Buat Detail" di daftar Project),
+ * - membuat (atau memulihkan, bila detailnya terhapus) baris itu,
  * - menghitung ringkasan company vs project code client untuk card di atas daftar Project,
- * - menentukan baris detail untuk project BARU (form, import): company pemilik, lalu company pembuat bila project
- *   dibuat lewat session delegasi company lain (rowsForNewProject), dan
+ * - menentukan pemilik + baris detail untuk project BARU (form, import): pemilik bawaan (+ company pembuat bila lewat
+ *   session delegasi company lain), atau company lain yang dipilih (newProjectPlan),
  * - menjaga cermin saat kode/nama project berubah (mirror) serta merapikan data lama (reconcile, perintah
- *   master:project-detail-mirror).
- * Tombol, card, dan perintah perapian hanya di hub (master-data): aplikasi klien memegang salinan tabel dan tidak
- * mengubah detail milik Meindo.
+ *   master:project-detail-mirror),
+ * - mengunci baris detail: project/company baris mana pun tidak bisa diganti, baris pemilik tidak bisa diubah atau
+ *   dihapus dari halaman Project Detail (detailChangeDenial, detailDeleteDenial), dan
+ * - memindahkan pemilik project (transferOwner), satu-satunya jalan mengganti pemilik.
+ * Tombol, card, pilihan pemilik, pindah pemilik, dan perintah perapian hanya di hub (master-data): aplikasi klien
+ * memegang salinan tabel. Rancangan: docs/rancangan-project-non-meindo.md di SPB (meb_spb).
  */
 class ProjectOwnerDetail
 {
@@ -33,12 +41,105 @@ class ProjectOwnerDetail
 
     public const TABLE_COMPANY = 'master_company';
 
+    /** kolom pemilik project; NULL = pemilik bawaan (companyId()) */
+    public const OWNER_COLUMN = 'owner_company_id';
+
+    /**
+     * field form/request: company pemilik project baru selain pemilik bawaan (kosong = pemilik bawaan). Sengaja bukan
+     * `owner_company_id`: nama itu dipakai MasterScope::OWNER_COMPANY_FIELD (pemilik DATA baris tabel master).
+     */
+    public const FIELD_OWNER_COMPANY = 'project_owner_company_id';
+
+    /** field form: centang "Pemilik project bukan <pemilik bawaan>" */
+    public const FIELD_OTHER_OWNER = 'project_owner_other';
+
+    /** field form Pindah pemilik: company pemilik baru */
+    public const FIELD_TRANSFER_COMPANY = 'to_company_id';
+
     public function __construct(protected MasterScope $scope, protected MasterAccess $access) {}
 
-    /** master_company.id pemilik utama project (MasterCrudConfig.PROJECT_OWNER_COMPANY_ID, bawaan 1 = Meindo) */
+    /** master_company.id pemilik bawaan project (MasterCrudConfig.PROJECT_OWNER_COMPANY_ID, bawaan 1 = Meindo) */
     public function companyId(): int
     {
         return (int) config('MasterCrudConfig.PROJECT_OWNER_COMPANY_ID', 1);
+    }
+
+    // ---- pemilik per project ----
+
+    /** master_project sudah punya kolom owner_company_id (paket >= v3.13: migration / master:install-tables) */
+    public function hasOwnerColumn(): bool
+    {
+        return SchemaColumns::hasColumn(self::TABLE_PROJECT, self::OWNER_COLUMN);
+    }
+
+    /**
+     * Company pemilik satu project: owner_company_id, kosong / kolom belum ada = pemilik bawaan. $project = baris
+     * master_project (stdClass / model) atau id; baris tanpa kolom itu (select sebagian) dibaca ulang dari tabel.
+     */
+    public function ownerCompanyIdOf(object|int $project): int
+    {
+        $default = $this->companyId();
+        if (! $this->hasOwnerColumn()) {
+            return $default;
+        }
+
+        $known = false;
+        $value = null;
+        if ($project instanceof Model) {
+            $attributes = $project->getAttributes();
+            if (array_key_exists(self::OWNER_COLUMN, $attributes)) {
+                [$known, $value] = [true, $attributes[self::OWNER_COLUMN]];
+            }
+            $id = $project->getKey();
+        } elseif (is_object($project)) {
+            $attributes = get_object_vars($project);
+            if (array_key_exists(self::OWNER_COLUMN, $attributes)) {
+                [$known, $value] = [true, $attributes[self::OWNER_COLUMN]];
+            }
+            $id = $attributes['id'] ?? null;
+        } else {
+            $id = $project;
+        }
+
+        if (! $known && $id !== null) {
+            $value = DB::table(self::TABLE_PROJECT)->where('id', (int) $id)->value(self::OWNER_COLUMN);
+        }
+
+        return (int) $value > 0 ? (int) $value : $default;
+    }
+
+    /** Ekspresi SQL company pemilik project untuk alias tabel master_project ($alias), aman dipakai di whereRaw/select. */
+    public function ownerSql(string $alias): string
+    {
+        $default = $this->companyId();
+
+        return $this->hasOwnerColumn() ? 'COALESCE(NULLIF('.$alias.'.'.self::OWNER_COLUMN.', 0), '.$default.')' : (string) $default;
+    }
+
+    /** Project ini milik company selain pemilik bawaan ("project non-Meindo"). */
+    public function hasOtherOwner(object|int $project): bool
+    {
+        return $this->ownerCompanyIdOf($project) !== $this->companyId();
+    }
+
+    /** Nama pendek pemilik bawaan untuk teks (kode company, cadangan "pemilik bawaan"). */
+    public function defaultOwnerLabel(): string
+    {
+        $code = SchemaColumns::hasTable(self::TABLE_COMPANY)
+            ? DB::table(self::TABLE_COMPANY)->where('id', $this->companyId())->value('company_code')
+            : null;
+
+        return filled($code) ? (string) $code : 'pemilik bawaan';
+    }
+
+    /** Kode company untuk teks/pesan; tidak ditemukan = "#id". */
+    public function companyLabel(int $companyId): string
+    {
+        $code = SchemaColumns::hasTable(self::TABLE_COMPANY)
+            ? DB::table(self::TABLE_COMPANY)->where('id', $companyId)->value('company_code')
+            : null;
+
+        return filled($code) ? (string) $code : '#'.$companyId;
     }
 
     /** fitur aktif: hanya di hub dan bila tabel yang dibutuhkan ada */
@@ -59,7 +160,7 @@ class ProjectOwnerDetail
     }
 
     /**
-     * Dari id project yang ditampilkan, id yang SUDAH punya detail aktif company pemilik.
+     * Dari id project yang ditampilkan, id yang SUDAH punya detail aktif company pemilik project itu.
      *
      * @param  array<int, int|string>  $projectIds
      * @return array<int, int>
@@ -70,17 +171,19 @@ class ProjectOwnerDetail
             return [];
         }
 
-        return DB::table(self::TABLE_DETAIL)
-            ->whereIn('project_id', $projectIds)
-            ->where('company_id', $this->companyId())
-            ->whereNull('deleted_at')
-            ->pluck('project_id')
+        return DB::table(self::TABLE_DETAIL.' as d')
+            ->join(self::TABLE_PROJECT.' as p', 'p.id', '=', 'd.project_id')
+            ->whereIn('d.project_id', $projectIds)
+            ->whereRaw('d.company_id = '.$this->ownerSql('p'))
+            ->whereNull('d.deleted_at')
+            ->pluck('d.project_id')
             ->map(fn ($id) => (int) $id)
             ->all();
     }
 
     /**
-     * Buat Project Detail untuk company pemilik, atau pulihkan yang terhapus. Idempoten: sudah ada = tidak membuat lagi.
+     * Buat Project Detail untuk company pemilik project, atau pulihkan yang terhapus. Idempoten: sudah ada = tidak
+     * membuat lagi.
      *
      * @return array{status: 'created'|'restored'|'exists', id: int}
      *
@@ -88,7 +191,7 @@ class ProjectOwnerDetail
      */
     public function ensure(object $project): array
     {
-        $companyId = $this->companyId();
+        $companyId = $this->ownerCompanyIdOf($project);
         $projectId = (int) $project->id;
 
         $plan = $this->ensurePlan($project);
@@ -127,7 +230,7 @@ class ProjectOwnerDetail
      */
     protected function ensurePlan(object $project): array
     {
-        $companyId = $this->companyId();
+        $companyId = $this->ownerCompanyIdOf($project);
         $projectId = (int) $project->id;
 
         if (filled($project->deleted_at ?? null)) {
@@ -225,6 +328,310 @@ class ProjectOwnerDetail
         return $rows;
     }
 
+    // ---- pemilik project baru selain pemilik bawaan (project non-Meindo) ----
+
+    /**
+     * Company yang boleh dipilih user ini sebagai pemilik project BARU selain pemilik bawaan (form Create Project,
+     * kolom Owner Company Code import). Hanya di hub dan setelah kolom owner_company_id ada:
+     * - is_admin (tim Master Data): semua company aktif selain pemilik bawaan;
+     * - session delegasi company lain (mis. admin MEB dari SPB): hanya company delegasinya;
+     * - user lain: tidak ada (project selalu milik pemilik bawaan).
+     *
+     * @return Collection<int, object{id: int, company_code: string, company_name: ?string}>
+     */
+    public function ownerChoices(): Collection
+    {
+        if (! $this->enabled() || ! $this->hasOwnerColumn()) {
+            return collect();
+        }
+
+        $default = $this->companyIdForNewProject() ?? $this->companyId();
+        $columns = array_values(array_filter(['id', 'company_code', SchemaColumns::hasColumn(self::TABLE_COMPANY, 'company_name') ? 'company_name' : null]));
+        $query = DB::table(self::TABLE_COMPANY)->whereNull('deleted_at')->where('id', '!=', $default)->orderBy('company_code');
+
+        if (! $this->access->isAdmin()) {
+            $delegation = (int) ($this->scope->delegation()['company_id'] ?? 0);
+            if ($delegation <= 0) {
+                return collect();
+            }
+            $query->where('id', $delegation);
+        }
+
+        return $query->get($columns)->map(function ($row) {
+            $row->id = (int) $row->id;
+            $row->company_name ??= null;
+
+            return $row;
+        });
+    }
+
+    /**
+     * Pilihan awal form Create Project: session delegasi company lain = centang "bukan pemilik bawaan" menyala dengan
+     * company delegasi (keputusan N3, bisa dimatikan); selain itu null (tidak dicentang).
+     */
+    public function defaultOtherOwner(): ?int
+    {
+        $delegation = (int) ($this->scope->delegation()['company_id'] ?? 0);
+        if ($delegation <= 0) {
+            return null;
+        }
+
+        return $this->ownerChoices()->contains(fn ($company) => $company->id === $delegation) ? $delegation : null;
+    }
+
+    /**
+     * Pemilik + company baris detail untuk project BARU. $chosen kosong / sama dengan pemilik bawaan = perilaku lama
+     * (pemilik bawaan, + company pembuat bila lewat delegasi). $chosen company lain = project milik company itu dengan
+     * satu baris detail company itu saja (tanpa baris pemilik bawaan).
+     *
+     * @return array{owner: ?int, companies: list<int>, other: bool}
+     *
+     * @throws ValidationException company tidak boleh dipilih user ini / di luar hub / kolom belum ada
+     */
+    public function newProjectPlan(?int $chosen): array
+    {
+        $default = $this->companyIdForNewProject();
+        if ($chosen === null || $chosen <= 0 || $chosen === $default) {
+            return ['owner' => $default, 'companies' => $this->companyIdsForNewProject(), 'other' => false];
+        }
+
+        $field = self::FIELD_OWNER_COMPANY;
+        if (! $this->enabled()) {
+            throw ValidationException::withMessages([$field => ['Pemilik project selain '.$this->defaultOwnerLabel().' hanya bisa dipilih di Master Data (hub).']]);
+        }
+        if (! $this->hasOwnerColumn()) {
+            throw ValidationException::withMessages([$field => ['Kolom master_project.owner_company_id belum ada: jalankan php artisan migrate di Master Data.']]);
+        }
+        if (! $this->ownerChoices()->contains(fn ($company) => $company->id === $chosen)) {
+            throw ValidationException::withMessages([$field => ['Company '.$this->companyLabel($chosen).' tidak bisa dipilih sebagai pemilik project: hanya admin Master Data yang memilih pemilik selain '
+                .$this->defaultOwnerLabel().', session delegasi hanya company-nya sendiri, dan company harus aktif.']]);
+        }
+
+        return ['owner' => $chosen, 'companies' => [$chosen], 'other' => true];
+    }
+
+    /**
+     * Kode project untuk company $companyId belum dipakai baris detail aktif company itu di project lain. Dipakai untuk
+     * project milik company selain pemilik bawaan: kode yang sama di dua project company itu membuat nomor dokumennya
+     * (mis. nomor SPB `{project}`) berbagi urutan.
+     *
+     * @throws ValidationException
+     */
+    public function assertCodeFreeForCompany(int $companyId, string $code, ?int $exceptProjectId = null, string $field = 'project_code'): void
+    {
+        $code = $this->normalizeCode($code);
+        if ($code === '') {
+            return;
+        }
+
+        $projectId = DB::table(self::TABLE_DETAIL)
+            ->where('company_id', $companyId)
+            ->whereRaw('UPPER(TRIM(project_code_client)) = ?', [$code])
+            ->whereNull('deleted_at')
+            ->when($exceptProjectId !== null, fn ($query) => $query->where('project_id', '!=', $exceptProjectId))
+            ->value('project_id');
+        if ($projectId === null) {
+            return;
+        }
+
+        $other = DB::table(self::TABLE_PROJECT)->where('id', (int) $projectId)->value('project_code');
+        throw ValidationException::withMessages([$field => ['Kode '.$code.' sudah dipakai company '.$this->companyLabel($companyId)
+            .' sebagai Project Code Client project '.($other ?? '#'.$projectId).': nomor dokumen company itu akan bentrok.']]);
+    }
+
+    // ---- kunci baris detail ----
+
+    /** Baris detail aktif milik company pemilik project-nya, dan project itu aktif ("baris pemilik"). */
+    public function isOwnerRow(object $detail): bool
+    {
+        if (filled($detail->deleted_at ?? null) || ! filled($detail->project_id ?? null)) {
+            return false;
+        }
+
+        $project = DB::table(self::TABLE_PROJECT)->where('id', (int) $detail->project_id)->first();
+        if ($project === null || filled($project->deleted_at ?? null)) {
+            return false;
+        }
+
+        return (int) $detail->company_id === $this->ownerCompanyIdOf($project);
+    }
+
+    /**
+     * Alasan perubahan baris detail ditolak (form Project Detail, import), null = boleh.
+     * - Project dan company baris mana pun tidak bisa diganti (keputusan N2): baris = pasangan (project, company) yang
+     *   dipegang aplikasi (SPB, dll.); ganti = hapus baris lalu tambah baris baru.
+     * - Kode/nama baris pemilik mengikuti Project (cermin): diubah lewat Edit Project.
+     *
+     * @param  array<string, mixed>  $new  nilai baru; kunci yang tidak ada = tidak diubah
+     */
+    public function detailChangeDenial(object $existing, array $new): ?string
+    {
+        if (array_key_exists('project_id', $new) && (int) $new['project_id'] !== (int) $existing->project_id) {
+            return 'Project baris Project Detail tidak bisa diganti. Hapus baris ini lalu tambah baris baru di project yang benar.';
+        }
+        if (array_key_exists('company_id', $new) && (int) $new['company_id'] !== (int) $existing->company_id) {
+            return 'Company baris Project Detail tidak bisa diganti. Hapus baris ini lalu tambah baris baru untuk company lain.';
+        }
+
+        if ($this->isOwnerRow($existing)) {
+            $codeChanged = array_key_exists('project_code_client', $new)
+                && $this->normalizeCode($new['project_code_client']) !== $this->normalizeCode($existing->project_code_client);
+            $nameChanged = array_key_exists('project_name_client', $new)
+                && trim((string) $new['project_name_client']) !== trim((string) $existing->project_name_client);
+            if ($codeChanged || $nameChanged) {
+                return 'Baris ini baris pemilik project ('.$this->companyLabel((int) $existing->company_id).'): kode/nama mengikuti Project. '
+                    .'Ubah lewat Edit Project; pemilik diganti lewat Edit Project → Pindah pemilik.';
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * detailChangeDenial() sebagai error validasi pada field form yang bersangkutan (company_id / project_id /
+     * project_code_client).
+     *
+     * @param  array<string, mixed>  $new
+     *
+     * @throws ValidationException
+     */
+    public function assertDetailChangeAllowed(object $existing, array $new): void
+    {
+        $denial = $this->detailChangeDenial($existing, $new);
+        if ($denial === null) {
+            return;
+        }
+
+        $field = match (true) {
+            array_key_exists('project_id', $new) && (int) $new['project_id'] !== (int) $existing->project_id => 'project_id',
+            array_key_exists('company_id', $new) && (int) $new['company_id'] !== (int) $existing->company_id => 'company_id',
+            default => 'project_code_client',
+        };
+
+        throw ValidationException::withMessages([$field => [$denial]]);
+    }
+
+    /** Alasan hapus baris detail ditolak, null = boleh: baris pemilik project aktif tidak bisa dihapus. */
+    public function detailDeleteDenial(object $detail): ?string
+    {
+        return $this->isOwnerRow($detail)
+            ? 'Baris pemilik project ('.$this->companyLabel((int) $detail->company_id).') tidak bisa dihapus. Pindahkan pemilik dulu lewat Edit Project → Pindah pemilik, atau hapus project-nya.'
+            : null;
+    }
+
+    // ---- pindah pemilik ----
+
+    /** User ini boleh memindahkan pemilik project: hub, kolom ada, admin Master Data (keputusan N4). */
+    public function canTransfer(): bool
+    {
+        return $this->enabled() && $this->hasOwnerColumn() && $this->access->isAdmin();
+    }
+
+    /**
+     * Pilihan company pemilik baru untuk Pindah pemilik: company aktif selain pemilik sekarang. `has_row` = company itu
+     * sudah punya baris detail aktif di project ini (kode/nama induk akan mengikuti baris itu).
+     *
+     * @return Collection<int, object{id: int, company_code: string, company_name: ?string, has_row: bool, code: ?string, name: ?string}>
+     */
+    public function transferChoices(object $project): Collection
+    {
+        if (! $this->canTransfer()) {
+            return collect();
+        }
+
+        $owner = $this->ownerCompanyIdOf($project);
+        $rows = DB::table(self::TABLE_DETAIL)->where('project_id', (int) $project->id)->whereNull('deleted_at')
+            ->orderBy('id')->get(['company_id', 'project_code_client', 'project_name_client'])->keyBy(fn ($row) => (int) $row->company_id);
+        $columns = array_values(array_filter(['id', 'company_code', SchemaColumns::hasColumn(self::TABLE_COMPANY, 'company_name') ? 'company_name' : null]));
+
+        return DB::table(self::TABLE_COMPANY)->whereNull('deleted_at')->where('id', '!=', $owner)->orderBy('company_code')->get($columns)
+            ->map(function ($company) use ($rows) {
+                $row = $rows->get((int) $company->id);
+                $company->id = (int) $company->id;
+                $company->company_name ??= null;
+                $company->has_row = $row !== null;
+                $company->code = $row->project_code_client ?? null;
+                $company->name = $row->project_name_client ?? null;
+
+                return $company;
+            })
+            ->sortByDesc('has_row')->values();
+    }
+
+    /**
+     * Pindahkan pemilik project ke company $toCompanyId, satu transaksi:
+     * 1. baris detail company tujuan dipakai bila ada, dipulihkan bila terhapus, dibuat dari kode/nama project bila
+     *    belum ada (keputusan N6);
+     * 2. owner_company_id = tujuan, kode/nama project = kode/nama baris tujuan (baris pemilik = cermin project);
+     * 3. baris pemilik lama TETAP ada sebagai baris company lain (kode/nama lamanya tidak berubah), boleh dihapus
+     *    terpisah bila company itu berhenti memakai project.
+     * Tersimpan lewat model (Loggable + broadcast) dan callback DB master, seperti edit manual.
+     *
+     * @return array{from: int, to: int, row: 'existing'|'restored'|'created', code_before: string, code_after: string}
+     *
+     * @throws ValidationException tidak boleh / project terhapus / company tidak aktif / kode atau nama bentrok
+     */
+    public function transferOwner(int $projectId, int $toCompanyId): array
+    {
+        $field = self::FIELD_TRANSFER_COMPANY;
+        if (! $this->canTransfer()) {
+            throw ValidationException::withMessages([$field => ['Pindah pemilik project hanya untuk admin Master Data di hub, setelah kolom owner_company_id ada.']]);
+        }
+
+        return DB::transaction(function () use ($projectId, $toCompanyId, $field): array {
+            $project = Project::query()->whereKey($projectId)->lockForUpdate()->first();
+            if ($project === null) {
+                throw ValidationException::withMessages([$field => ['Project tidak ditemukan atau sudah dihapus: pulihkan (Restore) dulu.']]);
+            }
+            $from = $this->ownerCompanyIdOf($project);
+            if ($toCompanyId === $from) {
+                throw ValidationException::withMessages([$field => ['Company '.$this->companyLabel($toCompanyId).' sudah pemilik project ini.']]);
+            }
+            if (! DB::table(self::TABLE_COMPANY)->where('id', $toCompanyId)->whereNull('deleted_at')->exists()) {
+                throw ValidationException::withMessages([$field => ['Company tujuan tidak ditemukan atau sudah dihapus.']]);
+            }
+
+            $detail = ProjectDetail::withTrashed()->where('project_id', $project->id)->where('company_id', $toCompanyId)
+                ->orderByRaw('deleted_at is null desc')->orderByDesc('id')->first();
+            $rowStatus = 'existing';
+            if ($detail === null) {
+                $this->assertCodeFreeForCompany($toCompanyId, (string) $project->project_code, (int) $project->id, $field);
+                $data = $this->scope->stamp(self::TABLE_DETAIL, ['project_id' => (int) $project->id] + $this->mirrorValues($project), $this->scope->ownerOf($project));
+                // company_id di tabel ini = company project, bukan pemilik data baris
+                $data['company_id'] = $toCompanyId;
+                $detail = ProjectDetail::create($data);
+                $rowStatus = 'created';
+            } elseif ($detail->trashed()) {
+                $detail->restore();
+                $rowStatus = 'restored';
+            }
+
+            $code = $this->normalizeCode($detail->project_code_client);
+            $name = filled($detail->project_name_client) ? trim((string) $detail->project_name_client) : (string) $project->project_name;
+            if ($code === '') {
+                throw ValidationException::withMessages([$field => ['Baris detail company '.$this->companyLabel($toCompanyId).' belum punya Project Code Client: isi dulu di Project Detail.']]);
+            }
+            $codeUser = DB::table(self::TABLE_PROJECT)->where('id', '!=', $project->id)->whereRaw('UPPER(TRIM(project_code)) = ?', [$code])->value('project_code');
+            if ($codeUser !== null) {
+                throw ValidationException::withMessages([$field => ['Kode '.$code.' (baris company '.$this->companyLabel($toCompanyId).') sudah dipakai project lain sebagai Project Code.']]);
+            }
+            $nameUser = DB::table(self::TABLE_PROJECT)->where('id', '!=', $project->id)->where('project_name', $name)->value('project_code');
+            if ($nameUser !== null) {
+                throw ValidationException::withMessages([$field => ['Nama "'.$name.'" (baris company '.$this->companyLabel($toCompanyId).') sudah dipakai project '.$nameUser.'.']]);
+            }
+
+            $codeBefore = (string) $project->project_code;
+            $project->fill([self::OWNER_COLUMN => $toCompanyId, 'project_code' => $code, 'project_name' => $name]);
+            $project->save(); // Loggable: sebelum/sesudah owner_company_id + kode/nama
+            $this->syncProjectToMaster($project);
+            if ($rowStatus !== 'existing') {
+                $this->syncToMaster($detail);
+            }
+
+            return ['from' => $from, 'to' => $toCompanyId, 'row' => $rowStatus, 'code_before' => $codeBefore, 'code_after' => $code];
+        });
+    }
+
     // ---- cermin 1:1 baris pemilik ----
 
     /**
@@ -258,7 +665,7 @@ class ProjectOwnerDetail
         $pending = [];
         $details = ProjectDetail::query()
             ->where('project_id', (int) $project->id)
-            ->where('company_id', $this->companyId())
+            ->where('company_id', $this->ownerCompanyIdOf($project))
             ->orderBy('id')
             ->get();
         foreach ($details as $detail) {
@@ -330,7 +737,7 @@ class ProjectOwnerDetail
 
         $active = ProjectDetail::query()
             ->where('project_id', (int) $project->id)
-            ->where('company_id', $this->companyId())
+            ->where('company_id', $this->ownerCompanyIdOf($project))
             ->orderBy('id')
             ->get();
         if ($active->count() > 1) {
@@ -414,6 +821,23 @@ class ProjectOwnerDetail
         }
     }
 
+    /** callback ke DB master untuk baris master_project (sama dengan update di ProjectController::store) */
+    protected function syncProjectToMaster(Project $project): void
+    {
+        try {
+            if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
+                LibraryClayController::updateMaster([
+                    'sync_tabel' => self::TABLE_PROJECT,
+                    'sync_id' => $project->id,
+                    'sync_row' => $project->toArray(),
+                    'sync_list_callback' => config('AppConfig.CALLBACK_URL'),
+                ]);
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
     protected function normalizeCode(mixed $code): string
     {
         return strtoupper(trim((string) $code));
@@ -429,19 +853,26 @@ class ProjectOwnerDetail
 
     /**
      * Ringkasan untuk card: company aktif beserta jumlah Project Code Client (detail aktif pada project aktif), dan
-     * cek kesesuaian 1:1 project master dengan detail company pemilik.
+     * cek kesesuaian 1:1 project master dengan baris company pemiliknya (pemilik bawaan, atau owner_company_id).
      *
      * @return array{
      *     company_total: int, company_deleted: int, project_total: int, project_deleted: int, detail_total: int,
      *     owner: array{id: int, code: ?string, name: ?string, active: bool},
-     *     companies: array<int, array{id: int, code: string, name: string, detail: int, owner: bool}>,
+     *     companies: array<int, array{id: int, code: string, name: string, detail: int, owner: bool, owned: int}>,
      *     missing: int, missing_sample: array<int, string>, duplicate: int, orphan_company: int, orphan_project: int,
-     *     consistent: bool
+     *     other_owner: int, consistent: bool
      * }
      */
     public function summary(): array
     {
         $owner = $this->companyId();
+        $ownerSql = $this->ownerSql(self::TABLE_PROJECT);
+
+        // project aktif per company pemilik (owner_company_id; kosong = pemilik bawaan)
+        $owned = DB::table(self::TABLE_PROJECT)->whereNull('deleted_at')
+            ->groupBy(DB::raw($ownerSql))
+            ->get([DB::raw($ownerSql.' as company_id'), DB::raw('count(*) as total')])
+            ->mapWithKeys(fn ($row) => [(int) $row->company_id => (int) $row->total]);
 
         $companies = DB::table(self::TABLE_COMPANY.' as c')
             ->leftJoin(self::TABLE_DETAIL.' as d', function ($join) {
@@ -460,13 +891,15 @@ class ProjectOwnerDetail
                 'name' => (string) $row->company_name,
                 'detail' => (int) $row->detail,
                 'owner' => (int) $row->id === $owner,
+                'owned' => $owned[(int) $row->id] ?? 0,
             ])->all();
 
+        // project aktif tanpa baris company pemiliknya sendiri (project non-Meindo tanpa baris Meindo BUKAN kekurangan)
         $projectsAktif = DB::table(self::TABLE_PROJECT)->whereNull('deleted_at');
-        $withoutDetail = (clone $projectsAktif)->whereNotExists(function ($q) use ($owner) {
+        $withoutDetail = (clone $projectsAktif)->whereNotExists(function ($q) use ($ownerSql) {
             $q->select(DB::raw(1))->from(self::TABLE_DETAIL.' as d')
                 ->whereColumn('d.project_id', self::TABLE_PROJECT.'.id')
-                ->where('d.company_id', $owner)->whereNull('d.deleted_at');
+                ->whereRaw('d.company_id = '.$ownerSql)->whereNull('d.deleted_at');
         });
         $missing = (clone $withoutDetail)->count();
 
@@ -490,8 +923,12 @@ class ProjectOwnerDetail
             'companies' => $companies,
             'missing' => $missing,
             'missing_sample' => (clone $withoutDetail)->orderBy('project_code')->limit(5)->pluck('project_code')->map(fn ($c) => (string) $c)->all(),
-            'duplicate' => DB::table(self::TABLE_DETAIL)->where('company_id', $owner)->whereNull('deleted_at')
-                ->groupBy('project_id')->havingRaw('count(*) > 1')->get(['project_id'])->count(),
+            'duplicate' => DB::table(self::TABLE_DETAIL.' as d')
+                ->join(self::TABLE_PROJECT, self::TABLE_PROJECT.'.id', '=', 'd.project_id')
+                ->whereRaw('d.company_id = '.$ownerSql)->whereNull('d.deleted_at')
+                ->groupBy('d.project_id')->havingRaw('count(*) > 1')->get(['d.project_id'])->count(),
+            // project aktif yang pemiliknya bukan pemilik bawaan (project non-Meindo)
+            'other_owner' => $owned->except([$owner])->sum(),
             // detail aktif yang company-nya terhapus / tidak ada: tidak terhitung di company mana pun
             'orphan_company' => (clone $detailAktif)->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))->from(self::TABLE_COMPANY.' as c')->whereColumn('c.id', 'd.company_id')->whereNull('c.deleted_at');

@@ -110,6 +110,8 @@
                             </div>
                         </div>
 
+                        @include('master::partials.project-owner-field')
+
                         <div class="text-end">
                             <a href="{{ route('master.project.index') }}" class="btn btn-default">
                                 Back
@@ -123,6 +125,8 @@
             </div>
         </div>
     </div>
+
+    @include('master::partials.project-owner-transfer')
 
     <div class="row">
         <div class="col-12 col-sm-8">

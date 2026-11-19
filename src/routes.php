@@ -121,6 +121,8 @@ Route::middleware(['web', 'auth'])->prefix('master')->name('master.')->group(fun
 
     Route::get('project/importtemplate', [\Bangsamu\Master\Controllers\ProjectController::class, 'importtemplate'])->name('project.importtemplate');
     Route::post('project/{id}/owner-detail', [\Bangsamu\Master\Controllers\ProjectController::class, 'createOwnerDetail'])->where('id', '[0-9]+')->name('project.owner-detail');
+    // Pindah pemilik project (admin Master Data, hub): ProjectOwnerDetail::transferOwner
+    Route::post('project/{id}/transfer-owner', [\Bangsamu\Master\Controllers\ProjectController::class, 'transferOwner'])->where('id', '[0-9]+')->name('project.transfer-owner');
     Route::resource('project', \Bangsamu\Master\Controllers\ProjectController::class);
     Route::post('project/import', [\Bangsamu\Master\Controllers\MasterImportController::class, 'preview'])->defaults('entity', 'project')->name('project.import');
 

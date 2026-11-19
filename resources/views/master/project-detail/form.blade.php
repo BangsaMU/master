@@ -19,6 +19,17 @@
                         @if ($param)
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="project_id" value="{{ $param->project_id }}">
+                            {{-- project/company baris tidak bisa diganti (ProjectOwnerDetail::detailChangeDenial) --}}
+                            <input type="hidden" name="company_id" value="{{ $param->company_id }}">
+                        @endif
+                        @if (! empty($data['page']['owner_row']))
+                            <div class="alert alert-info py-2 small" data-owner-row-note>
+                                Baris ini baris <strong>pemilik project</strong>: kode/nama mengikuti Project dan tidak bisa
+                                diubah atau dihapus di sini. Ubah lewat Edit Project; pemilik diganti lewat Edit Project →
+                                Pindah pemilik.
+                            </div>
+                        @elseif ($param)
+                            <div class="text-muted small mb-2">Project dan company baris ini tidak bisa diganti: hapus baris lalu tambah baris baru.</div>
                         @endif
 
                         <div class="form-group mb-3">
@@ -33,21 +44,21 @@
 
                         <div class="form-group mb-3">
                             <label for="project_code_client">Project Code Client</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_code_client" id="project_code_client" class="form-control @error('project_code_client') is-invalid @enderror"
+                            <input {{ $data['page']['readonly'] || ! empty($data['page']['owner_row']) ? 'readonly' : '' }} type="text" name="project_code_client" id="project_code_client" class="form-control @error('project_code_client') is-invalid @enderror"
                                    value="{{ $param ? $param->project_code_client : old('project_code_client') }}" required placeholder="Input your Project Code Client">
 
                             @error('project_code_client') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group mb-3">
                             <label for="project_name_client">Project Name Client</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_name_client" id="project_name_client" class="form-control @error('project_name_client') is-invalid @enderror"
+                            <input {{ $data['page']['readonly'] || ! empty($data['page']['owner_row']) ? 'readonly' : '' }} type="text" name="project_name_client" id="project_name_client" class="form-control @error('project_name_client') is-invalid @enderror"
                                    value="{{ $param ? $param->project_name_client : old('project_name_client') }}" required placeholder="Input your Project Name Client">
 
                             @error('project_name_client') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group mb-3">
                             <label for="company_id">Company</label>
-                            <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('company_id') is-invalid @enderror" name="company_id" id="company_id">
+                            <select {{ $data['page']['readonly'] || $param ? 'disabled' : '' }} class="form-control @error('company_id') is-invalid @enderror" name="company_id" id="company_id">
                                 @if(isset($param->company_id))
                                     <option value="{{ $param->company_id }}" selected>{{ $param->company_name }}</option>
                                 @endif

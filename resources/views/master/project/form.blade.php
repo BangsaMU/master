@@ -113,6 +113,7 @@
                                 value="{{ $param ? $param->project_name : old('project_name') }}" required>
                         </div> --}}
                         @include('master::partials.master-owner', ['table' => 'master_project', 'param' => $param, 'readonly' => $data['page']['readonly']])
+                        @include('master::partials.project-owner-field')
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif
@@ -124,6 +125,8 @@
             </div>
         </div>
     </div>
+
+    @include('master::partials.project-owner-transfer')
 
     @isset($view_form_list)
         <div class="card-body row">

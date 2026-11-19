@@ -35,6 +35,7 @@
                         @if ($param)
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="id" value="{{ $param->id }}">
                             <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="hidden" name="project_id" value="{{ $param->project_id }}">
+                            <input type="hidden" name="company_id" value="{{ $param->company_id }}">
                         @endif
 
                         <div class="form-group">
@@ -49,21 +50,21 @@
 
                         <div class="form-group">
                             <label class="form-label" for="project_code_client">Project Code Client</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_code_client" id="project_code_client" class="form-control @error('project_code_client') is-invalid @enderror"
+                            <input {{ $data['page']['readonly'] || ! empty($data['page']['owner_row']) ? 'readonly' : '' }} type="text" name="project_code_client" id="project_code_client" class="form-control @error('project_code_client') is-invalid @enderror"
                                    value="{{ $param ? $param->project_code_client : old('project_code_client') }}" required placeholder="Input your Project Code Client">
 
                             @error('project_code_client') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="project_name_client">Project Name Client</label>
-                            <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text" name="project_name_client" id="project_name_client" class="form-control @error('project_name_client') is-invalid @enderror"
+                            <input {{ $data['page']['readonly'] || ! empty($data['page']['owner_row']) ? 'readonly' : '' }} type="text" name="project_name_client" id="project_name_client" class="form-control @error('project_name_client') is-invalid @enderror"
                                    value="{{ $param ? $param->project_name_client : old('project_name_client') }}" required placeholder="Input your Project Name Client">
 
                             @error('project_name_client') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="company_id">Company</label>
-                            <select {{ $data['page']['readonly'] ? 'disabled' : '' }} class="form-control @error('company_id') is-invalid @enderror" name="company_id" id="company_id">
+                            <select {{ $data['page']['readonly'] || $param ? 'disabled' : '' }} class="form-control @error('company_id') is-invalid @enderror" name="company_id" id="company_id">
                                 @if(isset($param->company_id))
                                     <option value="{{ $param->company_id }}" selected>{{ $param->company_name }}</option>
                                 @endif

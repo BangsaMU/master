@@ -61,6 +61,45 @@ class ProjectController extends Controller
     public function __construct(Request $request)
     {
         // parent::__construct($request);
+        $this->addOwnerColumn();
+    }
+
+    /**
+     * Kolom "Pemilik" (kode company pemilik project) di daftar, setelah kolom nama, bila master_project sudah punya
+     * owner_company_id. Kolom biasa lewat join (bukan subquery) supaya pencarian DataTables helper app mana pun bisa
+     * memakai WHERE kolom LIKE.
+     */
+    protected function addOwnerColumn(): void
+    {
+        if (! app(ProjectOwnerDetail::class)->hasOwnerColumn() || ! \Bangsamu\Master\Services\SchemaColumns::hasTable(ProjectOwnerDetail::TABLE_COMPANY)) {
+            return;
+        }
+
+        foreach (['view_tabel_index', 'view_tabel'] as $property) {
+            if (! in_array(self::OWNER_LIST_COLUMN, $this->{$property}, true)) {
+                array_splice($this->{$property}, 3, 0, [self::OWNER_LIST_COLUMN]);
+            }
+        }
+    }
+
+    /** kolom daftar: kode company pemilik project (join ownerCompanyJoin) */
+    public const OWNER_LIST_COLUMN = 'opc.company_code AS pemilik';
+
+    /** Join company pemilik project (alias opc) untuk kolom "Pemilik"; tanpa kolom owner_company_id tidak menjoin. */
+    protected function joinOwnerCompany($query): void
+    {
+        if (! in_array(self::OWNER_LIST_COLUMN, $this->view_tabel_index, true)) {
+            return;
+        }
+
+        $ownerSql = app(ProjectOwnerDetail::class)->ownerSql('mp');
+        $query->leftJoin(ProjectOwnerDetail::TABLE_COMPANY.' as opc', fn ($join) => $join->on('opc.id', '=', DB::raw($ownerSql)));
+    }
+
+    /** Tabel master_project lama (tanpa owner_company_id) di-upgrade otomatis sebelum dipakai. */
+    protected function ensureSchema(): void
+    {
+        app(\Bangsamu\Master\Services\MasterSchemaUpgrader::class)->ensure('master_project');
     }
 
     public function config($id = null, $data = null)
@@ -287,7 +326,8 @@ class ProjectController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->tap(fn ($query) => $trash->filter($query, 'project', 'mp'));
+                ->tap(fn ($query) => $trash->filter($query, 'project', 'mp'))
+                ->tap(fn ($query) => $this->joinOwnerCompany($query));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mp');
             $data_tabel->groupby('mp.id');
@@ -308,7 +348,8 @@ class ProjectController extends Controller
                 ->select(
                     DB::raw(implode(',', $view_tabel_index)),
                 )
-                ->tap(fn ($query) => $trash->filter($query, 'project', 'mp'));
+                ->tap(fn ($query) => $trash->filter($query, 'project', 'mp'))
+                ->tap(fn ($query) => $this->joinOwnerCompany($query));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mp');
 
@@ -372,7 +413,7 @@ class ProjectController extends Controller
                 $btn .= MasterEditLink::rowButton('project', $row->No, $row);
                 if ($bisaBuatDetail && ! $trash->isTrashed($row) && ! isset($sudahPunyaDetail[(int) $row->No])) {
                     $btn .= ' <a href="'.e(route('master.project.owner-detail', $row->No)).'" onclick="notificationBeforeOwnerDetail(event,this)"'
-                        .' class="btn btn-warning btn-sm" title="Project ini belum punya Project Detail untuk company pemilik (id '.$ownerDetail->companyId().'). Klik untuk membuatnya otomatis.">'
+                        .' class="btn btn-warning btn-sm" title="Project ini belum punya Project Detail untuk company pemiliknya. Klik untuk membuatnya otomatis.">'
                         .'<i class="fas fa-plus mr-1 me-1" aria-hidden="true"></i>Buat Detail</a>';
                 }
                 $nestedData['action'] = $trash->actions('project', $row, $btn);
@@ -407,8 +448,48 @@ class ProjectController extends Controller
         $data['page']['readonly'] = false;
         $data['page']['title'] = $sheet_name;
         $param = null;
+        $this->ensureSchema();
+        $data['page']['project_owner'] = $this->ownerFormData(null);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
+    }
+
+    /**
+     * Data bagian "Pemilik project" di form (partial master::partials.project-owner-field).
+     * Create: pilihan company pemilik selain pemilik bawaan (is_admin semua company, delegasi company-nya saja).
+     * Edit: pemilik sekarang + pilihan Pindah pemilik (admin Master Data).
+     *
+     * @return array<string, mixed>
+     */
+    protected function ownerFormData(?object $project): array
+    {
+        $service = app(ProjectOwnerDetail::class);
+        $defaultLabel = $service->defaultOwnerLabel();
+
+        if ($project === null) {
+            return [
+                'mode' => 'create',
+                'default_label' => $defaultLabel,
+                'choices' => $service->ownerChoices(),
+                'checked_company' => $service->defaultOtherOwner(),
+            ];
+        }
+
+        $ownerId = $service->ownerCompanyIdOf($project);
+        $owner = DB::table(ProjectOwnerDetail::TABLE_COMPANY)->where('id', $ownerId)->first();
+
+        return [
+            'mode' => 'edit',
+            'default_label' => $defaultLabel,
+            'owner_id' => $ownerId,
+            'owner_label' => $owner ? trim($owner->company_code.(isset($owner->company_name) && filled($owner->company_name) ? ' - '.$owner->company_name : '')) : '#'.$ownerId,
+            'other' => $service->hasOtherOwner($project),
+            'trashed' => filled($project->deleted_at ?? null),
+            'transfer_url' => route('master.project.transfer-owner', $project->id),
+            'transfer_choices' => filled($project->deleted_at ?? null) ? collect() : $service->transferChoices($project),
+            'project_code' => (string) $project->project_code,
+            'project_name' => (string) $project->project_name,
+        ];
     }
 
     public function store(Request $request)
@@ -425,6 +506,22 @@ class ProjectController extends Controller
             'project_name' => 'required|string|max:100',
         ]);
         app(MasterScope::class)->assertNoCompanyConflict('master_project', 'project_code', $request->input('project_code'), $owner, $request->id);
+
+        // project baru: pemilik project (pemilik bawaan, atau company lain yang dicentang) + company baris detailnya.
+        // Project lama: pemilik tidak berubah lewat form ini (hanya lewat Pindah pemilik).
+        $ownerPlan = null;
+        if (! $request->id) {
+            $this->ensureSchema();
+            $ownerDetail = app(ProjectOwnerDetail::class);
+            $chosen = $request->boolean(ProjectOwnerDetail::FIELD_OTHER_OWNER) ? (int) $request->input(ProjectOwnerDetail::FIELD_OWNER_COMPANY) : null;
+            if ($request->boolean(ProjectOwnerDetail::FIELD_OTHER_OWNER) && $chosen <= 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages([ProjectOwnerDetail::FIELD_OWNER_COMPANY => ['Pilih company pemilik project, atau hapus centang "Pemilik project bukan '.$ownerDetail->defaultOwnerLabel().'".']]);
+            }
+            $ownerPlan = $ownerDetail->newProjectPlan($chosen);
+            if ($ownerPlan['other']) {
+                $ownerDetail->assertCodeFreeForCompany((int) $ownerPlan['owner'], (string) $request->input('project_code'));
+            }
+        }
 
         if ($request->id) {
             // Update existing Project
@@ -461,25 +558,32 @@ class ProjectController extends Controller
                 $message = $this->sheet_name.' no data changed';
             }
         } else {
-            // Create new Project
-            $project = Project::create(app(MasterScope::class)->stamp('master_project', [
-                'project_code' => $request->project_code,
-                'project_name' => $request->project_name,
-                'internal_external' => $request->internal_external,
-                'project_remarks' => $request->project_remarks,
-                'project_start_date' => $request->project_start_date,
-                'project_complete_date' => $request->project_complete_date,
-            ], $owner));
+            // Create new Project + baris detail dalam satu transaksi
+            DB::transaction(function () use ($request, $owner, $ownerPlan) {
+                $values = [
+                    'project_code' => $request->project_code,
+                    'project_name' => $request->project_name,
+                    'internal_external' => $request->internal_external,
+                    'project_remarks' => $request->project_remarks,
+                    'project_start_date' => $request->project_start_date,
+                    'project_complete_date' => $request->project_complete_date,
+                ];
+                // pemilik project ditulis eksplisit (juga pemilik bawaan) bila kolomnya sudah ada
+                if (app(ProjectOwnerDetail::class)->hasOwnerColumn() && ($ownerPlan['owner'] ?? null) !== null) {
+                    $values[ProjectOwnerDetail::OWNER_COLUMN] = (int) $ownerPlan['owner'];
+                }
+                $project = Project::create(app(MasterScope::class)->stamp('master_project', $values, $owner));
 
-            // auto add project detail: baris company pemilik (PROJECT_OWNER_COMPANY_ID), lalu baris company pembuat
-            // bila project dibuat lewat session delegasi company lain (ProjectOwnerDetail::rowsForNewProject)
-            foreach (app(ProjectOwnerDetail::class)->rowsForNewProject($project) as $detailRow) {
-                $modelClass = LibraryClayController::resolveModelFromSheetSlug('project_detail');
-                $data = app(MasterScope::class)->stamp('master_project', $detailRow, $owner);
-                // company_id di tabel ini = company client, bukan pemilik data
-                $data['company_id'] = $detailRow['company_id'];
-                $modelClass::create($data); // ini akan trigger Loggable
-            }
+                // auto add project detail: baris company pemilik project, lalu baris company pembuat bila project milik
+                // pemilik bawaan dibuat lewat session delegasi company lain (ProjectOwnerDetail::newProjectPlan)
+                foreach (app(ProjectOwnerDetail::class)->rowsForNewProject($project, $ownerPlan['companies'] ?? null) as $detailRow) {
+                    $modelClass = LibraryClayController::resolveModelFromSheetSlug('project_detail');
+                    $data = app(MasterScope::class)->stamp('master_project', $detailRow, $owner);
+                    // company_id di tabel ini = company client, bukan pemilik data
+                    $data['company_id'] = $detailRow['company_id'];
+                    $modelClass::create($data); // ini akan trigger Loggable
+                }
+            });
 
             // DB::table('master_project_detail')->insert([
             //     'project_id' => $project->id,
@@ -512,10 +616,14 @@ class ProjectController extends Controller
         $data['page']['store'] = route('master.'.$sheet_slug.'.store');
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
+        $this->ensureSchema();
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
         // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
         if ($param && ! app(MasterAccess::class)->allows('project', 'update', $param)) {
             $data['page']['readonly'] = true;
+        }
+        if ($param) {
+            $data['page']['project_owner'] = $this->ownerFormData($param);
         }
 
         /**
@@ -622,6 +730,41 @@ class ProjectController extends Controller
         };
 
         return redirect()->route('master.project.index')->with('success_message', $pesan);
+    }
+
+    /**
+     * Pindah pemilik project (Edit Project → Pindah pemilik): hanya admin Master Data di hub. Pemilik baru memakai
+     * baris detail company itu (dibuat/dipulihkan bila belum ada); kode/nama project mengikuti baris itu; baris
+     * pemilik lama tetap ada (ProjectOwnerDetail::transferOwner).
+     */
+    public function transferOwner(Request $request, string $id)
+    {
+        $service = app(ProjectOwnerDetail::class);
+        abort_unless($service->enabled(), 404);
+        abort_unless(app(MasterAccess::class)->isAdmin(), 403);
+        $this->ensureSchema();
+
+        $request->validate([
+            ProjectOwnerDetail::FIELD_TRANSFER_COMPANY => ['required', 'integer', 'min:1'],
+            'confirm_transfer' => ['accepted'],
+        ], [
+            'confirm_transfer.accepted' => 'Konfirmasi pindah pemilik belum diberikan.',
+        ]);
+
+        $result = $service->transferOwner((int) $id, (int) $request->input(ProjectOwnerDetail::FIELD_TRANSFER_COMPANY));
+
+        $pesan = 'Pemilik project dipindah dari '.e($service->companyLabel($result['from'])).' ke '.e($service->companyLabel($result['to'])).'.';
+        if ($result['code_before'] !== $result['code_after']) {
+            $pesan .= ' Project Code berubah '.e($result['code_before']).' → '.e($result['code_after']).' (mengikuti baris company pemilik baru).';
+        }
+        $pesan .= match ($result['row']) {
+            'created' => ' Baris Project Detail company pemilik baru dibuat dari kode/nama project.',
+            'restored' => ' Baris Project Detail company pemilik baru yang terhapus dipulihkan.',
+            default => '',
+        };
+        $pesan .= ' Baris company pemilik lama tetap ada; hapus di Project Detail bila company itu tidak memakai project ini lagi.';
+
+        return redirect()->route('master.project.edit', $id)->with('success_message', $pesan);
     }
 
     public function import(Request $request)

@@ -113,6 +113,8 @@
                             </div>
                         </div>
 
+                        @include('master::partials.project-owner-field')
+
                         <div class="flex items-center gap-2 mt-4 pt-4 border-t border-border">
                             @if ($data['page']['readonly'] == false)
                                 <button type="submit" class="button button--primary font-semibold">Submit</button>
@@ -126,6 +128,8 @@
             </div>
         </div>
     </div>
+
+    @include('master::partials.project-owner-transfer')
 
     @isset($view_form_list)
         <div class="grid grid-cols-12 gap-4 mt-4">

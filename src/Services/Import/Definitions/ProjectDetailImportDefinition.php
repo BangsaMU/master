@@ -6,6 +6,7 @@ namespace Bangsamu\Master\Services\Import\Definitions;
 
 use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\Import\MasterImportDefinition;
+use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -147,6 +148,14 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
         }
         if (! $this->companies->has($data['company_code'])) {
             return "Company Code '{$data['company_code']}' tidak ditemukan di master company.";
+        }
+
+        // baris pemilik project: kode/nama mengikuti Project, tidak diubah lewat import Project Detail
+        if ($existing !== null && ($row = DB::table('master_project_detail')->where('id', $existing['id'])->first()) !== null) {
+            return app(ProjectOwnerDetail::class)->detailChangeDenial($row, [
+                'project_code_client' => $data['project_code_client'],
+                'project_name_client' => $data['project_name_client'],
+            ]);
         }
 
         return null;

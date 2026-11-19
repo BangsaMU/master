@@ -1,7 +1,8 @@
 {{--
     Card ringkasan di atas daftar Project (hub, ProjectController::index -> $data['page']['owner_summary'], dihitung
     ProjectOwnerDetail::summary): jumlah company aktif, project master, dan Project Code Client (detail) per company,
-    serta cek 1:1 project master dengan detail company pemilik (Meindo). Termasuk fungsi + form tombol "Buat Detail".
+    jumlah project per company pemilik, serta cek 1:1 project master dengan baris company pemiliknya (pemilik bawaan
+    Meindo, atau owner_company_id untuk project non-Meindo). Termasuk fungsi + form tombol "Buat Detail".
 --}}
 @php
     /** @var array $s */
@@ -50,7 +51,7 @@
                     <div class="fw-bold">Project Code Client per company</div>
                     @if ($s['consistent'])
                         <span class="badge bg-success badge-success text-bg-success" data-summary="status">
-                            Sesuai: {{ $nf($s['project_total']) }} project = {{ $nf(collect($s['companies'])->firstWhere('owner', true)['detail'] ?? 0) }} detail {{ $owner['code'] }}
+                            Sesuai: {{ $nf($s['project_total']) }} project, masing-masing punya satu baris company pemiliknya
                         </span>
                     @else
                         <span class="badge bg-warning badge-warning text-bg-warning" data-summary="status">Belum sesuai</span>
@@ -62,6 +63,7 @@
                         <thead>
                             <tr>
                                 <th>Company</th>
+                                <th class="text-end text-right" style="width: 10rem;">Project milik</th>
                                 <th class="text-end text-right" style="width: 12rem;">Project Code Client</th>
                             </tr>
                         </thead>
@@ -74,10 +76,11 @@
                                             <span class="badge bg-primary badge-primary text-bg-primary ms-1 ml-1">pemilik utama</span>
                                         @endif
                                     </td>
+                                    <td class="text-end text-right" data-summary-owned="{{ $company['code'] }}">{{ $nf($company['owned'] ?? 0) }}</td>
                                     <td class="text-end text-right">{{ $nf($company['detail']) }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="2" class="text-muted">Belum ada company aktif.</td></tr>
+                                <tr><td colspan="3" class="text-muted">Belum ada company aktif.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -85,17 +88,17 @@
 
                 <ul class="small mb-0 ps-3 pl-3" data-summary="notes">
                     @if (! $owner['active'])
-                        <li class="text-danger">Company pemilik utama (id {{ $owner['id'] }}) tidak ditemukan atau sudah dihapus, jadi detail pemilik tidak bisa dibuat.</li>
+                        <li class="text-danger">Company pemilik bawaan (id {{ $owner['id'] }}) tidak ditemukan atau sudah dihapus, jadi detail pemilik project miliknya tidak bisa dibuat.</li>
                     @endif
                     @if ($s['missing'] > 0)
                         <li class="text-danger">
-                            {{ $nf($s['missing']) }} project aktif belum punya Project Detail {{ $ownerLabel }}
+                            {{ $nf($s['missing']) }} project aktif belum punya Project Detail {{ ($s['other_owner'] ?? 0) > 0 ? 'company pemiliknya' : $ownerLabel }}
                             (contoh kode: {{ implode(', ', $s['missing_sample']) }}{{ $s['missing'] > count($s['missing_sample']) ? ', ...' : '' }}).
                             Klik <em>Buat Detail</em> di kolom Action baris itu.
                         </li>
                     @endif
                     @if ($s['duplicate'] > 0)
-                        <li class="text-danger">{{ $nf($s['duplicate']) }} project punya lebih dari satu detail {{ $owner['code'] }} aktif (seharusnya satu banding satu). Rapikan lewat menu Project Detail.</li>
+                        <li class="text-danger">{{ $nf($s['duplicate']) }} project punya lebih dari satu detail aktif company pemiliknya (seharusnya satu banding satu). Rapikan lewat menu Project Detail.</li>
                     @endif
                     @if ($s['orphan_company'] > 0)
                         <li class="text-muted">{{ $nf($s['orphan_company']) }} detail aktif memakai company yang sudah terhapus: tidak terhitung di company mana pun di tabel atas.</li>
@@ -103,8 +106,11 @@
                     @if ($s['orphan_project'] > 0)
                         <li class="text-muted">{{ $nf($s['orphan_project']) }} detail aktif milik project yang sudah terhapus: tidak ikut dihitung per company.</li>
                     @endif
+                    @if (($s['other_owner'] ?? 0) > 0)
+                        <li class="text-muted" data-summary="other_owner">{{ $nf($s['other_owner']) }} project aktif milik company selain {{ $owner['code'] }} (project non-{{ $owner['code'] }}): tidak punya baris {{ $owner['code'] }}, dan itu bukan kekurangan.</li>
+                    @endif
                     @if ($s['consistent'] && $s['orphan_company'] === 0 && $s['orphan_project'] === 0)
-                        <li class="text-muted">Setiap project aktif punya tepat satu detail {{ $owner['code'] }}; tidak ada detail yatim.</li>
+                        <li class="text-muted">Setiap project aktif punya tepat satu detail company pemiliknya; tidak ada detail yatim.</li>
                     @endif
                 </ul>
             </div>
@@ -124,7 +130,7 @@
                 $('#owner-detail-form').attr('action', $(el).attr('href'));
                 $('#owner-detail-form').submit();
             };
-            var text = 'Project Detail untuk ' + @json($ownerLabel) + ' dibuat otomatis (kode dan nama client = kode dan nama project).';
+            var text = 'Project Detail untuk company pemilik project ini dibuat otomatis (kode dan nama client = kode dan nama project).';
             if (typeof Swal === 'undefined') {
                 if (confirm('Buat Project Detail? ' + text)) {
                     submit();

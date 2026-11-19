@@ -40,6 +40,8 @@ class Project extends Model
                     $table->date('project_start_date')->nullable();
                     $table->date('project_complete_date')->nullable();
                     $table->char('internal_external', 1)->nullable();
+                    // company pemilik project; NULL = pemilik bawaan (MasterCrudConfig.PROJECT_OWNER_COMPANY_ID)
+                    $table->integer('owner_company_id')->nullable()->index('idx_project_owner_company');
                     $table->integer('user_id')->nullable();
                     $table->timestamps(); // created_at & updated_at
                     $table->softDeletes(); // deleted_at

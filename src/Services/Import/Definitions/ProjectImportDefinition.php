@@ -11,6 +11,7 @@ use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use Throwable;
 
@@ -19,6 +20,9 @@ use Throwable;
  * Project baru otomatis dibuatkan project_detail untuk company pemilik (PROJECT_OWNER_COMPANY_ID), ditambah company
  * pembuat bila import dijalankan lewat session delegasi company lain; project lama yang namanya diubah ikut mengubah
  * baris cermin company pemilik (ProjectOwnerDetail).
+ * Kolom opsional Owner Company Code: kosong = perilaku itu; kode company lain = project BARU milik company itu (satu
+ * baris detail company itu saja, aturan sama dengan form: ProjectOwnerDetail::newProjectPlan). Project lama: harus sama
+ * dengan pemilik sekarang (pemilik hanya dipindah lewat Edit Project → Pindah pemilik).
  */
 class ProjectImportDefinition extends MasterImportDefinition
 {
@@ -28,6 +32,9 @@ class ProjectImportDefinition extends MasterImportDefinition
 
     /** @var list<int>|null company baris project_detail untuk project baru, diambil sekali per proses import */
     protected ?array $detailCompanyIds = null;
+
+    /** company aktif per kode (kolom Owner Company Code) */
+    protected Collection $ownerCompanies;
 
     public function entity(): string
     {
@@ -87,6 +94,8 @@ class ProjectImportDefinition extends MasterImportDefinition
             'project_start_date' => $this->date($raw['project_start_date'] ?? $raw['projectstartdate'] ?? null),
             'project_complete_date' => $this->date($raw['project_complete_date'] ?? $raw['projectcompletedate'] ?? null),
             'project_remarks' => $this->str($raw, ['project_remarks', 'projectremarks', 'remarks']),
+            // bukan kolom master_project: dibaca terpisah (ownerPlan), tidak ikut fields()
+            'owner_company_code' => self::upper($this->str($raw, ['owner_company_code', 'ownercompanycode', 'owner_company'])),
         ];
     }
 
@@ -114,6 +123,9 @@ class ProjectImportDefinition extends MasterImportDefinition
             ->keyBy(fn ($row) => self::upper($row->project_code));
         $this->existingNames = $this->fetchByValues('master_project', 'project_name', array_column($rows, 'project_name'), ['id', 'project_code', 'project_name'])
             ->keyBy(fn ($row) => self::upper($row->project_name));
+        $this->ownerCompanies = $this->fetchByValues('master_company', 'company_code', array_column($rows, 'owner_company_code'), ['id', 'company_code', 'deleted_at'])
+            ->whereNull('deleted_at')
+            ->keyBy(fn ($row) => self::upper($row->company_code));
     }
 
     public function existing(array $data): ?array
@@ -141,20 +153,77 @@ class ProjectImportDefinition extends MasterImportDefinition
             return "Project Name '{$data['project_name']}' sudah dipakai Project Code '{$owner->project_code}'.";
         }
 
+        return $this->ownerError($data, $existing);
+    }
+
+    /** Kolom Owner Company Code: company harus aktif; project lama tidak dipindah pemiliknya; project baru = aturan form. */
+    protected function ownerError(array $data, ?array $existing): ?string
+    {
+        $code = $data['owner_company_code'] ?? '';
+        if ($code === '') {
+            return null;
+        }
+        $company = $this->ownerCompanies->get($code);
+        if ($company === null) {
+            return "Owner Company Code '{$code}' tidak ditemukan di master company (atau sudah dihapus).";
+        }
+
+        $ownerDetail = app(ProjectOwnerDetail::class);
+        if ($existing !== null) {
+            return (int) $company->id === $ownerDetail->ownerCompanyIdOf((int) $existing['id'])
+                ? null
+                : "Pemilik project {$data['project_code']} tidak diubah lewat import: pakai Edit Project → Pindah pemilik.";
+        }
+
+        try {
+            $plan = $ownerDetail->newProjectPlan((int) $company->id);
+            if ($plan['other']) {
+                $ownerDetail->assertCodeFreeForCompany((int) $plan['owner'], $data['project_code']);
+            }
+        } catch (ValidationException $e) {
+            return $e->validator->errors()->first();
+        }
+
         return null;
+    }
+
+    /**
+     * Pemilik + company baris detail project baru dari kolom Owner Company Code (kosong = perilaku lama, diambil sekali
+     * per import).
+     *
+     * @return array{owner: ?int, companies: list<int>, other: bool}
+     */
+    protected function ownerPlan(array $data): array
+    {
+        $ownerDetail = app(ProjectOwnerDetail::class);
+        $company = ($data['owner_company_code'] ?? '') !== '' ? $this->ownerCompanies->get($data['owner_company_code']) : null;
+        if ($company !== null) {
+            $plan = $ownerDetail->newProjectPlan((int) $company->id); // sudah dicek di check(); throw = baris gagal
+            if ($plan['other']) {
+                return $plan;
+            }
+        }
+
+        $this->detailCompanyIds ??= $ownerDetail->companyIdsForNewProject();
+
+        return ['owner' => $ownerDetail->companyIdForNewProject(), 'companies' => $this->detailCompanyIds, 'other' => false];
     }
 
     public function create(array $data): array
     {
+        $ownerDetail = app(ProjectOwnerDetail::class);
+        $plan = $this->ownerPlan($data);
+
         $model = new Project;
         foreach (array_keys($this->fields()) as $field) {
             $model->{$field} = $data[$field] !== '' ? $data[$field] : null;
         }
+        if ($ownerDetail->hasOwnerColumn() && $plan['owner'] !== null) {
+            $model->{ProjectOwnerDetail::OWNER_COLUMN} = (int) $plan['owner'];
+        }
         $logs = [$this->saveNew($model)];
 
-        $ownerDetail = app(ProjectOwnerDetail::class);
-        $this->detailCompanyIds ??= $ownerDetail->companyIdsForNewProject();
-        foreach ($ownerDetail->rowsForNewProject($model, $this->detailCompanyIds) as $row) {
+        foreach ($ownerDetail->rowsForNewProject($model, $plan['companies']) as $row) {
             $detail = new ProjectDetail;
             foreach ($row as $field => $value) {
                 $detail->{$field} = $value;

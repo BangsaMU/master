@@ -464,6 +464,28 @@ AND mp.id NOT IN (SELECT project_id FROM master_project_detail WHERE company_id 
   `activity_logs` hanya bila `libraryclay.activity_log.console` aktif.
 - Test: `ProjectOwnerMirrorTest`.
 
+## Pemilik Project Selain Meindo (sejak v3.13.0)
+
+Project boleh dimiliki company selain pemilik bawaan (`PROJECT_OWNER_COMPANY_ID`, Meindo), mis. project MEB yang tidak
+dipakai Meindo ("project non-Meindo"). `master_project` tetap selalu diisi (induk project: id dipakai aplikasi lain),
+dan `master_project_detail` berisi company yang memakai project itu. Rancangan + keputusan: SPB (`meb_spb`)
+`docs/rancangan-project-non-meindo.md`.
+
+| Bagian | Aturan |
+|---|---|
+| Kolom | `master_project.owner_company_id` (INT, NULL, index `idx_project_owner_company`) = company pemilik. **NULL = pemilik bawaan**, jadi data lama tidak diisi ulang. Ditambahkan migration paket (`php artisan migrate`), `master:install-tables`, sync, dan form Project (`MasterSchemaUpgrader::upgradeProjectOwnerCompany`) |
+| Baca pemilik | `ProjectOwnerDetail::ownerCompanyIdOf($project)` (baris / model / id), SQL `ownerSql('alias')`, `hasOtherOwner()`. Aplikasi lain jangan menulis `COALESCE` sendiri |
+| Baris pemilik | Setiap project aktif wajib punya **satu** baris detail aktif untuk company pemiliknya (dulu: wajib baris Meindo). Project non-Meindo tanpa baris Meindo **bukan** kekurangan. Kartu + tombol "Buat Detail", `ensure()`, `mirror()`, `reconcile()` (`master:project-detail-mirror`) memakai pemilik per project |
+| Create Project | Centang "Pemilik project bukan ME" + Company pemilik (field `project_owner_other`, `project_owner_company_id`; sengaja bukan `owner_company_id` = `MasterScope::OWNER_COMPANY_FIELD`). Dicentang = `owner_company_id` = company itu + **satu** baris detail company itu, tanpa baris Meindo, satu transaksi. Tidak dicentang = perilaku lama (pemilik bawaan, + baris company delegasi). Pilihan hanya di hub: `is_admin` semua company aktif; session delegasi hanya company-nya sendiri, **tercentang dari awal** (bisa dimatikan); user lain tidak melihatnya. Kode project tidak boleh sudah dipakai company itu sebagai Project Code Client project lain (`assertCodeFreeForCompany`) |
+| Edit Project | Pemilik tampil (hanya baca). Form Edit tidak mengubah pemilik |
+| Pindah pemilik | Kartu di Edit Project, POST `master/project/{id}/transfer-owner` (`master.project.transfer-owner`), hanya `is_admin` di hub, wajib centang konfirmasi. Baris company tujuan dipakai bila ada, dipulihkan bila terhapus, dibuat dari kode/nama project bila belum ada; `owner_company_id` = tujuan; `project_code`/`project_name` = kode/nama baris tujuan; baris pemilik lama **tetap ada**. Ditolak bila kode/nama itu sudah dipakai project lain. Tercatat lewat `Loggable` (sebelum/sesudah) |
+| Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris |
+| Import Project | Kolom opsional `Owner Company Code` (template ikut). Kosong = perilaku lama (juga lewat delegasi). Kode company lain = project **baru** milik company itu, aturan sama dengan form (admin / company delegasi sendiri). Project lama: harus sama dengan pemilik sekarang, beda = baris ditolak. Import lama `ProjectImport` (tanpa preview) mengabaikan kolom ini |
+| Daftar Project | Kolom `Pemilik` (kode company, join `master_company` alias `opc`, ikut cari/urut); kartu ringkasan menambah kolom "Project milik" per company dan jumlah project non-Meindo |
+
+Aplikasi klien yang memakai project per company (SPB) membaca pemilik lewat `ownerCompanyIdOf()`/`ownerSql()`; aturan
+"project milik company C = punya baris detail aktif C" tidak berubah. Test: `ProjectNonDefaultOwnerTest`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

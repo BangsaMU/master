@@ -104,6 +104,8 @@ trait CreatesMasterTables
             $table->date('project_start_date')->nullable();
             $table->date('project_complete_date')->nullable();
             $table->char('internal_external', 1)->nullable();
+            // skema terbaru (MasterSchemaUpgrader::upgradeProjectOwnerCompany): company pemilik project, NULL = bawaan
+            $table->integer('owner_company_id')->nullable();
             $table->integer('user_id')->nullable();
             $table->timestamps();
             $table->softDeletes();

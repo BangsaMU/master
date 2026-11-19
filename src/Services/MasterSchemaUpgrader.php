@@ -21,6 +21,7 @@ class MasterSchemaUpgrader
     /** tabel => method upgrade */
     public const UPGRADES = [
         'master_department' => 'upgradeDepartmentAppCode',
+        'master_project' => 'upgradeProjectOwnerCompany',
     ];
 
     /** Tabel yang sudah dicek di proses ini (hindari query skema berulang). */
@@ -118,6 +119,28 @@ class MasterSchemaUpgrader
         }
 
         return $changes;
+    }
+
+    /**
+     * master_project: tambah owner_company_id (company pemilik project; NULL = pemilik bawaan
+     * MasterCrudConfig.PROJECT_OWNER_COMPANY_ID). Data lama tidak diisi: NULL dibaca sebagai pemilik bawaan, jadi tidak
+     * ada UPDATE massal (dan broadcast) di hub maupun aplikasi klien.
+     *
+     * @return list<string>
+     */
+    public function upgradeProjectOwnerCompany(): array
+    {
+        $table = 'master_project';
+        if (! Schema::hasTable($table) || Schema::hasColumn($table, 'owner_company_id')) {
+            return [];
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) {
+            $blueprint->integer('owner_company_id')->nullable()->after('internal_external');
+            $blueprint->index('owner_company_id', 'idx_project_owner_company');
+        });
+
+        return ['tambah kolom owner_company_id'];
     }
 
     /**

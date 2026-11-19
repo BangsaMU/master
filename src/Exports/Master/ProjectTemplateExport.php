@@ -44,6 +44,7 @@ class ProjectTemplate implements FromCollection, ShouldAutoSize, WithHeadings, W
                 '2026-01-01',
                 '2026-12-31',
                 'Remark for project',
+                '',
             ],
         ]);
     }
@@ -57,6 +58,9 @@ class ProjectTemplate implements FromCollection, ShouldAutoSize, WithHeadings, W
             'Project Start Date',
             'Project Complete Date',
             'Project Remarks',
+            // opsional: kosong = pemilik bawaan (Meindo); kode company lain = project non-Meindo (admin Master Data /
+            // company session delegasi sendiri), hanya untuk project BARU (ProjectImportDefinition)
+            'Owner Company Code',
         ];
     }
 }
