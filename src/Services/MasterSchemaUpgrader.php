@@ -22,6 +22,7 @@ class MasterSchemaUpgrader
     public const UPGRADES = [
         'master_department' => 'upgradeDepartmentAppCode',
         'master_project' => 'upgradeProjectOwnerCompany',
+        'master_project_detail' => 'upgradeProjectDetailNumberReset',
     ];
 
     /** Tabel yang sudah dicek di proses ini (hindari query skema berulang). */
@@ -141,6 +142,30 @@ class MasterSchemaUpgrader
         });
 
         return ['tambah kolom owner_company_id'];
+    }
+
+    /**
+     * master_project_detail: tambah number_reset_yearly (penanda reset nomor tahunan per project × company, 0 = tidak
+     * reset). Bawaan 0 untuk semua baris lama = perilaku lama, jadi tidak ada UPDATE massal (dan broadcast).
+     *
+     * @return list<string>
+     */
+    public function upgradeProjectDetailNumberReset(): array
+    {
+        $table = ProjectDetailNumberReset::TABLE;
+        $column = ProjectDetailNumberReset::COLUMN;
+        if (! Schema::hasTable($table) || Schema::hasColumn($table, $column)) {
+            return [];
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) use ($table, $column) {
+            $definition = $blueprint->boolean($column)->default(false);
+            if (Schema::hasColumn($table, 'project_name_client')) {
+                $definition->after('project_name_client');
+            }
+        });
+
+        return ['tambah kolom '.$column];
     }
 
     /**

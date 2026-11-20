@@ -72,6 +72,9 @@
                             @error('company_id') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
 
+                        {{-- reset nomor tahunan per project × company (hanya admin Master Data yang bisa mengubah) --}}
+                        @include('master::partials.project-detail-number-reset')
+
                         @if ($data['page']['readonly'] == false)
                             <button type="submit" class="btn btn-primary">Submit</button>
                         @endif

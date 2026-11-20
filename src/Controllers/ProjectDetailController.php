@@ -15,6 +15,8 @@ use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
+use Bangsamu\Master\Services\MasterSchemaUpgrader;
+use Bangsamu\Master\Services\ProjectDetailNumberReset;
 use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -68,6 +70,46 @@ class ProjectDetailController extends Controller
         'company_name' => 'mc.company_name',
         'project_code_client' => 'mpd.project_code_client',
     ];
+
+    /** alias kolom daftar "Yearly Reset" (Ya/Tidak dari master_project_detail.number_reset_yearly) */
+    public const NUMBER_RESET_LIST_ALIAS = 'yearly_reset';
+
+    public function __construct()
+    {
+        $this->addNumberResetColumn();
+    }
+
+    /**
+     * Kolom "Yearly Reset" (Ya/Tidak) sebelum kolom Action, bila master_project_detail sudah punya number_reset_yearly.
+     * Tabel lama di-upgrade dulu (MasterSchemaUpgrader), seperti kolom Pemilik di daftar Project.
+     */
+    protected function addNumberResetColumn(): void
+    {
+        app(MasterSchemaUpgrader::class)->ensure(ProjectDetailNumberReset::TABLE);
+        if (! app(ProjectDetailNumberReset::class)->available()) {
+            return;
+        }
+
+        $column = app(ProjectDetailNumberReset::class)->textSql('mpd').' AS '.self::NUMBER_RESET_LIST_ALIAS;
+        if (! in_array($column, $this->view_tabel_index, true)) {
+            array_splice($this->view_tabel_index, count($this->view_tabel_index) - 1, 0, [$column]);
+        }
+    }
+
+    /**
+     * SEARCH_COLUMNS + kolom Yearly Reset bila kolomnya ada (cari per kolom "Ya"/"Tidak", urut).
+     *
+     * @return array<string, string>
+     */
+    protected function searchColumns(): array
+    {
+        $columns = self::SEARCH_COLUMNS;
+        if (app(ProjectDetailNumberReset::class)->available()) {
+            $columns[self::NUMBER_RESET_LIST_ALIAS] = app(ProjectDetailNumberReset::class)->textSql('mpd');
+        }
+
+        return $columns;
+    }
 
     public function config($id = null, $data = null)
     {
@@ -175,7 +217,7 @@ class ProjectDetailController extends Controller
 
         // urutan dicocokkan lewat nama kolom DataTables ke whitelist; dulu memakai indeks $view_tabel (id, loc_code,
         // loc_name, action) yang tidak sejajar dengan kolom tabel. Kolom No / tak dikenal = waktu dibuat seperti dulu.
-        $order = ListSearch::orderExpression($request, self::SEARCH_COLUMNS, 'mpd.created_at');
+        $order = ListSearch::orderExpression($request, $this->searchColumns(), 'mpd.created_at');
         $dir = ListSearch::direction($request);
 
         // setting aplikasi: tabel `setting` / dashboard_settings category master_project_detail (DynamicFilterable)
@@ -188,7 +230,7 @@ class ProjectDetailController extends Controller
         // join project + company lewat PRIMARY = tepat satu baris per detail: tanpa GROUP BY, jumlah cukup COUNT(*)
         $totalData = $this->listQuery($trash, $settings, null, $problem)->count();
 
-        $search = ListSearch::fromRequest($request, self::SEARCH_COLUMNS);
+        $search = ListSearch::fromRequest($request, $this->searchColumns());
         $totalFiltered = $search->isEmpty()
             ? $totalData
             : $this->listQuery($trash, $settings, null, $problem)->tap(fn ($query) => $search->apply($query))->count();
@@ -212,7 +254,7 @@ class ProjectDetailController extends Controller
                 'data' => $name,
                 'name' => ucwords(str_replace('_', ' ', $name)),
                 'visible' => ($c_filed === 'app_code' || $c_filed === 'id' || strpos($c_filed, '_id') > 0 ? false : true),
-                'filter' => isset(self::SEARCH_COLUMNS[$c_filed]), // kolom ber-input cari per kolom (view: column_search)
+                'filter' => isset($this->searchColumns()[$c_filed]), // kolom ber-input cari per kolom (view: column_search)
             ];
         }
 
@@ -334,6 +376,7 @@ class ProjectDetailController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = false;
         $param = null;
+        $data['page']['number_reset'] = $this->numberResetField(null);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }
@@ -364,6 +407,10 @@ class ProjectDetailController extends Controller
             ],
         ]);
 
+        // reset nomor tahunan: hanya admin Master Data; null = tidak diubah (ProjectDetailNumberReset)
+        $numberReset = app(ProjectDetailNumberReset::class)->valueFromRequest($request);
+        $numberResetValues = $numberReset === null ? [] : [ProjectDetailNumberReset::COLUMN => $numberReset];
+
         if ($request->id) {
             // Update existing Project Detail
             $project_detail = ProjectDetail::findOrFail($request->id);
@@ -379,7 +426,7 @@ class ProjectDetailController extends Controller
                 'project_code_client' => strtoupper($request->project_code_client),
                 'project_name_client' => $request->project_name_client,
                 'company_id' => $request->company_id,
-            ]);
+            ] + $numberResetValues);
 
             if ($update && $project_detail->wasChanged()) {
                 /* sync callback */
@@ -406,7 +453,7 @@ class ProjectDetailController extends Controller
                 'project_code_client' => strtoupper($request->project_code_client),
                 'project_name_client' => $request->project_name_client,
                 'company_id' => $request->company_id,
-            ]);
+            ] + $numberResetValues);
 
             if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') && ! LibraryClayController::isMasterDbSameAsDefault()) {
                 // Create new project detail
@@ -418,7 +465,7 @@ class ProjectDetailController extends Controller
                     'project_name_client' => $request->project_name_client,
                     'company_id' => $request->company_id,
                     'created_at' => now(),
-                ]);
+                ] + (\Bangsamu\Master\Services\SchemaColumns::hasColumn(ProjectDetailNumberReset::TABLE, ProjectDetailNumberReset::COLUMN, 'db_master') ? $numberResetValues : []));
             }
 
             // DB::table('master_project_detail')->insert([
@@ -470,12 +517,33 @@ class ProjectDetailController extends Controller
         // kunci form: project/company baris tidak bisa diganti; baris pemilik project juga kode/namanya (ikut Project)
         $data['page']['owner_row'] = $param !== null && app(ProjectOwnerDetail::class)->isOwnerRow($param);
 
+        $data['page']['number_reset'] = $this->numberResetField($param);
+
         // company baris terhapus / tidak ada di master: card Pindah company (admin hub) atau peringatan
         $data['page']['move_company'] = $param !== null ? $this->moveCompanyData($param) : null;
 
         $data['page']['logs'] = app(ActivityLogService::class)->forModel(ProjectDetail::class, $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
+    }
+
+    /**
+     * Centang "Reset nomor tahunan" di form (partial project-detail-number-reset): null bila kolom belum ada. Baris
+     * pemilik project tetap bisa diubah (kunci baris pemilik hanya kode/nama).
+     *
+     * @return array{value: bool, can_edit: bool}|null
+     */
+    protected function numberResetField(?object $param): ?array
+    {
+        $service = app(ProjectDetailNumberReset::class);
+        if (! $service->available()) {
+            return null;
+        }
+
+        return [
+            'value' => (bool) old(ProjectDetailNumberReset::COLUMN, $service->isYearly($param)),
+            'can_edit' => $service->canEdit() && ! $this->readonly,
+        ];
     }
 
     /**

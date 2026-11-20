@@ -75,6 +75,9 @@
                             @error('company_id') <span class="field__error text-xs text-danger mt-1">{{ $message }}</span> @enderror
                         </div>
 
+                        {{-- reset nomor tahunan per project × company (hanya admin Master Data yang bisa mengubah) --}}
+                        @include('master::partials.project-detail-number-reset')
+
                         <div class="flex items-center gap-2 mt-4 pt-4 border-t border-border">
                             @if ($data['page']['readonly'] == false)
                                 <button type="submit" class="button button--primary font-semibold">Submit</button>

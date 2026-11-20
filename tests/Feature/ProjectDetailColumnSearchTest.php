@@ -175,7 +175,8 @@ class ProjectDetailColumnSearchTest extends TestCase
         $filter = array_column($this->daftar()['columns'], 'filter', 'data');
         $this->assertSame(
             ['No' => false, 'project_type' => true, 'project_code' => true, 'project_name' => true, 'company_code' => true,
-                'company_name' => true, 'project_code_client' => true, 'action' => false],
+                // v3.16.0: kolom Yearly Reset (number_reset_yearly, Ya/Tidak) ikut bisa dicari
+                'company_name' => true, 'project_code_client' => true, 'yearly_reset' => true, 'action' => false],
             $filter
         );
 

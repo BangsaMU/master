@@ -6,12 +6,16 @@ namespace Bangsamu\Master\Services\Import\Definitions;
 
 use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\Import\MasterImportDefinition;
+use Bangsamu\Master\Services\ProjectDetailNumberReset;
 use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Unik: project + project_code_client + company.
+ *
+ * Kolom opsional Yearly Reset (number_reset_yearly, ProjectDetailNumberReset): Y/Ya = reset nomor tahunan, N/Tidak =
+ * tidak, kosong = baris lama tidak diubah (baris baru = tidak). Hanya admin Master Data; dari user lain diabaikan.
  */
 class ProjectDetailImportDefinition extends MasterImportDefinition
 {
@@ -48,17 +52,29 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
 
     public function fields(): array
     {
-        return [
+        $fields = [
             'project_code' => 'Project Code',
             'project_code_client' => 'Project Code Client',
             'project_name_client' => 'Project Name Client',
             'company_code' => 'Company Code',
         ];
+        if ($this->numberReset()->available()) {
+            $fields[ProjectDetailNumberReset::COLUMN] = ProjectDetailNumberReset::LABEL;
+        }
+
+        return $fields;
     }
 
     public function updatableFields(): array
     {
-        return ['project_name_client'];
+        return $this->numberReset()->canEdit()
+            ? ['project_name_client', ProjectDetailNumberReset::COLUMN]
+            : ['project_name_client'];
+    }
+
+    protected function numberReset(): ProjectDetailNumberReset
+    {
+        return app(ProjectDetailNumberReset::class);
     }
 
     public function normalize(array $raw): array
@@ -68,7 +84,16 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
             'project_code_client' => self::upper($this->str($raw, ['project_code_client', 'projectcodeclient'])),
             'project_name_client' => $this->str($raw, ['project_name_client', 'projectnameclient']),
             'company_code' => self::upper($this->str($raw, ['company_code', 'companycode'])),
+            // Ya / Tidak / '' (kosong); isi tak dikenali disimpan apa adanya supaya validate() bisa menolaknya
+            ProjectDetailNumberReset::COLUMN => $this->numberResetValue(
+                $this->str($raw, ['yearly_reset', 'yearlyreset', 'number_reset_yearly', 'numberresetyearly', 'reset_tahunan', 'resettahunan'])
+            ),
         ];
+    }
+
+    protected function numberResetValue(string $raw): string
+    {
+        return ProjectDetailNumberReset::normalizeImportValue($raw) ?? trim($raw);
     }
 
     public function validate(array $data): ?string
@@ -80,6 +105,8 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
             $data['project_name_client'] === '' => 'Project Name Client wajib diisi.',
             mb_strlen($data['project_name_client']) > 100 => 'Project Name Client melebihi 100 karakter.',
             $data['company_code'] === '' => 'Company Code wajib diisi.',
+            ! in_array($data[ProjectDetailNumberReset::COLUMN] ?? '', ['', ProjectDetailNumberReset::YES, ProjectDetailNumberReset::NO], true)
+                => ProjectDetailNumberReset::LABEL." '".$data[ProjectDetailNumberReset::COLUMN]."' tidak dikenali: isi Y atau N (kosong = tidak diubah).",
             default => null,
         };
     }
@@ -108,8 +135,12 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
 
         $this->existing = collect();
         foreach ($this->projects->pluck('id')->chunk(1000) as $ids) {
+            $select = ['id', 'project_id', 'project_code_client', 'project_name_client', 'company_id', 'deleted_at'];
+            if ($this->numberReset()->available()) {
+                $select[] = ProjectDetailNumberReset::COLUMN;
+            }
             DB::table('master_project_detail')
-                ->select('id', 'project_id', 'project_code_client', 'project_name_client', 'company_id', 'deleted_at')
+                ->select($select)
                 ->whereIn('project_id', $ids->all())
                 ->get()
                 ->each(function ($row) use ($projectCodes, $companyCodes) {
@@ -137,8 +168,18 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
                 'project_code_client' => (string) $row->project_code_client,
                 'project_name_client' => (string) $row->project_name_client,
                 'company_code' => $data['company_code'],
+                ProjectDetailNumberReset::COLUMN => $this->numberReset()->isYearly($row) ? ProjectDetailNumberReset::YES : ProjectDetailNumberReset::NO,
             ],
         ] : null;
+    }
+
+    public function notes(array $data): array
+    {
+        if (($data[ProjectDetailNumberReset::COLUMN] ?? '') !== '' && ! $this->numberReset()->canEdit()) {
+            return [ProjectDetailNumberReset::LABEL.' diabaikan: hanya admin Master Data yang bisa mengubah.'];
+        }
+
+        return [];
     }
 
     public function check(array $data, ?array $existing): ?string
@@ -168,13 +209,21 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
         $model->project_code_client = $data['project_code_client'];
         $model->project_name_client = $data['project_name_client'];
         $model->company_id = $this->companies->get($data['company_code'])->id;
+        if ($this->numberReset()->canEdit() && ($data[ProjectDetailNumberReset::COLUMN] ?? '') !== '') {
+            $model->{ProjectDetailNumberReset::COLUMN} = ProjectDetailNumberReset::toColumnValue($data[ProjectDetailNumberReset::COLUMN]);
+        }
 
         return [$this->saveNew($model)];
     }
 
     public function update(int $id, array $changes, array $data): array
     {
-        $log = $this->saveChanges(ProjectDetail::findOrFail($id), array_map(fn ($c) => $c['new'], $changes));
+        $attributes = array_map(fn ($c) => $c['new'], $changes);
+        if (array_key_exists(ProjectDetailNumberReset::COLUMN, $attributes)) {
+            // updatableFields() hanya memuat kolom ini untuk admin; nilai file Ya/Tidak → 1/0
+            $attributes[ProjectDetailNumberReset::COLUMN] = ProjectDetailNumberReset::toColumnValue($attributes[ProjectDetailNumberReset::COLUMN]);
+        }
+        $log = $this->saveChanges(ProjectDetail::findOrFail($id), $attributes);
 
         return $log ? [$log] : [];
     }

@@ -36,6 +36,8 @@ class ProjectDetail extends Model
                     $table->id();
                     $table->string('project_code_client', 10)->nullable();
                     $table->string('project_name_client', 100)->nullable();
+                    // penanda reset nomor tahunan per project × company (ProjectDetailNumberReset), 0 = tidak reset
+                    $table->boolean('number_reset_yearly')->default(false);
                     $table->integer('company_id')->nullable();
                     $table->integer('project_id')->nullable();
                     $table->integer('user_id')->nullable();

@@ -42,6 +42,7 @@ class ProjectDetailTemplate implements FromCollection, ShouldAutoSize, WithHeadi
                 'CLIENT-CODE-001',  // project_code_client
                 'Client Project Name Here',  // project_name_client
                 'ME',               // company_code    — must exist in master_company
+                '',                 // yearly_reset    — opsional: Y = reset nomor tahunan, N = tidak, kosong = tidak diubah (admin Master Data)
             ],
         ]);
     }
@@ -53,6 +54,7 @@ class ProjectDetailTemplate implements FromCollection, ShouldAutoSize, WithHeadi
             'Project Code Client',
             'Project Name Client',
             'Company Code',
+            'Yearly Reset',
         ];
     }
 }

@@ -524,6 +524,31 @@ company PHM/MED/PHE yang sudah dihapus):
   URL halaman langsung memilih filternya; card daftar Project menautkan "detail yatim" ke sana.
 - Test: `ProjectDetailMoveCompanyTest`.
 
+## Project Detail: Reset Nomor Tahunan per Company (sejak v3.16.0)
+
+Kolom `master_project_detail.number_reset_yearly` (boolean, bawaan 0) = penanda **reset nomor tahunan per project ×
+company**: 1 = nomor dokumen company itu di project itu mulai dari 1 lagi tiap tahun. Per baris Project Detail, bukan
+per project, karena tiap company punya kode project dan ketentuan sendiri (Meindo `21317` = MEB `73029`). Dipakai
+aplikasi SPB untuk nomor SPB (rancangan `docs/rancangan-reset-tahunan-project.md` di meb_spb). Aplikasi lain
+mengabaikannya.
+
+- **Skema**: migration paket `2026_11_20_000001_add_number_reset_yearly_to_master_project_detail_table` +
+  `MasterSchemaUpgrader::upgradeProjectDetailNumberReset()` (juga lewat `master:install-tables`, sync tabel, dan
+  pembukaan daftar Project Detail). Baris lama = 0, tanpa UPDATE massal. `down()` hanya membuang kolom bila belum ada
+  nilai 1.
+- **Form Project Detail** (3 tema, partial `partials.project-detail-number-reset`): centang **Reset nomor tahunan**.
+  Hanya admin Master Data (`MasterAccess::isAdmin`) yang bisa mengubah; user lain melihat centang mati, dan nilai yang
+  mereka kirim lewat request langsung diabaikan (`ProjectDetailNumberReset::valueFromRequest`). **Baris pemilik project
+  tetap bisa diubah**: kuncinya hanya kode/nama (`ProjectOwnerDetail::detailChangeDenial`), dan cermin project
+  (`mirror`, `reconcile`) tidak menyalin kolom ini.
+- **Daftar Project Detail**: kolom **Yearly Reset** (Ya/Tidak) sebelum Action, bisa dicari per kolom dan diurutkan
+  (`ProjectDetailController::searchColumns()`).
+- **Import Project Detail**: kolom opsional **Yearly Reset** (`Y`/`Ya`/`1` = reset, `N`/`Tidak`/`0` = tidak, kosong =
+  baris lama tidak diubah, baris baru = tidak; isi lain = baris error). Hanya admin; dari user lain diabaikan dengan
+  catatan di preview. Template import ikut kolom ini.
+- Service `ProjectDetailNumberReset` (kolom, label, `available()`, `canEdit()`, `isYearly()`, teks SQL Ya/Tidak).
+- Test: `ProjectDetailNumberResetTest`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:
