@@ -486,7 +486,7 @@ dan `master_project_detail` berisi company yang memakai project itu. Rancangan +
 
 | Bagian | Aturan |
 |---|---|
-| Kolom | `master_project.owner_company_id` (INT, NULL, index `idx_project_owner_company`) = company pemilik. **NULL = pemilik bawaan**, jadi data lama tidak diisi ulang. Ditambahkan migration paket (`php artisan migrate`), `master:install-tables`, sync, dan form Project (`MasterSchemaUpgrader::upgradeProjectOwnerCompany`) |
+| Kolom | `master_project.owner_company_id` (INT, NULL, index `idx_project_owner_company`) = company pemilik. **NULL = pemilik bawaan**, jadi data lama tidak diisi ulang. Ditambahkan migration paket (`php artisan migrate`), `master:install-tables`, sync, dan form Project (`MasterSchemaUpgrader::upgradeProjectOwnerCompany`). **Nilainya** baru ikut disalin sync ke app klien sejak v3.16.1 (sebelumnya tidak terdaftar di `MasterDataSyncService::TABLES`) |
 | Baca pemilik | `ProjectOwnerDetail::ownerCompanyIdOf($project)` (baris / model / id), SQL `ownerSql('alias')`, `hasOtherOwner()`. Aplikasi lain jangan menulis `COALESCE` sendiri |
 | Baris pemilik | Setiap project aktif wajib punya **satu** baris detail aktif untuk company pemiliknya (dulu: wajib baris Meindo). Project non-Meindo tanpa baris Meindo **bukan** kekurangan. Kartu + tombol "Buat Detail", `ensure()`, `mirror()`, `reconcile()` (`master:project-detail-mirror`) memakai pemilik per project |
 | Create Project | Centang "Pemilik project bukan ME" + Company pemilik (field `project_owner_other`, `project_owner_company_id`; sengaja bukan `owner_company_id` = `MasterScope::OWNER_COMPANY_FIELD`). Dicentang = `owner_company_id` = company itu + **satu** baris detail company itu, tanpa baris Meindo, satu transaksi. Tidak dicentang = perilaku lama (pemilik bawaan, + baris company delegasi). Pilihan hanya di hub: `is_admin` semua company aktif; session delegasi hanya company-nya sendiri, **tercentang dari awal** (bisa dimatikan); user lain tidak melihatnya. Kode project tidak boleh sudah dipakai company itu sebagai Project Code Client project lain (`assertCodeFreeForCompany`) |
@@ -546,8 +546,13 @@ mengabaikannya.
 - **Import Project Detail**: kolom opsional **Yearly Reset** (`Y`/`Ya`/`1` = reset, `N`/`Tidak`/`0` = tidak, kosong =
   baris lama tidak diubah, baris baru = tidak; isi lain = baris error). Hanya admin; dari user lain diabaikan dengan
   catatan di preview. Template import ikut kolom ini.
+- **Sync ke app klien (sejak v3.16.1)**: kolom ini ikut disalin catch-up, siaran per baris, dan tombol Sync
+  (`MasterDataSyncService::TABLES['master_project_detail']['columns']`). Di v3.16.0 tidak terdaftar, jadi centang di
+  hub tidak pernah sampai ke app klien (SPB). Setelah naik ke v3.16.1, baris yang sudah diubah sebelumnya tetap perlu
+  disalin sekali (siaran baru per baris, atau salin dari `db_master`), karena catch-up hanya memutar ulang event baru.
+  Perubahan lewat query langsung di hub tidak memicu siaran sama sekali.
 - Service `ProjectDetailNumberReset` (kolom, label, `available()`, `canEdit()`, `isYearly()`, teks SQL Ya/Tidak).
-- Test: `ProjectDetailNumberResetTest`.
+- Test: `ProjectDetailNumberResetTest`, `MasterSchemaUpgraderTest::test_sync_menyalin_yearly_reset_dan_pemilik_project`.
 
 ## Konfigurasi Database (`config/database.php`)
 

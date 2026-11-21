@@ -85,6 +85,50 @@ class MasterSchemaUpgraderTest extends TestCase
         );
     }
 
+    public function test_sync_menyalin_yearly_reset_dan_pemilik_project(): void
+    {
+        Http::fake();
+        MasterDataSyncService::flushSchemaCache();
+        Schema::connection('db_master')->create('master_project', function (Blueprint $table) {
+            $table->id();
+            $table->string('project_code', 10);
+            $table->string('project_name', 116)->nullable();
+            $table->integer('owner_company_id')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+        Schema::connection('db_master')->create('master_project_detail', function (Blueprint $table) {
+            $table->id();
+            $table->integer('project_id')->nullable();
+            $table->integer('company_id')->nullable();
+            $table->string('project_code_client', 10)->nullable();
+            $table->string('project_name_client', 100)->nullable();
+            $table->boolean('number_reset_yearly')->default(false);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+        DB::connection('db_master')->table('master_project')->insert([
+            ['id' => 1, 'project_code' => '21000', 'project_name' => 'MEINDO', 'owner_company_id' => null],
+            ['id' => 2, 'project_code' => '73100', 'project_name' => 'Project MEB', 'owner_company_id' => 647],
+        ]);
+        DB::connection('db_master')->table('master_project_detail')->insert([
+            ['id' => 1, 'project_id' => 1, 'company_id' => 1, 'project_code_client' => null, 'number_reset_yearly' => 1],
+            ['id' => 2, 'project_id' => 2, 'company_id' => 647, 'project_code_client' => '73100', 'number_reset_yearly' => 0],
+        ]);
+        // baris lama di app klien: penanda masih 0 (sebelum v3.16.1 kolom ini tidak ikut sync)
+        DB::table('master_project')->insert(['id' => 1, 'project_code' => '21000', 'project_name' => 'MEINDO']);
+        DB::table('master_project_detail')->insert(['id' => 1, 'project_id' => 1, 'company_id' => 1, 'number_reset_yearly' => 0]);
+        MasterDataSyncService::setAllowedSyncTables(['master_project', 'master_project_detail']);
+        $sync = app(MasterDataSyncService::class);
+
+        // siaran perubahan baris yang sudah ada (id 1) sekaligus baris baru sampai id 2
+        $sync->syncTable('master_project_detail', 1, 2);
+        $sync->syncTable('master_project', 1, 2);
+
+        $this->assertSame([1, 0], DB::table('master_project_detail')->orderBy('id')->pluck('number_reset_yearly')->map(fn ($value) => (int) $value)->all());
+        $this->assertSame([null, 647], DB::table('master_project')->orderBy('id')->pluck('owner_company_id')->map(fn ($value) => $value === null ? null : (int) $value)->all());
+    }
+
     public function test_installer_melaporkan_tabel_yang_diupgrade(): void
     {
         $result = app(MasterTableInstaller::class)->install();

@@ -26,6 +26,11 @@ class MasterDataSyncService
 
     /**
      * Supported Master Tables configuration registry.
+     *
+     * `columns` = kolom yang disalin sync (catch-up, siaran, tombol Sync), selalu dipotong ke kolom yang ada di DB master
+     * dan DB lokal. Kolom baru di tabel master yang perlu sampai ke app klien wajib didaftarkan di sini, mis.
+     * master_project.owner_company_id (v3.13.0) dan master_project_detail.number_reset_yearly (v3.16.0), keduanya baru
+     * ikut tersalin sejak v3.16.1.
      */
     public const TABLES = [
         'master_item_code' => [
@@ -115,6 +120,7 @@ class MasterDataSyncService
                 'id', 'project_code', 'project_name', 'internal_external',
                 'project_start_date', 'project_complete_date', 'created_at',
                 'updated_at', 'deleted_at', 'project_remarks', 'user_id',
+                'owner_company_id',
             ],
         ],
         'master_project_detail' => [
@@ -123,7 +129,7 @@ class MasterDataSyncService
             'columns' => [
                 'id', 'project_id', 'project_code_client', 'company_id',
                 'created_at', 'updated_at', 'deleted_at', 'user_id',
-                'project_name_client',
+                'project_name_client', 'number_reset_yearly',
             ],
         ],
         'master_status' => [
