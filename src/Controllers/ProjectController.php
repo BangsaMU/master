@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
+use Bangsamu\Master\Support\CompanyListFilter;
 use Bangsamu\Master\Support\DataTableCell;
 
 class ProjectController extends Controller
@@ -85,15 +86,38 @@ class ProjectController extends Controller
     /** kolom daftar: kode company pemilik project (join ownerCompanyJoin) */
     public const OWNER_LIST_COLUMN = 'opc.company_code AS pemilik';
 
-    /** Join company pemilik project (alias opc) untuk kolom "Pemilik"; tanpa kolom owner_company_id tidak menjoin. */
+    /** daftar punya kolom "Pemilik" (master_project.owner_company_id ada) */
+    protected function hasOwnerListColumn(): bool
+    {
+        return in_array(self::OWNER_LIST_COLUMN, $this->view_tabel_index, true);
+    }
+
+    /**
+     * Join company pemilik project (alias opc) untuk kolom "Pemilik", plus id dan nama company pemilik untuk tautan
+     * filter di sel Pemilik (CompanyListFilter::rowFields); tanpa kolom owner_company_id tidak menjoin.
+     */
     protected function joinOwnerCompany($query): void
     {
-        if (! in_array(self::OWNER_LIST_COLUMN, $this->view_tabel_index, true)) {
+        if (! $this->hasOwnerListColumn()) {
             return;
         }
 
         $ownerSql = app(ProjectOwnerDetail::class)->ownerSql('mp');
         $query->leftJoin(ProjectOwnerDetail::TABLE_COMPANY.' as opc', fn ($join) => $join->on('opc.id', '=', DB::raw($ownerSql)));
+        $query->addSelect(DB::raw('opc.id AS pemilik_company_id'));
+        if (\Bangsamu\Master\Services\SchemaColumns::hasColumn(ProjectOwnerDetail::TABLE_COMPANY, 'company_name')) {
+            $query->addSelect(DB::raw('opc.company_name AS pemilik_company_name'));
+        }
+    }
+
+    /** filter klik company (CompanyListFilter): hanya project milik company itu (pemilik kosong = pemilik bawaan) */
+    protected function filterOwnerCompany($query, ?array $company): void
+    {
+        if ($company === null) {
+            return;
+        }
+
+        $query->whereRaw('('.app(ProjectOwnerDetail::class)->ownerSql('mp').') = ?', [$company['id']]);
     }
 
     /** Tabel master_project lama (tanpa owner_company_id) di-upgrade otomatis sebelum dipakai. */
@@ -255,6 +279,11 @@ class ProjectController extends Controller
             $data['datatable']['trash_toggle'] = ['default' => false, 'label' => 'Tampilkan data terhapus'];
         }
 
+        // klik kode company di kolom Pemilik / card ringkasan = hanya project milik company itu (?company_id=)
+        if ($this->hasOwnerListColumn()) {
+            $data['datatable']['company_filter'] = CompanyListFilter::config($request, 'Hanya project milik', ['pemilik'], $data['page']['list']);
+        }
+
         // hub: card company vs project code client + tombol "Buat Detail" untuk project tanpa detail company pemilik
         $owner = app(ProjectOwnerDetail::class);
         if ($owner->enabled() && app(MasterAccess::class)->can('project', 'read')) {
@@ -311,10 +340,14 @@ class ProjectController extends Controller
         $category = 'master_project';
         $settings = $this->getSettingsForTable($category);
 
+        // klik company di kolom Pemilik / card ringkasan (kolom Pemilik tidak ada = tanpa filter)
+        $company = $this->hasOwnerListColumn() ? CompanyListFilter::fromRequest($request) : null;
+
         $query = DB::table($tableName.' as mp')
             ->tap(fn ($query) => $trash->filter($query, 'project', 'mp'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mp');
+        $this->filterOwnerCompany($query, $company);
 
         $totalData = $query->count();
 
@@ -330,6 +363,7 @@ class ProjectController extends Controller
                 ->tap(fn ($query) => $this->joinOwnerCompany($query));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mp');
+            $this->filterOwnerCompany($data_tabel, $company);
             $data_tabel->groupby('mp.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
@@ -352,6 +386,7 @@ class ProjectController extends Controller
                 ->tap(fn ($query) => $this->joinOwnerCompany($query));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mp');
+            $this->filterOwnerCompany($datatb_request, $company);
 
             $datatb_request = $datatb_request->groupby('mp.id')
                 ->orderBy($order, $dir)
@@ -400,6 +435,10 @@ class ProjectController extends Controller
                     $nestedData[$c_filed] = DataTableCell::text($row->$c_filed ?? null); // escape: sel DataTables = HTML (stored XSS)
                 }
                 $nestedData['No'] = $DT_RowIndex;
+                // id + label company pemilik untuk tautan filter di sel Pemilik (skrip layout, CompanyListFilter)
+                $nestedData = array_merge($nestedData, CompanyListFilter::rowFields(
+                    $row->pemilik_company_id ?? null, $row->pemilik ?? null, $row->pemilik_company_name ?? null
+                ));
 
                 if (config('MasterCrudConfig.MASTER_DIRECT_EDIT') == true && app(MasterAccess::class)->allows('project', 'update', $row)) {
                     $btn .= '<a href="'.route('master.'.$sheet_slug.'.edit', $row->No).'" class="btn btn-primary btn-sm">Update</a> ';

@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
+use Bangsamu\Master\Support\CompanyListFilter;
 use Bangsamu\Master\Support\DataTableCell;
 use Bangsamu\Master\Support\ListSearch;
 
@@ -155,6 +156,9 @@ class ProjectDetailController extends Controller
         // baris input cari per kolom di bawah judul kolom (kolom = 'filter' true dari dataJson, SEARCH_COLUMNS)
         $data['datatable']['column_search'] = true;
 
+        // klik kode/nama company di tabel atau card ringkasan = hanya baris company itu (?company_id=, cocok persis)
+        $data['datatable']['company_filter'] = CompanyListFilter::config($request, 'Hanya baris company', ['company_code', 'company_name'], $data['page']['list']);
+
         // hub: card ringkasan baris per company + tombol filter baris bermasalah (company/project terhapus atau tidak ada)
         $owner = app(ProjectOwnerDetail::class);
         if ($owner->enabled() && (app(MasterAccess::class)->can('project-detail', 'read') || app(MasterAccess::class)->can('project', 'read'))) {
@@ -230,15 +234,18 @@ class ProjectDetailController extends Controller
         $problem = $request->input('masalah');
         $problem = is_string($problem) && in_array($problem, ProjectOwnerDetail::DETAIL_PROBLEMS, true) ? $problem : null;
 
+        // klik company di tabel / card ringkasan: hanya baris company itu (CompanyListFilter, cocok persis per id)
+        $companyId = CompanyListFilter::fromRequest($request)['id'] ?? null;
+
         // join project + company lewat PRIMARY = tepat satu baris per detail: tanpa GROUP BY, jumlah cukup COUNT(*)
-        $totalData = $this->listQuery($trash, $settings, null, $problem)->count();
+        $totalData = $this->listQuery($trash, $settings, null, $problem, $companyId)->count();
 
         $search = ListSearch::fromRequest($request, $this->searchColumns());
         $totalFiltered = $search->isEmpty()
             ? $totalData
-            : $this->listQuery($trash, $settings, null, $problem)->tap(fn ($query) => $search->apply($query))->count();
+            : $this->listQuery($trash, $settings, null, $problem, $companyId)->tap(fn ($query) => $search->apply($query))->count();
 
-        $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index, $problem)
+        $data_tabel = $this->listQuery($trash, $settings, $view_tabel_index, $problem, $companyId)
             ->tap(fn ($query) => $search->apply($query))
             ->orderBy(DB::raw($order), $dir)
             ->orderBy('mpd.id', $dir) // urutan stabil antar halaman
@@ -279,6 +286,8 @@ class ProjectDetailController extends Controller
                     $nestedData[$c_filed] = DataTableCell::text($row->$c_filed ?? null); // escape: sel DataTables = HTML (stored XSS)
                 }
                 $nestedData['No'] = $DT_RowIndex;
+                // id + label company untuk tautan filter di sel Company Code/Name (company tidak ada di master = tanpa tautan)
+                $nestedData = array_merge($nestedData, CompanyListFilter::rowFields($row->company_ref_id, $row->company_code, $row->company_name));
 
                 switch ($row->project_type) {
                     case 'I':
@@ -324,9 +333,9 @@ class ProjectDetailController extends Controller
 
     /**
      * query daftar Project Detail + project + company, sudah difilter data terhapus, setting aplikasi, dan (opsional)
-     * baris bermasalah ProjectOwnerDetail::DETAIL_PROBLEMS
+     * baris bermasalah ProjectOwnerDetail::DETAIL_PROBLEMS serta company terpilih (CompanyListFilter)
      */
-    private function listQuery(MasterTrash $trash, $settings, ?array $select = null, ?string $problem = null): \Illuminate\Database\Query\Builder
+    private function listQuery(MasterTrash $trash, $settings, ?array $select = null, ?string $problem = null, ?int $companyId = null): \Illuminate\Database\Query\Builder
     {
         $query = DB::table('master_project_detail as mpd');
         if ($select !== null) {
@@ -339,6 +348,9 @@ class ProjectDetailController extends Controller
             ->tap(fn ($query) => $trash->filter($query, 'project-detail', 'mpd'));
         $this->applyDynamicFilter($query, 'master_project_detail', $settings, 'mpd');
         app(ProjectOwnerDetail::class)->applyDetailProblem($query, $problem);
+        if ($companyId !== null) {
+            $query->where('mpd.company_id', $companyId);
+        }
 
         return $query;
     }

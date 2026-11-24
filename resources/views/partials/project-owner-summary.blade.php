@@ -10,6 +10,8 @@
     $owner = $s['owner'];
     $ownerLabel = trim(($owner['code'] ?? '') . ($owner['name'] ? ' - ' . $owner['name'] : '')) ?: 'company id ' . $owner['id'];
     $nf = fn ($n) => number_format((int) $n, 0, ',', '.');
+    // nama company = tautan filter "hanya project milik company ini" (partial company-filter, ProjectController::index)
+    $companyFilterOn = ! empty($data['datatable']['company_filter']);
 @endphp
 <div class="row mb-3" id="project-owner-summary">
     <div class="col-12 col-md-4 mb-2">
@@ -71,7 +73,14 @@
                             @forelse ($s['companies'] as $company)
                                 <tr @class(['table-active' => $company['owner']])>
                                     <td>
-                                        <strong>{{ $company['code'] }}</strong> {{ $company['name'] }}
+                                        @if ($companyFilterOn)
+                                            <a href="{{ route('master.project.index', [\Bangsamu\Master\Support\CompanyListFilter::PARAM => $company['id']]) }}"
+                                                data-company-filter="{{ $company['id'] }}"
+                                                data-company-label="{{ \Bangsamu\Master\Support\CompanyListFilter::label($company['code'], $company['name']) }}"
+                                                title="Klik: tampilkan hanya project milik company ini"><strong>{{ $company['code'] }}</strong> {{ $company['name'] }}</a>
+                                        @else
+                                            <strong>{{ $company['code'] }}</strong> {{ $company['name'] }}
+                                        @endif
                                         @if ($company['owner'])
                                             <span class="badge bg-primary badge-primary text-bg-primary ms-1 ml-1">pemilik utama</span>
                                         @endif

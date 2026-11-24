@@ -559,6 +559,25 @@ mengabaikannya.
 - Service `ProjectDetailNumberReset` (kolom, label, `available()`, `canEdit()`, `isYearly()`, teks SQL Ya/Tidak).
 - Test: `ProjectDetailNumberResetTest`, `MasterSchemaUpgraderTest::test_sync_menyalin_yearly_reset_dan_pemilik_project`.
 
+## Daftar Project / Project Detail: Klik Company = Filter (sejak v3.18.0)
+
+Klik kode company di kolom **Pemilik** (daftar Project) atau **Company Code / Company Name** (daftar Project Detail),
+atau nama company di card ringkasan di atas daftar = daftar hanya menampilkan baris company itu. Bar "Hanya project
+milik / Hanya baris company **KODE - Nama**" tampil di atas tabel dengan tombol **Tampilkan semua company**.
+
+- Parameter `company_id` (id `master_company`, `Support\CompanyListFilter::PARAM`) **cocok persis per id**: cari teks
+  "ME" di kolom Company Code juga menemukan MEB. Daftar Project memfilter company pemilik (`ProjectOwnerDetail::ownerSql`,
+  pemilik kosong = pemilik bawaan), Project Detail memfilter `mpd.company_id`. Company yang sudah dihapus tetap bisa
+  dipilih (baris lama masih memakainya); id tidak sah / tidak ada di master = tanpa filter. Berlaku untuk jumlah
+  `recordsTotal` juga, dan bisa digabung dengan cari, cari per kolom, `masalah`, dan saklar data terhapus.
+- `?company_id=` di URL halaman langsung memilih filternya; klik di halaman ikut menulis/menghapusnya di URL
+  (`history.replaceState`), jadi muat ulang / salin URL tetap terfilter. Ctrl/Shift/klik tengah = buka di tab baru.
+- Layout `layouts.dashboard.index` (opt-in): `$data['datatable']['company_filter'] = CompanyListFilter::config($request,
+  $teks, $kolom, $urlDaftar)` memasang partial `partials.company-filter` (bar + `window.masterCompanyFilter`:
+  `params()` ikut ajax daftar, `decorateColumns()` membuat sel kolom `$kolom` jadi tautan). Baris JSON daftar membawa
+  `company_filter_id` + `company_filter_label` (ter-escape, `CompanyListFilter::rowFields`); isi sel tetap teks.
+- Test: `CompanyListFilterTest`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

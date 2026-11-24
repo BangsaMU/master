@@ -336,6 +336,10 @@
                         @if (! empty($data['datatable']['trash_toggle']))
                             @include('master::partials.trash-toggle')
                         @endif
+                        {{-- filter klik company: bar "Hanya ... <company>" + tautan di sel (opt-in $data['datatable']['company_filter']) --}}
+                        @if (! empty($data['datatable']['company_filter']))
+                            @include('master::partials.company-filter')
+                        @endif
 
                         <table id="{{ $data['page']['slug'] }}_tabel" class="table table-hover table-bordered table-striped"
                             style="width:100%">
@@ -563,6 +567,10 @@
                     return '<b>' + data + '</b>';
                 }
 
+                // sel kolom company jadi tautan filter (opt-in company_filter)
+                if (window.masterCompanyFilter) {
+                    window.masterCompanyFilter.decorateColumns(data.columns);
+                }
 
 
                 var idx = $(tableName).dataTable({
@@ -594,6 +602,10 @@
                             var advancedFilter = window.masterAdvancedFilter ? window.masterAdvancedFilter.payload() : null;
                             if (advancedFilter) {
                                 d.advanced_filter = advancedFilter;
+                            }
+                            // filter klik company (partial company-filter): company_id
+                            if (window.masterCompanyFilter) {
+                                $.extend(d, window.masterCompanyFilter.params());
                             }
                             // parameter tambahan dari partial di atas tabel (mis. filter baris bermasalah Project Detail)
                             if (typeof window.masterListParams === 'function') {
