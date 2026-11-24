@@ -25,6 +25,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Bangsamu\Master\Services\MasterEditLink;
 use Bangsamu\Master\Support\CompanyListFilter;
 use Bangsamu\Master\Support\DataTableCell;
+use Bangsamu\Master\Support\ProjectListFilter;
 
 class ProjectController extends Controller
 {
@@ -110,14 +111,18 @@ class ProjectController extends Controller
         }
     }
 
-    /** filter klik company (CompanyListFilter): hanya project milik company itu (pemilik kosong = pemilik bawaan) */
-    protected function filterOwnerCompany($query, ?array $company): void
+    /**
+     * Filter daftar dari URL/ajax: klik company (CompanyListFilter, hanya project milik company itu; pemilik kosong =
+     * pemilik bawaan) dan satu project (ProjectListFilter, tautan Project Code dari daftar Project Detail).
+     */
+    protected function applyListFilters($query, ?array $company, ?array $project): void
     {
-        if ($company === null) {
-            return;
+        if ($company !== null) {
+            $query->whereRaw('('.app(ProjectOwnerDetail::class)->ownerSql('mp').') = ?', [$company['id']]);
         }
-
-        $query->whereRaw('('.app(ProjectOwnerDetail::class)->ownerSql('mp').') = ?', [$company['id']]);
+        if ($project !== null) {
+            $query->where('mp.id', $project['id']);
+        }
     }
 
     /** Tabel master_project lama (tanpa owner_company_id) di-upgrade otomatis sebelum dipakai. */
@@ -284,6 +289,9 @@ class ProjectController extends Controller
             $data['datatable']['company_filter'] = CompanyListFilter::config($request, 'Hanya project milik', ['pemilik'], $data['page']['list']);
         }
 
+        // satu project dari tautan Project Code daftar Project Detail (?project_id=, project terhapus + ?show_trashed=1)
+        $data['datatable']['fixed_filter'] = ProjectListFilter::config($request, app(MasterTrash::class)->canSeeTrashed('project'));
+
         // hub: card company vs project code client + tombol "Buat Detail" untuk project tanpa detail company pemilik
         $owner = app(ProjectOwnerDetail::class);
         if ($owner->enabled() && app(MasterAccess::class)->can('project', 'read')) {
@@ -342,12 +350,13 @@ class ProjectController extends Controller
 
         // klik company di kolom Pemilik / card ringkasan (kolom Pemilik tidak ada = tanpa filter)
         $company = $this->hasOwnerListColumn() ? CompanyListFilter::fromRequest($request) : null;
+        $project = ProjectListFilter::fromRequest($request); // satu project (tautan Project Code dari Project Detail)
 
         $query = DB::table($tableName.' as mp')
             ->tap(fn ($query) => $trash->filter($query, 'project', 'mp'));
 
         $this->applyDynamicFilter($query, $tableName, $settings, 'mp');
-        $this->filterOwnerCompany($query, $company);
+        $this->applyListFilters($query, $company, $project);
 
         $totalData = $query->count();
 
@@ -363,7 +372,7 @@ class ProjectController extends Controller
                 ->tap(fn ($query) => $this->joinOwnerCompany($query));
 
             $this->applyDynamicFilter($data_tabel, $tableName, $settings, 'mp');
-            $this->filterOwnerCompany($data_tabel, $company);
+            $this->applyListFilters($data_tabel, $company, $project);
             $data_tabel->groupby('mp.id');
 
             $data_tabel = datatabelFilterQuery(compact('array_data_maping', 'data_tabel', 'view_tabel', 'request_columns', 'search', 'jml_char_nosearch', 'char_nosearch'));
@@ -386,7 +395,7 @@ class ProjectController extends Controller
                 ->tap(fn ($query) => $this->joinOwnerCompany($query));
 
             $this->applyDynamicFilter($datatb_request, $tableName, $settings, 'mp');
-            $this->filterOwnerCompany($datatb_request, $company);
+            $this->applyListFilters($datatb_request, $company, $project);
 
             $datatb_request = $datatb_request->groupby('mp.id')
                 ->orderBy($order, $dir)

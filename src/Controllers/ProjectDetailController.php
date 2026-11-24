@@ -28,6 +28,7 @@ use Bangsamu\Master\Services\MasterEditLink;
 use Bangsamu\Master\Support\CompanyListFilter;
 use Bangsamu\Master\Support\DataTableCell;
 use Bangsamu\Master\Support\ListSearch;
+use Bangsamu\Master\Support\ProjectListFilter;
 
 class ProjectDetailController extends Controller
 {
@@ -159,6 +160,16 @@ class ProjectDetailController extends Controller
         // klik kode/nama company di tabel atau card ringkasan = hanya baris company itu (?company_id=, cocok persis)
         $data['datatable']['company_filter'] = CompanyListFilter::config($request, 'Hanya baris company', ['company_code', 'company_name'], $data['page']['list']);
 
+        // Project Code = buka project itu di daftar Project (tab baru); project terhapus: saklar data terhapus menyala
+        // supaya admin bisa Restore (ProjectListFilter, kolom project_link baris JSON)
+        if (app(MasterAccess::class)->can('project', 'read')) {
+            $data['datatable']['link_columns']['project_code'] = [
+                'field' => 'project_link',
+                'target' => '_blank',
+                'title' => 'Buka project ini di daftar Project (tab baru); project terhapus bisa di-Restore di sana',
+            ];
+        }
+
         // hub: card ringkasan baris per company + tombol filter baris bermasalah (company/project terhapus atau tidak ada)
         $owner = app(ProjectOwnerDetail::class);
         if ($owner->enabled() && (app(MasterAccess::class)->can('project-detail', 'read') || app(MasterAccess::class)->can('project', 'read'))) {
@@ -271,6 +282,7 @@ class ProjectDetailController extends Controller
         $data = [];
         if (! empty($data_tabel)) {
             $bisaPindahCompany = app(ProjectOwnerDetail::class)->canMoveCompany();
+            $bisaBukaProject = app(MasterAccess::class)->can('project', 'read');
 
             $DT_RowIndex = $start + 1;
             foreach ($data_tabel as $row) {
@@ -288,6 +300,10 @@ class ProjectDetailController extends Controller
                 $nestedData['No'] = $DT_RowIndex;
                 // id + label company untuk tautan filter di sel Company Code/Name (company tidak ada di master = tanpa tautan)
                 $nestedData = array_merge($nestedData, CompanyListFilter::rowFields($row->company_ref_id, $row->company_code, $row->company_name));
+                // tautan Project Code ke daftar Project (link_columns; project tidak ada di master = tanpa tautan)
+                $nestedData['project_link'] = $bisaBukaProject && $row->project_ref_id !== null
+                    ? e(ProjectListFilter::url((int) $row->project_ref_id, filled($row->project_deleted_at)))
+                    : null;
 
                 switch ($row->project_type) {
                     case 'I':
@@ -342,6 +358,8 @@ class ProjectDetailController extends Controller
             $query->select(DB::raw(implode(',', $select))); // sebelum MasterTrash::filter, yang menambah kolom deleted_at
             // status company di master untuk peringatan di kolom Action (null = tidak ada barisnya)
             $query->addSelect(DB::raw('mc.id AS company_ref_id'), DB::raw('mc.deleted_at AS company_deleted_at'));
+            // project baris (tautan Project Code: id + terhapus atau tidak)
+            $query->addSelect(DB::raw('mp.id AS project_ref_id'), DB::raw('mp.deleted_at AS project_deleted_at'));
         }
         $query->leftJoin('master_project as mp', 'mp.id', '=', 'mpd.project_id')
             ->leftJoin('master_company as mc', 'mc.id', '=', 'mpd.company_id')

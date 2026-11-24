@@ -587,6 +587,28 @@ milik / Hanya baris company **KODE - Nama**" tampil di atas tabel dengan tombol 
   `company_filter_id` + `company_filter_label` (ter-escape, `CompanyListFilter::rowFields`); isi sel tetap teks.
 - Test: `CompanyListFilterTest`.
 
+## Project Detail: Project Code Membuka Project (sejak v3.19.0)
+
+Untuk memulihkan project yang sudah dihapus (card **Project bermasalah** di Project Detail): klik **Project Code** di daftar
+Project Detail = tab baru daftar Project yang hanya berisi project itu (`master/project?project_id=<id>`).
+
+- Project terhapus: tautan membawa `show_trashed=1`, jadi saklar **Tampilkan data terhapus** langsung menyala dan admin
+  melihat tombol **Restore** di kolom Action. `?show_trashed=1|0` di URL halaman mana pun mengalahkan pilihan saklar
+  yang diingat browser, tanpa menimpanya (`partials.trash-toggle`). Bukan admin: baris terhapus tetap tersembunyi, bar
+  menyebut "minta admin memulihkannya".
+- Bar "Hanya project **KODE - Nama**" (+ badge "project sudah dihapus") + tombol **Tampilkan semua project** (buka ulang
+  URL tanpa `project_id`/`show_trashed`). `project_id` cocok persis per id (`210071` tidak ikut saat memilih `21007`);
+  id tidak sah / tidak ada = tanpa filter. Bisa digabung dengan `company_id`.
+- Tautan hanya untuk user yang boleh membaca Project (`MasterAccess::can('project', 'read')`); baris yang project-nya
+  tidak ada di master tanpa tautan.
+- Layout `layouts.dashboard.index` (opt-in, generik):
+  - `$data['datatable']['link_columns'][<kolom>] = ['field' => <field URL baris>, 'target' => '_blank', 'title' => ...]`
+    = sel kolom itu jadi tautan ke URL di field baris JSON (URL di-escape server; isi sel tetap teks). Project Detail:
+    `project_code` → `project_link`.
+  - `$data['datatable']['fixed_filter']` (`ProjectListFilter::config`) = partial `partials.fixed-filter` (bar dari server)
+    + `params` ikut setiap request ajax daftar.
+- Test: `ProjectDetailOpenProjectTest`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

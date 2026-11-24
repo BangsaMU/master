@@ -105,7 +105,8 @@
                     @if ($ds['project_problem'] > 0)
                         <li class="text-danger">
                             {{ $nf($ds['project_problem']) }} baris milik project yang sudah dihapus atau tidak ada: pulihkan
-                            project-nya, atau hapus baris itu.
+                            project-nya, atau hapus baris itu. Klik <em>Project bermasalah</em>, lalu klik Project Code
+                            baris itu untuk membuka project-nya di tab baru dan klik <em>Restore</em> (admin Master Data).
                         </li>
                     @endif
                     @if ($companyProblem === 0 && $ds['project_problem'] === 0)

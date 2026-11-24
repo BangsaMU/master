@@ -340,6 +340,10 @@
                         @if (! empty($data['datatable']['company_filter']))
                             @include('master::partials.company-filter')
                         @endif
+                        {{-- filter tetap dari URL halaman, mis. ?project_id= (opt-in $data['datatable']['fixed_filter']) --}}
+                        @if (! empty($data['datatable']['fixed_filter']))
+                            @include('master::partials.fixed-filter')
+                        @endif
 
                         <table id="{{ $data['page']['slug'] }}_tabel" class="table table-hover table-bordered table-striped"
                             style="width:100%">
@@ -572,6 +576,25 @@
                     window.masterCompanyFilter.decorateColumns(data.columns);
                 }
 
+                // sel kolom jadi tautan ke halaman lain (opt-in link_columns: kolom => field URL baris, target, title);
+                // isi sel sudah di-escape server (DataTableCell), URL dari server (route + e())
+                var linkColumns = @json($data['datatable']['link_columns'] ?? (object) []);
+                $.each(data.columns, function(i, column) {
+                    var link = linkColumns[column.data];
+                    if (!link) {
+                        return;
+                    }
+                    column.render = function(value, type, row) {
+                        var url = row[link.field];
+                        if (type !== 'display' || !url || value === null || value === '') {
+                            return value;
+                        }
+                        return '<a href="' + url + '"' + (link.target ? ' target="' + link.target + '" rel="noopener"' : '') +
+                            (link.title ? ' title="' + link.title + '"' : '') + ' class="master-link-cell">' + value +
+                            (link.target === '_blank' ? ' <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i>' : '') + '</a>';
+                    };
+                });
+
 
                 var idx = $(tableName).dataTable({
                     // order: [[0, 'desc']],
@@ -607,6 +630,8 @@
                             if (window.masterCompanyFilter) {
                                 $.extend(d, window.masterCompanyFilter.params());
                             }
+                            // filter tetap dari URL halaman (partial fixed-filter), mis. project_id
+                            $.extend(d, @json($data['datatable']['fixed_filter']['params'] ?? (object) []));
                             // parameter tambahan dari partial di atas tabel (mis. filter baris bermasalah Project Detail)
                             if (typeof window.masterListParams === 'function') {
                                 $.extend(d, window.masterListParams());
