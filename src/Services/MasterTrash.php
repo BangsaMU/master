@@ -14,8 +14,9 @@ use Throwable;
 
 /**
  * Data master yang sudah dihapus (soft delete):
- *  - daftar master menyembunyikannya, kecuali untuk admin (is_admin): baris tampil bertanda "Terhapus" dengan tombol
- *    Restore (route master.{slug}.restore, MasterRestoreController);
+ *  - daftar master menyembunyikannya, kecuali untuk admin (is_admin) yang menyalakan saklar "Tampilkan data terhapus"
+ *    (toggle(), dipasang di index semua modul restore): baris tampil bertanda "Terhapus" dengan tombol Restore (route
+ *    master.{slug}.restore, MasterRestoreController);
  *  - kodenya tetap terpakai (rule unik menghitung baris terhapus), jadi pesan "sudah dipakai" menjelaskan baris mana
  *    yang memakainya, kapan dan oleh siapa dihapus, serta cara memulihkannya (MasterUnique).
  */
@@ -39,6 +40,18 @@ class MasterTrash
     public function canSeeTrashed(string $slug): bool
     {
         return $this->seeTrashed[$slug] ??= $this->access->isAdmin() && SchemaColumns::hasColumn(MasterModules::table($slug), self::COLUMN);
+    }
+
+    /**
+     * Isi $data['datatable']['trash_toggle'] untuk index() daftar master: saklar "Tampilkan data terhapus" hanya untuk
+     * yang boleh melihat baris terhapus (admin, tabel ber-deleted_at); bawaan sembunyi, pilihan diingat per halaman di
+     * browser. null = tanpa saklar (layout hanya memasang saklar bila nilainya tidak kosong).
+     *
+     * @return array{default: bool, label: string}|null
+     */
+    public function toggle(string $slug): ?array
+    {
+        return $this->canSeeTrashed($slug) ? ['default' => false, 'label' => 'Tampilkan data terhapus'] : null;
     }
 
     /**
@@ -134,7 +147,7 @@ class MasterTrash
             .' Data terhapus tidak tampil di daftar, tetapi kodenya tetap terpakai.';
 
         return $message.($slug !== null && $this->canRestore($slug, $row)
-            ? ' Pulihkan lewat tombol Restore di daftar '.$module.' (baris bertanda Terhapus), atau pakai kode lain.'
+            ? ' Pulihkan lewat tombol Restore di daftar '.$module.' (nyalakan saklar "Tampilkan data terhapus", baris bertanda Terhapus), atau pakai kode lain.'
             : ' Minta admin memulihkannya (Restore) dari daftar '.$module.', atau pakai kode lain.');
     }
 

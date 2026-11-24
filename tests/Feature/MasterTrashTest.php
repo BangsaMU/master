@@ -11,14 +11,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionClass;
 
 /**
  * Data master terhapus (soft delete): kodenya tetap terpakai, jadi pesan "sudah dipakai" harus menjelaskan bahwa
  * datanya terhapus (nama, kapan, oleh siapa, cara memulihkan); admin melihat baris terhapus di daftar master
  * bertanda Terhapus dengan tombol Restore (MasterTrash, MasterRestoreController).
  * Temuan user: buat Project 20000 ditolak "The project code has already been taken" padahal daftar kosong.
+ * Saklar "Tampilkan data terhapus" (MasterTrash::toggle, dulu hanya Project) dipasang di daftar semua modul restore:
+ * hanya untuk admin, show_trashed=0 menyembunyikan baris terhapus dan ikut mengurangi total.
  */
 class MasterTrashTest extends TestCase
 {
@@ -43,6 +47,7 @@ class MasterTrashTest extends TestCase
         parent::setUp();
 
         Http::fake();
+        View::addNamespace('adminlte', __DIR__.'/../stubs/adminlte');
         $this->createDashboardSettings();
         DB::connection('db_master')->setPdo(DB::connection()->getPdo());
         // skema lama master_department dinaikkan (app_code) saat modul dibuka; naikkan dulu supaya baris uji milik APP27
@@ -66,14 +71,22 @@ class MasterTrashTest extends TestCase
     }
 
     /** @return array<int, array<string, mixed>> */
-    private function daftar(string $slug): array
+    private function daftar(string $slug, array $query = []): array
     {
-        return $this->getJson("/master/$slug", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->json('data');
+        return $this->daftarJson($slug, $query)['data'];
     }
 
-    private function barisDaftar(string $slug, string $kolom, string $kode): ?array
+    /** @return array<string, mixed> respon DataTables lengkap (data, recordsTotal, ...) */
+    private function daftarJson(string $slug, array $query = []): array
     {
-        return collect($this->daftar($slug))->firstWhere($kolom, $kode);
+        $url = "/master/$slug".($query !== [] ? '?'.http_build_query($query) : '');
+
+        return $this->getJson($url, ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->json();
+    }
+
+    private function barisDaftar(string $slug, string $kolom, string $kode, array $query = []): ?array
+    {
+        return collect($this->daftar($slug, $query))->firstWhere($kolom, $kode);
     }
 
     private function simpanProject(array $data): ?string
@@ -264,5 +277,78 @@ class MasterTrashTest extends TestCase
             $this->assertTrue(Route::has("master.$slug.restore"), "route master.$slug.restore");
             $this->assertTrue(Route::has("master.$slug.index"), "route master.$slug.index");
         }
+    }
+
+    // ---- saklar "Tampilkan data terhapus" di semua modul ----
+
+    #[DataProvider('modulProvider')]
+    public function test_daftar_admin_punya_saklar_tampilkan_data_terhapus(string $slug): void
+    {
+        $this->login();
+
+        $html = $this->get("/master/$slug")->assertOk()->getContent();
+
+        $this->assertStringContainsString('role="switch" id="master-trash-toggle-', $html, "saklar di daftar $slug");
+        $this->assertStringContainsString('Tampilkan data terhapus', $html);
+        $this->assertStringContainsString("localStorage.getItem(storageKey)", $html, 'pilihan saklar diingat per halaman');
+    }
+
+    #[DataProvider('modulProvider')]
+    public function test_daftar_non_admin_tanpa_saklar(string $slug): void
+    {
+        $this->login(admin: false);
+
+        $html = $this->get("/master/$slug")->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('master-trash-toggle-', $html, "non-admin tidak melihat saklar di daftar $slug");
+    }
+
+    #[DataProvider('modulProvider')]
+    public function test_saklar_off_menyembunyikan_baris_terhapus_dan_total_ikut(string $slug, string $tabel, string $kolom, array $baris): void
+    {
+        $this->login();
+        $this->insert($tabel, $baris);
+        $this->insert($tabel, [$kolom => $baris[$kolom].'A'] + $baris, false);
+
+        $sembunyi = $this->daftarJson($slug, ['show_trashed' => 0]);
+        $tampil = $this->daftarJson($slug, ['show_trashed' => 1]);
+
+        $this->assertNull(collect($sembunyi['data'])->firstWhere($kolom, $baris[$kolom]), "baris terhapus $slug tersembunyi");
+        $this->assertNotNull(collect($sembunyi['data'])->firstWhere($kolom, $baris[$kolom].'A'), "baris aktif $slug tetap tampil");
+        $this->assertSame($tampil['recordsTotal'] - 1, $sembunyi['recordsTotal'], "total $slug ikut saklar");
+
+        $row = collect($tampil['data'])->firstWhere($kolom, $baris[$kolom]);
+        $this->assertNotNull($row, "baris terhapus $slug tampil saat saklar on");
+        $this->assertStringContainsString('Terhapus', $row['action']);
+        $this->assertStringContainsString('/restore', $row['action']);
+    }
+
+    public function test_toggle_hanya_untuk_admin(): void
+    {
+        $this->login();
+        $this->assertSame(['default' => false, 'label' => 'Tampilkan data terhapus'], app(\Bangsamu\Master\Services\MasterTrash::class)->toggle('category'));
+
+        $this->app->forgetInstance(\Bangsamu\Master\Services\MasterTrash::class);
+        $this->login(admin: false);
+        $this->assertNull(app(\Bangsamu\Master\Services\MasterTrash::class)->toggle('category'));
+    }
+
+    /**
+     * Employee dan Priority tidak punya tabel di test paket, jadi dicek dari kode: index() setiap modul restore memasang
+     * saklar lewat MasterTrash::toggle dengan slug modulnya sendiri (supaya modul baru tidak terlewat).
+     */
+    public function test_index_semua_modul_restore_memasang_saklar(): void
+    {
+        $tanpa = [];
+        foreach (MasterRestoreController::MODULES as $slug) {
+            $controller = 'Bangsamu\\Master\\Controllers\\'.Str::studly($slug).'Controller';
+            $kode = file_get_contents((new ReflectionClass($controller))->getFileName());
+            if (! str_contains($kode, "['trash_toggle'] = app(MasterTrash::class)->toggle('$slug')")
+                && ! str_contains($kode, "canSeeTrashed('$slug')")) {
+                $tanpa[] = $slug;
+            }
+        }
+
+        $this->assertSame([], $tanpa, 'daftar modul tanpa saklar Tampilkan data terhapus');
     }
 }

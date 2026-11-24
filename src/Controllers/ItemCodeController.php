@@ -200,6 +200,9 @@ class ItemCodeController extends Controller
         $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.item-code.importtemplate');
 
+        // admin: saklar tampil/sembunyikan data terhapus (bawaan sembunyi, pilihan diingat di browser)
+        $data['datatable']['trash_toggle'] = app(MasterTrash::class)->toggle('item-code');
+
         $page_var = compact('data');
 
         $page_var['formModal'] = searchConfig($data, $view_tabel_index);

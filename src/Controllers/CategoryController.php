@@ -137,6 +137,9 @@ class CategoryController extends Controller
         $data['page']['import']['label'] = 'Preview Import';
         $data['page']['import']['template'] = route('master.category.importtemplate');
 
+        // admin: saklar tampil/sembunyikan data terhapus (bawaan sembunyi, pilihan diingat di browser)
+        $data['datatable']['trash_toggle'] = app(MasterTrash::class)->toggle('category');
+
         $page_var = compact('data');
 
         $page_var['formModal'] = searchConfig($data, $view_tabel_index);

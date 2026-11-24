@@ -119,6 +119,9 @@ class PriorityController extends Controller
             $data['datatable']['btn']['export']['url'] = url('master/getmaster_priority/export');
         }
 
+        // admin: saklar tampil/sembunyikan data terhapus (bawaan sembunyi, pilihan diingat di browser)
+        $data['datatable']['trash_toggle'] = app(MasterTrash::class)->toggle('priority');
+
         $page_var = compact('data');
 
         $page_var['formModal'] = searchConfig($data, $view_tabel_index);

@@ -176,6 +176,11 @@ index unik DB). Dulu form hanya menampilkan *The project code has already been t
   (`DT_RowClass` `master-row-trashed`) dengan tanda **Terhapus**, tombol **View** dan **Restore**; user lain tetap hanya baris
   aktif. Controller modul cukup `->tap(fn ($query) => $trash->filter($query, 'slug', 'alias'))` pengganti
   `->whereNull('alias.deleted_at')`, dan `$trash->actions()` / `$trash->rowClass()` di kolom Action.
+- **Saklar "Tampilkan data terhapus"** di atas daftar ke-13 modul (sejak v3.17.0; v3.11.0–v3.16.x hanya Project), hanya
+  untuk admin. `index()` modul cukup `$data['datatable']['trash_toggle'] = app(MasterTrash::class)->toggle('slug');`
+  (`null` untuk non-admin = tanpa saklar). Bawaan **mati**: baris terhapus disembunyikan sampai admin menyalakannya;
+  pilihan diingat per halaman di `localStorage` (`master.trash-toggle.{page slug}`). Halaman mengirim `show_trashed=1|0`,
+  total DataTables ikut. Request tanpa parameter (app dengan layout daftar sendiri) tetap perilaku lama: admin melihat semua.
 - **Restore** (`Controllers\MasterRestoreController`): `POST master/{slug}/{id}/restore`, nama `master.{slug}.restore`
   (`MasterRestoreController::MODULES`). Hanya admin; di aplikasi klien hanya baris milik aplikasinya (aturan hapus
   `MasterAccess`). Ditolak bila kode unik sudah dipakai baris aktif lain. Vendor ikut memulihkan Location vendor-nya.
@@ -389,9 +394,9 @@ nilai `user_details` (`field_key` signature/paraf) boleh berupa rujukan Master D
 Tiga tambahan di halaman `master/project` (permintaan tim master-data):
 
 - **Saklar "Tampilkan data terhapus"** (admin). Opt-in per modul lewat `$data['datatable']['trash_toggle']` (partial
-  `partials.trash-toggle`, baru dipasang di Project). Halaman mengirim `show_trashed=1|0`; `MasterTrash::filter()`
-  menyembunyikan baris terhapus bila `0`. Tanpa parameter perilaku lama (admin melihat semua), jadi modul lain tidak
-  berubah. Bawaan saklar mati; pilihan diingat di `localStorage` per halaman.
+  `partials.trash-toggle`, mula-mula hanya Project; sejak v3.17.0 semua modul, lihat bagian Data Terhapus). Halaman
+  mengirim `show_trashed=1|0`; `MasterTrash::filter()` menyembunyikan baris terhapus bila `0`. Tanpa parameter perilaku
+  lama (admin melihat semua). Bawaan saklar mati; pilihan diingat di `localStorage` per halaman.
 - **Tombol "Buat Detail"** di kolom Action. `master_project` milik utama company pemilik
   (`MasterCrudConfig.PROJECT_OWNER_COMPANY_ID`, bawaan 1 = Meindo), jadi tiap project aktif wajib punya tepat satu
   `master_project_detail` untuk company itu. Project aktif yang belum punya diberi tombol; `POST

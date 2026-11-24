@@ -341,6 +341,9 @@ class EmployeeController extends Controller
         $data['page']['import']['post'] = route('master.employee.import');
         $data['page']['import']['template'] = url('/template/form_import_hrd.xlsx');
 
+        // admin: saklar tampil/sembunyikan data terhapus (bawaan sembunyi, pilihan diingat di browser)
+        $data['datatable']['trash_toggle'] = app(MasterTrash::class)->toggle('employee');
+
         $page_var = compact('data');
 
         $page_var['formModal'] = searchConfig($data, $view_tabel_index);
