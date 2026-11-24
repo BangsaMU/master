@@ -1188,7 +1188,10 @@ class EmployeeController extends Controller
             ->leftJoin('master_job_position as mjp', 'mjp.id', '=', 'master_employee.job_position_id')
             ->leftJoin('master_department as md', 'md.id', '=', 'mjp.department_id')
             ->where('master_employee.id', $id)
-            ->first();
+            // baris terhapus tetap bisa dibuka (tombol View di daftar admin, seperti modul lain yang memakai DB::table);
+            // dulu model SoftDeletes menyaringnya -> $param null -> 500. Id yang tidak ada = 404.
+            ->withTrashed()
+            ->firstOrFail();
 
         $param->work_location_id = session()->getOldInput('work_location_id') ?? $param->work_location_id;
 

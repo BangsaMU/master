@@ -193,6 +193,7 @@ index unik DB). Dulu form hanya menampilkan *The project code has already been t
   awalan `Master` + `App\Models`), jadi entri **deleted** kini tampil (ikon merah, keterangan soft delete); dulu hanya satu
   kelas sehingga hapus tidak tampil di 9 modul. Nama model tampil tanpa awalan `Master`. Company dan Priority kini juga
   punya kartu Log; Log Karyawan memakai service yang sama.
+  v3.18.2: View/Edit Employee yang terhapus tidak lagi 500 (baris dimuat `withTrashed()`, seperti modul lain).
   `MasterModules::abilityForRouteAction('restore')` = `delete`, untuk middleware izin aksi tulis di app.
 - Layout `layouts.dashboard.index` menyediakan `#restore-form` dan `notificationBeforeRestore()` (SweetAlert, fallback
   `confirm()`). App yang memakai layout daftar sendiri perlu menyalin keduanya.
