@@ -2,6 +2,7 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterScope;
 use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterAccess;
@@ -384,6 +385,7 @@ class PriorityController extends Controller
         if ($param && ! app(MasterAccess::class)->allows('priority', 'update', $param)) {
             $data['page']['readonly'] = true;
         }
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('priority', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

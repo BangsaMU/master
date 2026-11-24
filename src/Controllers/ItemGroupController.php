@@ -425,7 +425,7 @@ class ItemGroupController extends Controller
             $data['page']['readonly'] = true;
         }
 
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(ItemGroup::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('item-group', $id);
 
         return view('master::master'.config('app.themes').'.item_group.form', compact('data', 'param'));
     }

@@ -572,7 +572,7 @@ class ItemCodeController extends Controller
         }
 
         // dd($param);
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(ItemCode::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('item-code', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

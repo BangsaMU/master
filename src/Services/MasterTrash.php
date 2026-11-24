@@ -163,14 +163,8 @@ class MasterTrash
             if (! SchemaColumns::hasTable('activity_logs')) {
                 return null;
             }
-            $studly = Str::studly($slug);
             $log = DB::table('activity_logs')
-                ->whereIn('model_type', [
-                    'Bangsamu\\Master\\Models\\Master'.$studly,
-                    'Bangsamu\\Master\\Models\\'.$studly,
-                    'App\\Models\\'.$studly,
-                    'App\\Models\\Master'.$studly,
-                ])
+                ->whereIn('model_type', ActivityLogService::modelTypes($slug))
                 ->where('model_id', $row->id)
                 ->where('action', 'deleted')
                 ->orderByDesc('id')

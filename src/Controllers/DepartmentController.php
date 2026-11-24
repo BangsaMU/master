@@ -415,7 +415,7 @@ class DepartmentController extends Controller
             $data['page']['readonly'] = true;
         }
 
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Department::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('department', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

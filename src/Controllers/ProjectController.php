@@ -723,7 +723,7 @@ class ProjectController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Project::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('project', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param', 'view_form_list', 'view_form_listDetail'));
     }

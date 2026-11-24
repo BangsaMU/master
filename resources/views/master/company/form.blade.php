@@ -193,6 +193,10 @@
         </div>
         @endif
     </div>
+    {{-- Log perubahan data (ubah, hapus, restore, import) --}}
+    @if (isset($data['page']['logs']) && count($data['page']['logs']) > 0)
+        @include('master::master.logs_view.list', ['title' => 'Log Company', 'logs' => $data['page']['logs']])
+    @endif
 @stop
 
 @push('js')

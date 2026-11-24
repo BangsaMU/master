@@ -699,7 +699,7 @@ class LocationController extends Controller
         $page_var = compact('data', 'foreing_key', 'formdata_multi', 'formdata', 'view_form');
 
         // return view('master::layouts.dashboard.request', $page_var);
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Location::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('location', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

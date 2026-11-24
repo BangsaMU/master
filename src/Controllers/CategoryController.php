@@ -402,7 +402,7 @@ class CategoryController extends Controller
             $data['page']['readonly'] = true;
         }
 
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Category::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('category', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

@@ -56,8 +56,13 @@ class MasterRestoreController extends Controller
         }
 
         $deletedAt = $model->getAttribute($model->getDeletedAtColumn());
-        // model db_master seperti destroy(); Loggable mencatat updated (deleted_at -> null), broadcast master ikut jalan
+        // model db_master seperti destroy(); broadcast master (event saved) ikut jalan. Loggable mengabaikan atribut
+        // $hidden: deleted_at disembunyikan selama restore supaya pemulihan tidak tercatat kembar ("updated" deleted_at ->
+        // null di samping "restored" dari logRestored), karena kartu Log membaca semua nama model (forSlug)
+        $deletedAtColumn = $model->getDeletedAtColumn();
+        $model->makeHidden($deletedAtColumn);
         $model->restore();
+        $model->makeVisible($deletedAtColumn);
         if ($slug === 'vendor') {
             app(VendorService::class)->restoreVendorLocation($model); // lokasi vendor ikut terhapus saat vendor dihapus
         }
@@ -67,8 +72,8 @@ class MasterRestoreController extends Controller
     }
 
     /**
-     * Catat "restored" atas nama model yang dibaca kartu riwayat form (Models\{Studly}, ActivityLogService::forModel),
-     * bukan model Master{Studly}, supaya pemulihan tampil di Log {modul}.
+     * Catat "restored" atas nama model form (Models\{Studly}); kartu Log membaca semua nama model modul
+     * (ActivityLogService::forSlug), sejak v3.18.1 termasuk Master{Studly}.
      */
     protected function logRestored(string $slug, Model $model, mixed $deletedAt): void
     {

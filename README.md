@@ -184,7 +184,15 @@ index unik DB). Dulu form hanya menampilkan *The project code has already been t
 - **Restore** (`Controllers\MasterRestoreController`): `POST master/{slug}/{id}/restore`, nama `master.{slug}.restore`
   (`MasterRestoreController::MODULES`). Hanya admin; di aplikasi klien hanya baris milik aplikasinya (aturan hapus
   `MasterAccess`). Ditolak bila kode unik sudah dipakai baris aktif lain. Vendor ikut memulihkan Location vendor-nya.
-  Tercatat di activity log aksi `restored` (atas nama `Models\{Studly}`, tampil di kartu riwayat form).
+  Tercatat di activity log aksi `restored` (atas nama `Models\{Studly}`, tampil di kartu riwayat form), satu entri saja:
+  sejak v3.18.1 `deleted_at` disembunyikan (`makeHidden`) selama `restore()` sehingga Loggable tidak ikut mencatat
+  `updated` deleted_at → null.
+- **Kartu Log di form** (sejak v3.18.1, `Services\ActivityLogService::forSlug('slug', $id)`): form/simpan memakai
+  `Models\{Studly}`, sedangkan hapus/restore/import memakai `Models\Master{Studly}`, dan Loggable mencatat `model_type`
+  sesuai kelasnya. Kartu Log membaca semua nama model modul (`ActivityLogService::modelTypes()`: paket dengan/tanpa
+  awalan `Master` + `App\Models`), jadi entri **deleted** kini tampil (ikon merah, keterangan soft delete); dulu hanya satu
+  kelas sehingga hapus tidak tampil di 9 modul. Nama model tampil tanpa awalan `Master`. Company dan Priority kini juga
+  punya kartu Log; Log Karyawan memakai service yang sama.
   `MasterModules::abilityForRouteAction('restore')` = `delete`, untuk middleware izin aksi tulis di app.
 - Layout `layouts.dashboard.index` menyediakan `#restore-form` dan `notificationBeforeRestore()` (SweetAlert, fallback
   `confirm()`). App yang memakai layout daftar sendiri perlu menyalin keduanya.

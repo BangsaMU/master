@@ -9,7 +9,6 @@ use App\Http\Controllers\Controller;
 use Bangsamu\LibraryClay\Controllers\LibraryClayController;
 use Bangsamu\Master\Exports\Master\UomTemplateExport;
 use Bangsamu\Master\Imports\Master\UomImport;
-use Bangsamu\Master\Models\Uom;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
@@ -422,7 +421,7 @@ class UomController extends Controller
             $data['page']['readonly'] = true;
         }
 
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(Uom::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('uom', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

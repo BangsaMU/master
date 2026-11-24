@@ -2,6 +2,7 @@
 
 namespace Bangsamu\Master\Controllers;
 
+use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterScope;
 use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterAccess;
@@ -656,8 +657,8 @@ class CompanyController extends Controller
             ];
         }
 
-        // dd($param);
-        // return view('company.form', compact('data', 'param'));
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('company', $id);
+
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact(
             'data', 'param', 'templateData', 'appCode', 'templateEditable', 'appNames', 'logoFields', 'masterEditUrl'
         ));

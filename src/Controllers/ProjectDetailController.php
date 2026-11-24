@@ -537,7 +537,7 @@ class ProjectDetailController extends Controller
         // company baris terhapus / tidak ada di master: card Pindah company (admin hub) atau peringatan
         $data['page']['move_company'] = $param !== null ? $this->moveCompanyData($param) : null;
 
-        $data['page']['logs'] = app(ActivityLogService::class)->forModel(ProjectDetail::class, $id);
+        $data['page']['logs'] = app(ActivityLogService::class)->forSlug('project-detail', $id);
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

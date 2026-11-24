@@ -30,7 +30,15 @@
     @endif
 
     <div>
-        <i class="timeline-icon bi bi-envelope text-bg-primary"></i>
+        @php
+            // hapus dan pulihkan dibedakan warnanya dari ubah biasa
+            $icon = match ($log->action) {
+                'deleted' => 'bi-trash text-bg-danger',
+                'restored' => 'bi-arrow-counterclockwise text-bg-success',
+                default => 'bi-envelope text-bg-primary',
+            };
+        @endphp
+        <i class="timeline-icon bi {{ $icon }}"></i>
         <div class="timeline-item">
             <span class="time">
                 @if ($log->updated_at_formated_time !== $previousTime)
@@ -52,7 +60,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @if (isset($log['properties']['before']) && is_array($log['properties']['before']))
+                        @if ($log->action === 'deleted')
+                            {{-- soft delete: properties = isi baris saat dihapus, isinya masih sama dengan data di halaman ini --}}
+                            <tr>
+                                <td colspan="3"><em>Data dihapus (soft delete). Isinya tetap tersimpan; admin dapat memulihkannya lewat tombol Restore di daftar (nyalakan saklar "Tampilkan data terhapus").</em></td>
+                            </tr>
+                        @elseif (isset($log['properties']['before']) && is_array($log['properties']['before']))
                             @foreach ($log['properties']['before'] as $field => $beforeValue)
                                 @if ($field === 'updated_at')
                                    @continue
