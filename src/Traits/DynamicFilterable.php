@@ -103,7 +103,7 @@ trait DynamicFilterable
             return $group;
         }
 
-        $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
+        $values = MasterFilterGroups::settingValues($setting->value ?? '');
         if ($name === '' || $values === [] || ! $this->isSettingFilterColumn($table, $name)) {
             return [];
         }

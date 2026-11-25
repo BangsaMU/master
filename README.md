@@ -91,6 +91,14 @@ List master selalu memakai filter ini (tanpa config). Sejak v2.4.9 list Location
 `master_project.company_id` lewat `master_project_detail`) bisa didaftarkan sebagai filter relasi yang selalu AND,
 lihat "Filter relasi dan cermin detail pemilik".
 
+**Nilai `0` (sejak v3.19.1):** angka `0` adalah nilai biasa, mis. `company_id` = `0` artinya `company_id IN (0)` =
+hanya baris bersama (milik semua company), **bukan** "semua company". Untuk company sendiri + baris bersama pakai
+`{USER_COMPANY},0`; untuk semua company hapus baris `company_id` (tanpa baris = tanpa filter kolom itu). Sebelum
+v3.19.1 nilai `0` dibuang (`array_filter()` tanpa callback), sehingga baris `company_id = 0` diabaikan seluruhnya:
+bila ada baris lain (mis. `app_code` yang tidak cocok) daftar jadi kosong, dan `{USER_COMPANY},0` hanya membaca company
+user. Semua pembaca nilai baris kolom memakai `MasterFilterGroups::settingValues()`: list/dropdown
+(`DynamicFilterable`), export generik `DataExport`, dan `ItemCodeExport`. Baris `scope` (JSON) tidak terdampak.
+
 ## Edit di Aplikasi Master Data (sejak v2.4.7, opt-in)
 
 Bila `MASTER_DIRECT_EDIT=false` (data master hanya dibaca, hasil sync hub) dan `MASTER_EDIT_URL` diisi (base URL

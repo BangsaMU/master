@@ -114,7 +114,7 @@ class DataExport implements FromCollection, ShouldAutoSize, WithHeadings
 
         foreach ($settings as $setting) {
             $column = $setting->name ?? $setting->key;
-            $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
+            $values = MasterFilterGroups::settingValues($setting->value ?? '');
 
             if (! empty($column) && ! empty($values) && Schema::connection($databaseConfig)->hasColumn($this->table, $column)) {
                 $filters[] = [

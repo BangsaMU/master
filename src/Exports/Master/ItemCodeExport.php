@@ -4,7 +4,9 @@ namespace Bangsamu\Master\Exports\Master;
 
 use Bangsamu\Master\Models\DashboardSettings;
 use Bangsamu\Master\Models\Setting;
+use Bangsamu\Master\Services\MasterFilterGroups;
 use Bangsamu\Master\Services\SchemaColumns;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -12,7 +14,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class ItemCodeExport implements FromCollection, ShouldAutoSize, WithHeadings
 {
-    public function collection()
+    public function collection(): Collection
     {
         $query = DB::table('master_item_code as mic')
             ->leftJoin('master_uom as mu', 'mu.id', 'mic.uom_id')
@@ -39,7 +41,7 @@ class ItemCodeExport implements FromCollection, ShouldAutoSize, WithHeadings
             $query->where(function ($q) use ($settings) {
                 foreach ($settings as $setting) {
                     $column = $setting->name ?? $setting->key;
-                    $values = array_values(array_filter(array_map('trim', explode(',', (string) ($setting->value ?? '')))));
+                    $values = MasterFilterGroups::settingValues($setting->value ?? '');
 
                     if (! empty($column) && ! empty($values) && SchemaColumns::hasColumn('master_item_code', $column)) {
                         $q->orWhereIn("mic.$column", $values);

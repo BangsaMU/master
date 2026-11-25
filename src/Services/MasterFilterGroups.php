@@ -91,6 +91,20 @@ class MasterFilterGroups
         }
     }
 
+    /**
+     * Nilai baris Setting format kolom ("1, 647, 0") jadi daftar nilai: dipisah koma, spasi tepi dibuang, hanya teks
+     * kosong yang dilewati. Angka 0 tetap nilai (company_id 0 = baris bersama semua company). Sebelum v3.19.1
+     * array_filter() tanpa callback membuang "0", jadi baris `company_id = 0` diabaikan seluruhnya tanpa pesan.
+     *
+     * @return list<string>
+     */
+    public static function settingValues(mixed $value): array
+    {
+        $value = is_scalar($value) || $value instanceof \Stringable ? (string) $value : '';
+
+        return array_values(array_filter(array_map('trim', explode(',', $value)), fn (string $item): bool => $item !== ''));
+    }
+
     /** Kolom ini terdaftar sebagai filter relasi tabel itu (MasterCrudConfig.RELATION_FILTERS). */
     public static function isRelationColumn(string $table, string $column): bool
     {
