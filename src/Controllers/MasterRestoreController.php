@@ -9,6 +9,7 @@ use Bangsamu\LibraryClay\Models\ActivityLog;
 use Bangsamu\Master\Services\MasterScope;
 use Bangsamu\Master\Services\MasterTrash;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
+use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Bangsamu\Master\Services\VendorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Pulihkan (restore) data master yang terhapus (soft delete) dari daftar master: hanya admin, dan di aplikasi klien
@@ -53,6 +55,14 @@ class MasterRestoreController extends Controller
         $conflict = $this->activeDuplicate($slug, $model);
         if ($conflict !== null) {
             return $index->with('error_message', $label.' tidak dapat dipulihkan: kodenya sudah dipakai data aktif id '.$conflict->id.'.');
+        }
+        if ($slug === 'project-detail') {
+            // baris yang dipulihkan aktif lagi: kode client-nya belum boleh dipakai company itu di project lain
+            try {
+                app(ProjectOwnerDetail::class)->assertDetailCodeFree((int) $model->project_id, (int) $model->company_id, (string) $model->project_code_client);
+            } catch (ValidationException $e) {
+                return $index->with('error_message', $label.' tidak dapat dipulihkan: '.e($e->validator->errors()->first()));
+            }
         }
 
         $deletedAt = $model->getAttribute($model->getDeletedAtColumn());

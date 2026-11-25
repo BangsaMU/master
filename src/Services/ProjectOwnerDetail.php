@@ -448,6 +448,26 @@ class ProjectOwnerDetail
             .' sebagai Project Code Client project '.($other ?? '#'.$projectId).': nomor dokumen company itu akan bentrok.']]);
     }
 
+    /**
+     * Project Code Client baris Project Detail (project $projectId, company $companyId) belum dipakai baris aktif company
+     * itu di project lain (assertCodeFreeForCompany, baris terhapus tidak dihitung). Dipakai setiap jalan yang membuat
+     * baris aktif berkode di halaman Project Detail: tambah/edit (store), import, Pindah company, dan Restore. Satu
+     * company dengan kode yang sama di dua project = dropdown dokumen ambigu dan urutan nomor dokumen per kode (mis.
+     * sequence_numbers SPB `<kode>-SPB-...`) tercampur antar project. Kode yang sama di company lain tetap boleh.
+     * $oldCode = kode baris sebelum diubah: kode yang tidak berubah tidak dicek, jadi data lama yang terlanjur dobel
+     * tetap bisa diubah namanya.
+     *
+     * @throws ValidationException
+     */
+    public function assertDetailCodeFree(int $projectId, int $companyId, ?string $code, ?string $oldCode = null, string $field = 'project_code_client'): void
+    {
+        if ($oldCode !== null && $this->normalizeCode($code) === $this->normalizeCode($oldCode)) {
+            return;
+        }
+
+        $this->assertCodeFreeForCompany($companyId, (string) $code, $projectId, $field);
+    }
+
     // ---- kunci baris detail ----
 
     /** Baris detail aktif milik company pemilik project-nya, dan project itu aktif ("baris pemilik"). */
@@ -669,6 +689,8 @@ class ProjectOwnerDetail
             if ($other !== null) {
                 throw ValidationException::withMessages([$field => ['Company '.$this->companyLabel($toCompanyId).' sudah punya baris di project ini (id '.$other->id.(filled($other->deleted_at) ? ', terhapus' : '').'): bila baris ini dobel, hapus saja baris ini.']]);
             }
+            // kode client tetap, company berganti: kode itu belum boleh dipakai company tujuan di project lain
+            $this->assertDetailCodeFree((int) $detail->project_id, $toCompanyId, (string) $detail->project_code_client, null, $field);
 
             $problem = (string) $this->detailCompanyProblem($detail);
             $from = (int) $detail->company_id;

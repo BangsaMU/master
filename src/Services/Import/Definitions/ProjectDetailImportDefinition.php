@@ -10,9 +10,12 @@ use Bangsamu\Master\Services\ProjectDetailNumberReset;
 use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Unik: project + project_code_client + company.
+ * Unik: project + project_code_client + company. Baris baru juga ditolak bila company-nya sudah memakai Project Code
+ * Client yang sama di project lain (baris aktif di DB, atau baris baru lain di file yang sama), lewat
+ * ProjectOwnerDetail::assertDetailCodeFree dengan pesan yang sama seperti form Project Detail.
  *
  * Kolom opsional Yearly Reset (number_reset_yearly, ProjectDetailNumberReset): Y/Ya = reset nomor tahunan, N/Tidak =
  * tidak, kosong = baris lama tidak diubah (baris baru = tidak). Hanya admin Master Data; dari user lain diabaikan.
@@ -24,6 +27,9 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
     protected Collection $companies;
 
     protected Collection $existing;
+
+    /** @var array<string, string> "company_id|KODE" baris baru di file ini => Project Code project-nya */
+    protected array $newCodes = [];
 
     public function entity(): string
     {
@@ -133,6 +139,7 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
         $projectCodes = $this->projects->mapWithKeys(fn ($p) => [$p->id => self::upper($p->project_code)]);
         $companyCodes = $this->companies->mapWithKeys(fn ($c) => [$c->id => self::upper($c->company_code)]);
 
+        $this->newCodes = [];
         $this->existing = collect();
         foreach ($this->projects->pluck('id')->chunk(1000) as $ids) {
             $select = ['id', 'project_id', 'project_code_client', 'project_name_client', 'company_id', 'deleted_at'];
@@ -198,6 +205,33 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
                 'project_name_client' => $data['project_name_client'],
             ]);
         }
+
+        return $existing === null ? $this->newCodeError($data) : null;
+    }
+
+    /**
+     * Baris baru: satu company satu Project Code Client per project. Kode itu belum dipakai company yang sama di project
+     * lain, baik di DB (baris aktif) maupun di baris baru lain file ini. Baris lama tidak dicek: kunci import memuat
+     * kodenya, jadi kodenya tidak berubah lewat import.
+     */
+    protected function newCodeError(array $data): ?string
+    {
+        $projectId = (int) $this->projects->get($data['project_code'])->id;
+        $companyId = (int) $this->companies->get($data['company_code'])->id;
+
+        try {
+            app(ProjectOwnerDetail::class)->assertDetailCodeFree($projectId, $companyId, $data['project_code_client']);
+        } catch (ValidationException $e) {
+            return $e->validator->errors()->first();
+        }
+
+        $claim = $companyId.'|'.$data['project_code_client'];
+        $claimedBy = $this->newCodes[$claim] ?? null;
+        if ($claimedBy !== null && $claimedBy !== $data['project_code']) {
+            return 'Kode '.$data['project_code_client'].' sudah dipakai company '.$data['company_code'].' sebagai Project Code Client project '
+                .$claimedBy.' di baris lain file ini: nomor dokumen company itu akan bentrok.';
+        }
+        $this->newCodes[$claim] = $data['project_code'];
 
         return null;
     }

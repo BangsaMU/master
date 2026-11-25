@@ -514,7 +514,7 @@ dan `master_project_detail` berisi company yang memakai project itu. Rancangan +
 | Create Project | Centang "Pemilik project bukan ME" + Company pemilik (field `project_owner_other`, `project_owner_company_id`; sengaja bukan `owner_company_id` = `MasterScope::OWNER_COMPANY_FIELD`). Dicentang = `owner_company_id` = company itu + **satu** baris detail company itu, tanpa baris Meindo, satu transaksi. Tidak dicentang = perilaku lama (pemilik bawaan, + baris company delegasi). Pilihan hanya di hub: `is_admin` semua company aktif; session delegasi hanya company-nya sendiri, **tercentang dari awal** (bisa dimatikan); user lain tidak melihatnya. Kode project tidak boleh sudah dipakai company itu sebagai Project Code Client project lain (`assertCodeFreeForCompany`) |
 | Edit Project | Pemilik tampil (hanya baca). Form Edit tidak mengubah pemilik |
 | Pindah pemilik | Kartu di Edit Project, POST `master/project/{id}/transfer-owner` (`master.project.transfer-owner`), hanya `is_admin` di hub, wajib centang konfirmasi. Baris company tujuan dipakai bila ada, dipulihkan bila terhapus, dibuat dari kode/nama project bila belum ada; `owner_company_id` = tujuan; `project_code`/`project_name` = kode/nama baris tujuan; baris pemilik lama **tetap ada**. Ditolak bila kode/nama itu sudah dipakai project lain. Tercatat lewat `Loggable` (sebelum/sesudah) |
-| Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Pengecualian sejak v3.15.0: baris yang company-nya terhapus / tidak ada di master dipindah lewat "Pindah company" (lihat bagian berikut). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris |
+| Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Pengecualian sejak v3.15.0: baris yang company-nya terhapus / tidak ada di master dipindah lewat "Pindah company" (lihat bagian berikut). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris. Sejak v3.20.0 Project Code Client tidak boleh sudah dipakai company yang sama di project lain (tambah, edit kode, import, Pindah company, Restore; lihat "Project Detail: Satu Kode Client per Company") |
 | Import Project | Kolom opsional `Owner Company Code` (template ikut). Kosong = perilaku lama (juga lewat delegasi). Kode company lain = project **baru** milik company itu, aturan sama dengan form (admin / company delegasi sendiri). Project lama: harus sama dengan pemilik sekarang, beda = baris ditolak. Import lama `ProjectImport` (tanpa preview) mengabaikan kolom ini |
 | Daftar Project | Kolom `Pemilik` (kode company, join `master_company` alias `opc`, tampil dan bisa diurut; pencarian mengikuti helper app `datatabelFilterQuery()`, di Master Data tidak ikut cari karena kolom join, lihat "Cari per Kolom di Daftar Master"); kartu ringkasan menambah kolom "Project milik" per company dan jumlah project non-Meindo |
 
@@ -616,6 +616,36 @@ Project Detail = tab baru daftar Project yang hanya berisi project itu (`master/
   - `$data['datatable']['fixed_filter']` (`ProjectListFilter::config`) = partial `partials.fixed-filter` (bar dari server)
     + `params` ikut setiap request ajax daftar.
 - Test: `ProjectDetailOpenProjectTest`.
+
+## Project Detail: Satu Kode Client per Company (sejak v3.20.0)
+
+Satu company tidak boleh memakai **Project Code Client yang sama di dua project**. Contoh: project Meindo `21329` sudah
+ada (baris pemilik ME `21329`), lalu ME ikut project milik MEB `73029` dengan menambah baris ME. Dulu baris itu boleh
+berkode `21329` juga, karena validasi form hanya `MasterUnique` dalam (project, company). Akibatnya di aplikasi pemakai
+(SPB): dropdown project ME menampilkan `21329` dua kali, dan urutan nomor dokumen per kode (`sequence_numbers.type` =
+teks kode, mis. `21329-SPB-...`) tercampur antara dua project.
+
+Sejak v3.20.0 aturan yang sama dengan Create Project (pemilik selain Meindo), Import Project, dan Pindah pemilik
+(`ProjectOwnerDetail::assertCodeFreeForCompany`) berlaku di semua jalan halaman Project Detail, lewat satu helper
+`ProjectOwnerDetail::assertDetailCodeFree($projectId, $companyId, $code, $oldCode = null, $field)`:
+
+| Jalan | Aturan |
+|---|---|
+| Tambah baris (form) | Kode ditolak bila company itu sudah memakainya di baris aktif project lain (error di `project_code_client`) |
+| Edit baris (form) | Dicek hanya bila kode berubah. Kode tetap = tidak dicek, jadi data lama yang terlanjur dobel tetap bisa diubah namanya |
+| Import Project Detail | Baris **baru** ditolak per baris dengan pesan yang sama; juga bila baris baru lain di file yang sama sudah memakai kode itu untuk company yang sama di project lain. Baris lama tidak dicek (kunci import memuat kodenya, jadi kode tidak berubah lewat import) |
+| Pindah company (v3.15.0) | Kode tetap, company berganti: kode itu belum boleh dipakai company tujuan di project lain (error di `move_company_id`) |
+| Restore baris terhapus | Ditolak (flash `error_message`) bila kodenya kini dipakai company itu di project lain |
+
+- Pesan: "Kode `21329` sudah dipakai company ME sebagai Project Code Client project `21329`: nomor dokumen company itu
+  akan bentrok." (`project` = `master_project.project_code` project yang memakai kode itu).
+- Kode yang sama di **company lain** tetap boleh (MEB/ENL boleh memakai `21329`). Baris terhapus tidak dihitung.
+  Perbandingan memakai `UPPER(TRIM(...))`.
+- Cek membaca tabel `master_project_detail` koneksi default: di hub = data master; di aplikasi klien yang bisa edit
+  langsung (`MASTER_DIRECT_EDIT`) = salinan lokal hasil sync.
+- Belum dicek (di luar halaman Project Detail): Create/Import Project baru dengan pemilik bawaan dan Edit kode project
+  (cermin baris pemilik), yang membuat/mengubah kode baris pemilik tanpa melihat baris company itu di project lain.
+- Test: `ProjectDetailCodePerCompanyTest`.
 
 ## Konfigurasi Database (`config/database.php`)
 
