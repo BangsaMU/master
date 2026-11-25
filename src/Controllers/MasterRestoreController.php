@@ -17,7 +17,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 /**
  * Pulihkan (restore) data master yang terhapus (soft delete) dari daftar master: hanya admin, dan di aplikasi klien
@@ -56,13 +55,14 @@ class MasterRestoreController extends Controller
         if ($conflict !== null) {
             return $index->with('error_message', $label.' tidak dapat dipulihkan: kodenya sudah dipakai data aktif id '.$conflict->id.'.');
         }
-        if ($slug === 'project-detail') {
-            // baris yang dipulihkan aktif lagi: kode client-nya belum boleh dipakai company itu di project lain
-            try {
-                app(ProjectOwnerDetail::class)->assertDetailCodeFree((int) $model->project_id, (int) $model->company_id, (string) $model->project_code_client);
-            } catch (ValidationException $e) {
-                return $index->with('error_message', $label.' tidak dapat dipulihkan: '.e($e->validator->errors()->first()));
-            }
+        // project / baris detail yang dipulihkan aktif lagi: satu kode satu project (kodenya belum dipakai project lain)
+        $codeConflict = match ($slug) {
+            'project-detail' => app(ProjectOwnerDetail::class)->codeUsageMessage((string) $model->project_code_client, (int) $model->project_id),
+            'project' => app(ProjectOwnerDetail::class)->codeUsageMessage((string) $model->project_code, (int) $model->getKey()),
+            default => null,
+        };
+        if ($codeConflict !== null) {
+            return $index->with('error_message', $label.' tidak dapat dipulihkan: '.e($codeConflict));
         }
 
         $deletedAt = $model->getAttribute($model->getDeletedAtColumn());

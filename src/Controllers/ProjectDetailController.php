@@ -454,10 +454,9 @@ class ProjectDetailController extends Controller
                 'project_code_client' => strtoupper((string) $request->project_code_client),
                 'project_name_client' => $request->project_name_client,
             ]);
-            // kode baru belum dipakai company ini di project lain (kode tidak berubah = tidak dicek)
-            app(ProjectOwnerDetail::class)->assertDetailCodeFree(
+            // satu kode satu project: kode baru belum dipakai project lain (company mana pun; kode tetap = tidak dicek)
+            app(ProjectOwnerDetail::class)->assertChangedCodeFree(
                 (int) $project_detail->project_id,
-                (int) $project_detail->company_id,
                 (string) $request->project_code_client,
                 (string) $project_detail->project_code_client,
             );
@@ -486,8 +485,8 @@ class ProjectDetailController extends Controller
             }
         } else {
             // Create new master_project_detail
-            // satu company satu kode per project: kode ini belum dipakai company itu di project lain
-            app(ProjectOwnerDetail::class)->assertDetailCodeFree((int) $request->project_id, (int) $request->company_id, (string) $request->project_code_client);
+            // satu kode satu project: kode ini belum dipakai project lain oleh company mana pun
+            app(ProjectOwnerDetail::class)->assertChangedCodeFree((int) $request->project_id, (string) $request->project_code_client);
             $modelClass = LibraryClayController::resolveModelFromSheetSlug('project_detail');
 
             $modelClass::create([

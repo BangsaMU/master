@@ -152,6 +152,11 @@ class ProjectImportDefinition extends MasterImportDefinition
         if ($owner && self::upper($owner->project_code) !== $data['project_code']) {
             return "Project Name '{$data['project_name']}' sudah dipakai Project Code '{$owner->project_code}'.";
         }
+        // project baru: satu kode satu project, kode (= kode baris pemilik) belum dipakai baris detail company mana pun.
+        // Project lama tidak dicek: kunci import = Project Code, jadi kodenya tidak berubah lewat import.
+        if ($existing === null && ($usage = app(ProjectOwnerDetail::class)->codeUsageMessage($data['project_code'])) !== null) {
+            return $usage;
+        }
 
         return $this->ownerError($data, $existing);
     }
@@ -176,10 +181,7 @@ class ProjectImportDefinition extends MasterImportDefinition
         }
 
         try {
-            $plan = $ownerDetail->newProjectPlan((int) $company->id);
-            if ($plan['other']) {
-                $ownerDetail->assertCodeFreeForCompany((int) $plan['owner'], $data['project_code']);
-            }
+            $ownerDetail->newProjectPlan((int) $company->id); // kode bebas sudah dicek di check()
         } catch (ValidationException $e) {
             return $e->validator->errors()->first();
         }

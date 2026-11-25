@@ -511,10 +511,10 @@ dan `master_project_detail` berisi company yang memakai project itu. Rancangan +
 | Kolom | `master_project.owner_company_id` (INT, NULL, index `idx_project_owner_company`) = company pemilik. **NULL = pemilik bawaan**, jadi data lama tidak diisi ulang. Ditambahkan migration paket (`php artisan migrate`), `master:install-tables`, sync, dan form Project (`MasterSchemaUpgrader::upgradeProjectOwnerCompany`). **Nilainya** baru ikut disalin sync ke app klien sejak v3.16.1 (sebelumnya tidak terdaftar di `MasterDataSyncService::TABLES`) |
 | Baca pemilik | `ProjectOwnerDetail::ownerCompanyIdOf($project)` (baris / model / id), SQL `ownerSql('alias')`, `hasOtherOwner()`. Aplikasi lain jangan menulis `COALESCE` sendiri |
 | Baris pemilik | Setiap project aktif wajib punya **satu** baris detail aktif untuk company pemiliknya (dulu: wajib baris Meindo). Project non-Meindo tanpa baris Meindo **bukan** kekurangan. Kartu + tombol "Buat Detail", `ensure()`, `mirror()`, `reconcile()` (`master:project-detail-mirror`) memakai pemilik per project |
-| Create Project | Centang "Pemilik project bukan ME" + Company pemilik (field `project_owner_other`, `project_owner_company_id`; sengaja bukan `owner_company_id` = `MasterScope::OWNER_COMPANY_FIELD`). Dicentang = `owner_company_id` = company itu + **satu** baris detail company itu, tanpa baris Meindo, satu transaksi. Tidak dicentang = perilaku lama (pemilik bawaan, + baris company delegasi). Pilihan hanya di hub: `is_admin` semua company aktif; session delegasi hanya company-nya sendiri, **tercentang dari awal** (bisa dimatikan); user lain tidak melihatnya. Kode project tidak boleh sudah dipakai company itu sebagai Project Code Client project lain (`assertCodeFreeForCompany`) |
+| Create Project | Centang "Pemilik project bukan ME" + Company pemilik (field `project_owner_other`, `project_owner_company_id`; sengaja bukan `owner_company_id` = `MasterScope::OWNER_COMPANY_FIELD`). Dicentang = `owner_company_id` = company itu + **satu** baris detail company itu, tanpa baris Meindo, satu transaksi. Tidak dicentang = perilaku lama (pemilik bawaan, + baris company delegasi). Pilihan hanya di hub: `is_admin` semua company aktif; session delegasi hanya company-nya sendiri, **tercentang dari awal** (bisa dimatikan); user lain tidak melihatnya. Kode project tidak boleh sudah dipakai project lain sebagai Project Code Client company mana pun (`assertCodeFree`, sejak v3.21.0 juga untuk pemilik bawaan; lihat "Project: Satu Kode Satu Project") |
 | Edit Project | Pemilik tampil (hanya baca). Form Edit tidak mengubah pemilik |
 | Pindah pemilik | Kartu di Edit Project, POST `master/project/{id}/transfer-owner` (`master.project.transfer-owner`), hanya `is_admin` di hub, wajib centang konfirmasi. Baris company tujuan dipakai bila ada, dipulihkan bila terhapus, dibuat dari kode/nama project bila belum ada; `owner_company_id` = tujuan; `project_code`/`project_name` = kode/nama baris tujuan; baris pemilik lama **tetap ada**. Ditolak bila kode/nama itu sudah dipakai project lain. Tercatat lewat `Loggable` (sebelum/sesudah) |
-| Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Pengecualian sejak v3.15.0: baris yang company-nya terhapus / tidak ada di master dipindah lewat "Pindah company" (lihat bagian berikut). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris. Sejak v3.20.0 Project Code Client tidak boleh sudah dipakai company yang sama di project lain (tambah, edit kode, import, Pindah company, Restore; lihat "Project Detail: Satu Kode Client per Company") |
+| Project Detail | Project dan Company baris **mana pun** tidak bisa diganti (form terkunci + server; ganti = hapus baris lalu tambah baris baru). Pengecualian sejak v3.15.0: baris yang company-nya terhapus / tidak ada di master dipindah lewat "Pindah company" (lihat bagian berikut). Baris pemilik: kode/nama terkunci (ikut Edit Project) dan tidak bisa dihapus selama project aktif (`detailChangeDenial`, `detailDeleteDenial`). Import Project Detail yang mengubah nama baris pemilik ditolak per baris. Sejak v3.21.0 satu kode satu project untuk semua company (lihat "Project: Satu Kode Satu Project") |
 | Import Project | Kolom opsional `Owner Company Code` (template ikut). Kosong = perilaku lama (juga lewat delegasi). Kode company lain = project **baru** milik company itu, aturan sama dengan form (admin / company delegasi sendiri). Project lama: harus sama dengan pemilik sekarang, beda = baris ditolak. Import lama `ProjectImport` (tanpa preview) mengabaikan kolom ini |
 | Daftar Project | Kolom `Pemilik` (kode company, join `master_company` alias `opc`, tampil dan bisa diurut; pencarian mengikuti helper app `datatabelFilterQuery()`, di Master Data tidak ikut cari karena kolom join, lihat "Cari per Kolom di Daftar Master"); kartu ringkasan menambah kolom "Project milik" per company dan jumlah project non-Meindo |
 
@@ -617,35 +617,51 @@ Project Detail = tab baru daftar Project yang hanya berisi project itu (`master/
     + `params` ikut setiap request ajax daftar.
 - Test: `ProjectDetailOpenProjectTest`.
 
-## Project Detail: Satu Kode Client per Company (sejak v3.20.0)
+## Project: Satu Kode Satu Project (sejak v3.21.0; v3.20.0 per company)
 
-Satu company tidak boleh memakai **Project Code Client yang sama di dua project**. Contoh: project Meindo `21329` sudah
-ada (baris pemilik ME `21329`), lalu ME ikut project milik MEB `73029` dengan menambah baris ME. Dulu baris itu boleh
-berkode `21329` juga, karena validasi form hanya `MasterUnique` dalam (project, company). Akibatnya di aplikasi pemakai
-(SPB): dropdown project ME menampilkan `21329` dua kali, dan urutan nomor dokumen per kode (`sequence_numbers.type` =
-teks kode, mis. `21329-SPB-...`) tercampur antara dua project.
+**Project Code Client `X` hanya boleh menunjuk satu project, untuk semua company.** Beberapa company boleh memakai `X`
+di project yang **sama** (contoh hub dev: project 147 baris ME `73022` terhapus + MEB `73022`). `X` yang sudah dipakai
+project lain ditolak, siapa pun company-nya. Latar: project Meindo `21329` (baris pemilik ME `21329`), lalu ME ikut
+project milik MEB `73029`. Validasi lama hanya `MasterUnique` dalam (project, company), jadi baris ME di `73029` boleh
+berkode `21329`. Di aplikasi pemakai (SPB) dropdown project menampilkan `21329` dua kali, dan urutan nomor dokumen per
+kode (`sequence_numbers.type` = teks kode, mis. `21329-SPB-...`) tercampur antar project.
 
-Sejak v3.20.0 aturan yang sama dengan Create Project (pemilik selain Meindo), Import Project, dan Pindah pemilik
-(`ProjectOwnerDetail::assertCodeFreeForCompany`) berlaku di semua jalan halaman Project Detail, lewat satu helper
-`ProjectOwnerDetail::assertDetailCodeFree($projectId, $companyId, $code, $oldCode = null, $field)`:
+Riwayat: v3.20.0 hanya menolak company yang **sama** (ENL `DEMO2` di project A lolos walau MEB `DEMO2` = project B) dan
+hanya di halaman Project Detail. v3.21.0 (permintaan user 2026-11-25) memberlakukan untuk semua company dan ikut
+menjaga kode induk (baris pemilik = cermin `master_project.project_code`).
+
+"Dipakai project lain" (`ProjectOwnerDetail::codeUsageMessage($code, $exceptProjectId)` / `assertCodeFree(...)`):
+1. Project Code Client baris detail **aktif** company mana pun di project lain (project barisnya tidak dilihat), atau
+2. Project Code project **aktif** lain (kode master = kode company pemilik di aplikasi pemakai, juga bila baris
+   pemiliknya hilang atau berkode lain).
+
+Baris/project terhapus tidak dihitung. Perbandingan `UPPER(TRIM(...))`.
 
 | Jalan | Aturan |
 |---|---|
-| Tambah baris (form) | Kode ditolak bila company itu sudah memakainya di baris aktif project lain (error di `project_code_client`) |
-| Edit baris (form) | Dicek hanya bila kode berubah. Kode tetap = tidak dicek, jadi data lama yang terlanjur dobel tetap bisa diubah namanya |
-| Import Project Detail | Baris **baru** ditolak per baris dengan pesan yang sama; juga bila baris baru lain di file yang sama sudah memakai kode itu untuk company yang sama di project lain. Baris lama tidak dicek (kunci import memuat kodenya, jadi kode tidak berubah lewat import) |
-| Pindah company (v3.15.0) | Kode tetap, company berganti: kode itu belum boleh dipakai company tujuan di project lain (error di `move_company_id`) |
-| Restore baris terhapus | Ditolak (flash `error_message`) bila kodenya kini dipakai company itu di project lain |
+| Project Detail: tambah baris | Kode ditolak bila dipakai project lain (error di `project_code_client`) |
+| Project Detail: ubah baris | Dicek hanya bila kode berubah (`assertChangedCodeFree($projectId, $code, $oldCode)`). Kode tetap = tidak dicek, jadi data lama yang terlanjur dobel tetap bisa diubah namanya |
+| Import Project Detail | Baris **baru** ditolak per baris dengan pesan yang sama; juga bila baris baru lain di file yang sama memakai kode itu di project lain (company apa pun). Kode sama untuk project yang sama di file = boleh. Baris lama tidak dicek (kunci import memuat kodenya) |
+| Project Detail: Restore | Ditolak (flash `error_message`) bila kodenya kini dipakai project lain |
+| Project Detail: Pindah company (v3.15.0) | **Tidak dicek** sejak v3.21.0: kode dan project baris tetap, jadi peta kode → project tidak berubah (v3.20.0 mengecek company tujuan) |
+| Create Project | Kode project ditolak bila dipakai project lain, pemilik bawaan maupun company lain (v3.20.0: hanya pemilik company lain, per company) |
+| Import Project | Project **baru** ditolak per baris dengan pesan yang sama. Project lama tidak dicek (kunci import = Project Code) |
+| Edit Project | Dicek bila kode project berubah (kode baru ikut dicerminkan ke baris pemilik); error di `project_code` |
+| Pindah pemilik | Kode project baru (= kode baris company tujuan, atau kode project bila baris dibuat) ditolak bila dipakai baris detail project lain |
+| Restore Project | Ditolak bila kode project kini dipakai project lain |
 
-- Pesan: "Kode `21329` sudah dipakai company ME sebagai Project Code Client project `21329`: nomor dokumen company itu
-  akan bentrok." (`project` = `master_project.project_code` project yang memakai kode itu).
-- Kode yang sama di **company lain** tetap boleh (MEB/ENL boleh memakai `21329`). Baris terhapus tidak dihitung.
-  Perbandingan memakai `UPPER(TRIM(...))`.
-- Cek membaca tabel `master_project_detail` koneksi default: di hub = data master; di aplikasi klien yang bisa edit
-  langsung (`MASTER_DIRECT_EDIT`) = salinan lokal hasil sync.
-- Belum dicek (di luar halaman Project Detail): Create/Import Project baru dengan pemilik bawaan dan Edit kode project
-  (cermin baris pemilik), yang membuat/mengubah kode baris pemilik tanpa melihat baris company itu di project lain.
-- Test: `ProjectDetailCodePerCompanyTest`.
+- Pesan: "Kode `21329` sudah dipakai sebagai Project Code Client project `21329` (company ME): satu kode hanya boleh
+  menunjuk satu project (nomor dokumen akan bentrok)." atau "... sebagai Project Code project `21700`: ..." (bentuk 2).
+- API: `assertCodeFree($code, $exceptProjectId = null, $field = 'project_code')`, `codeUsageMessage()` (pesan atau
+  null, untuk import/restore), `assertChangedCodeFree($projectId, $code, $oldCode = null, $field)`. Usang (tetap ada,
+  tidak dipakai paket): `assertCodeFreeForCompany()` (aturan per company) dan `assertDetailCodeFree($projectId,
+  $companyId, ...)` dari v3.20.0 (`$companyId` diabaikan, meneruskan ke `assertChangedCodeFree`).
+- Cek membaca tabel koneksi default: di hub = data master; di aplikasi klien yang bisa edit langsung
+  (`MASTER_DIRECT_EDIT`) = salinan lokal hasil sync.
+- Data lama tidak diperbaiki otomatis. Cek sebelum memasang (hub dev `meindo_master` 2026-11-25: 0 pelanggar):
+  `SELECT UPPER(TRIM(project_code_client)) kode, COUNT(DISTINCT project_id) FROM master_project_detail WHERE deleted_at
+  IS NULL GROUP BY kode HAVING COUNT(DISTINCT project_id) > 1`.
+- Test: `ProjectCodeOneProjectTest` (13; dulu `ProjectDetailCodePerCompanyTest`).
 
 ## View/Edit Master: Id Tidak Ada = 404 (sejak v3.20.1)
 

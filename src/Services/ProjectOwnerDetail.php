@@ -420,9 +420,62 @@ class ProjectOwnerDetail
     }
 
     /**
-     * Kode project untuk company $companyId belum dipakai baris detail aktif company itu di project lain. Dipakai untuk
-     * project milik company selain pemilik bawaan: kode yang sama di dua project company itu membuat nomor dokumennya
-     * (mis. nomor SPB `{project}`) berbagi urutan.
+     * Satu kode satu project (sejak v3.21.0): kode $code belum dipakai project lain selain $exceptProjectId, oleh company
+     * mana pun, yaitu belum menjadi
+     * - Project Code Client baris detail aktif di project lain, dan
+     * - Project Code project aktif lain (kode master = kode company pemilik di aplikasi pemakai, juga bila baris
+     *   pemiliknya hilang atau berkode lain).
+     * Beberapa company boleh memakai kode yang sama di project YANG SAMA. Baris/project terhapus tidak dihitung. Dipakai
+     * semua jalan yang membuat atau mengubah kode: Project Detail (tambah, ubah kode, import, Restore) dan Project
+     * (Create, Import project baru, Edit kode, Pindah pemilik, Restore). Kode yang menunjuk dua project membuat dropdown
+     * dokumen ambigu dan urutan nomor dokumen per kode (mis. sequence_numbers SPB `<kode>-SPB-...`) tercampur.
+     *
+     * @throws ValidationException
+     */
+    public function assertCodeFree(?string $code, ?int $exceptProjectId = null, string $field = 'project_code'): void
+    {
+        $message = $this->codeUsageMessage($code, $exceptProjectId);
+        if ($message !== null) {
+            throw ValidationException::withMessages([$field => [$message]]);
+        }
+    }
+
+    /** Pesan assertCodeFree() bila kode sudah dipakai project lain, null = bebas. */
+    public function codeUsageMessage(?string $code, ?int $exceptProjectId = null): ?string
+    {
+        $code = $this->normalizeCode($code);
+        if ($code === '') {
+            return null;
+        }
+        $rule = ': satu kode hanya boleh menunjuk satu project (nomor dokumen akan bentrok).';
+
+        $detail = DB::table(self::TABLE_DETAIL)
+            ->whereRaw('UPPER(TRIM(project_code_client)) = ?', [$code])
+            ->whereNull('deleted_at')
+            ->when($exceptProjectId !== null, fn ($query) => $query->where('project_id', '!=', $exceptProjectId))
+            ->orderBy('id')
+            ->first(['project_id', 'company_id']);
+        if ($detail !== null) {
+            $other = DB::table(self::TABLE_PROJECT)->where('id', (int) $detail->project_id)->value('project_code');
+
+            return 'Kode '.$code.' sudah dipakai sebagai Project Code Client project '.($other ?? '#'.$detail->project_id)
+                .' (company '.$this->companyLabel((int) $detail->company_id).')'.$rule;
+        }
+
+        $project = DB::table(self::TABLE_PROJECT)
+            ->whereRaw('UPPER(TRIM(project_code)) = ?', [$code])
+            ->when(SchemaColumns::hasColumn(self::TABLE_PROJECT, 'deleted_at'), fn ($query) => $query->whereNull('deleted_at'))
+            ->when($exceptProjectId !== null, fn ($query) => $query->where('id', '!=', $exceptProjectId))
+            ->value('project_code');
+
+        return $project !== null ? 'Kode '.$code.' sudah dipakai sebagai Project Code project '.$project.$rule : null;
+    }
+
+    /**
+     * Kode project untuk company $companyId belum dipakai baris detail aktif company itu di project lain.
+     *
+     * @deprecated sejak v3.21.0 paket tidak memakainya lagi: aturan diperketat jadi satu kode satu project untuk semua
+     *     company, pakai assertCodeFree().
      *
      * @throws ValidationException
      */
@@ -449,23 +502,32 @@ class ProjectOwnerDetail
     }
 
     /**
-     * Project Code Client baris Project Detail (project $projectId, company $companyId) belum dipakai baris aktif company
-     * itu di project lain (assertCodeFreeForCompany, baris terhapus tidak dihitung). Dipakai setiap jalan yang membuat
-     * baris aktif berkode di halaman Project Detail: tambah/edit (store), import, Pindah company, dan Restore. Satu
-     * company dengan kode yang sama di dua project = dropdown dokumen ambigu dan urutan nomor dokumen per kode (mis.
-     * sequence_numbers SPB `<kode>-SPB-...`) tercampur antar project. Kode yang sama di company lain tetap boleh.
-     * $oldCode = kode baris sebelum diubah: kode yang tidak berubah tidak dicek, jadi data lama yang terlanjur dobel
-     * tetap bisa diubah namanya.
+     * Kode baru/ubahan (Project Code Client baris detail project $projectId, atau Project Code project $projectId; null =
+     * project baru) belum dipakai project lain (assertCodeFree). $oldCode = kode sebelum diubah: kode yang tidak berubah
+     * tidak dicek, jadi data lama yang terlanjur dobel tetap bisa diubah namanya.
+     *
+     * Sejak v3.21.0 berlaku untuk semua company (v3.20.0: hanya company yang sama, dengan parameter $companyId).
      *
      * @throws ValidationException
      */
-    public function assertDetailCodeFree(int $projectId, int $companyId, ?string $code, ?string $oldCode = null, string $field = 'project_code_client'): void
+    public function assertChangedCodeFree(?int $projectId, ?string $code, ?string $oldCode = null, string $field = 'project_code_client'): void
     {
         if ($oldCode !== null && $this->normalizeCode($code) === $this->normalizeCode($oldCode)) {
             return;
         }
 
-        $this->assertCodeFreeForCompany($companyId, (string) $code, $projectId, $field);
+        $this->assertCodeFree($code, $projectId, $field);
+    }
+
+    /**
+     * @deprecated sejak v3.21.0, pakai assertChangedCodeFree(): $companyId tidak dipakai lagi (aturan berlaku untuk semua
+     *     company).
+     *
+     * @throws ValidationException
+     */
+    public function assertDetailCodeFree(int $projectId, int $companyId, ?string $code, ?string $oldCode = null, string $field = 'project_code_client'): void
+    {
+        $this->assertChangedCodeFree($projectId, $code, $oldCode, $field);
     }
 
     // ---- kunci baris detail ----
@@ -689,8 +751,6 @@ class ProjectOwnerDetail
             if ($other !== null) {
                 throw ValidationException::withMessages([$field => ['Company '.$this->companyLabel($toCompanyId).' sudah punya baris di project ini (id '.$other->id.(filled($other->deleted_at) ? ', terhapus' : '').'): bila baris ini dobel, hapus saja baris ini.']]);
             }
-            // kode client tetap, company berganti: kode itu belum boleh dipakai company tujuan di project lain
-            $this->assertDetailCodeFree((int) $detail->project_id, $toCompanyId, (string) $detail->project_code_client, null, $field);
 
             $problem = (string) $this->detailCompanyProblem($detail);
             $from = (int) $detail->company_id;
@@ -813,7 +873,6 @@ class ProjectOwnerDetail
                 ->orderByRaw('deleted_at is null desc')->orderByDesc('id')->first();
             $rowStatus = 'existing';
             if ($detail === null) {
-                $this->assertCodeFreeForCompany($toCompanyId, (string) $project->project_code, (int) $project->id, $field);
                 $data = $this->scope->stamp(self::TABLE_DETAIL, ['project_id' => (int) $project->id] + $this->mirrorValues($project), $this->scope->ownerOf($project));
                 // company_id di tabel ini = company project, bukan pemilik data baris
                 $data['company_id'] = $toCompanyId;
@@ -833,6 +892,8 @@ class ProjectOwnerDetail
             if ($codeUser !== null) {
                 throw ValidationException::withMessages([$field => ['Kode '.$code.' (baris company '.$this->companyLabel($toCompanyId).') sudah dipakai project lain sebagai Project Code.']]);
             }
+            // kode project baru (= kode baris tujuan) belum dipakai baris detail company mana pun di project lain
+            $this->assertCodeFree($code, (int) $project->id, $field);
             $nameUser = DB::table(self::TABLE_PROJECT)->where('id', '!=', $project->id)->where('project_name', $name)->value('project_code');
             if ($nameUser !== null) {
                 throw ValidationException::withMessages([$field => ['Nama "'.$name.'" (baris company '.$this->companyLabel($toCompanyId).') sudah dipakai project '.$nameUser.'.']]);

@@ -566,15 +566,16 @@ class ProjectController extends Controller
                 throw \Illuminate\Validation\ValidationException::withMessages([ProjectOwnerDetail::FIELD_OWNER_COMPANY => ['Pilih company pemilik project, atau hapus centang "Pemilik project bukan '.$ownerDetail->defaultOwnerLabel().'".']]);
             }
             $ownerPlan = $ownerDetail->newProjectPlan($chosen);
-            if ($ownerPlan['other']) {
-                $ownerDetail->assertCodeFreeForCompany((int) $ownerPlan['owner'], (string) $request->input('project_code'));
-            }
+            // satu kode satu project: kode project (= kode baris pemilik) belum dipakai baris detail company mana pun
+            $ownerDetail->assertCodeFree((string) $request->input('project_code'));
         }
 
         if ($request->id) {
             // Update existing Project
             $project = Project::findOrFail($request->id);
             $kodeLama = (string) $project->project_code;
+            // kode baru (ikut dicerminkan ke baris pemilik) belum dipakai project lain; kode tetap = tidak dicek
+            app(ProjectOwnerDetail::class)->assertChangedCodeFree((int) $project->id, (string) $request->project_code, $kodeLama, 'project_code');
             $update = $project->update(app(MasterScope::class)->stamp('master_project', [
                 'project_code' => $request->project_code,
                 'project_name' => $request->project_name,
