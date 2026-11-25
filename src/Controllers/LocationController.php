@@ -637,6 +637,10 @@ class LocationController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
 
+        $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // id tidak ada (data dihapus permanen / salah ketik di URL) = 404, bukan 500 atau form Create kosong
+        abort_if(! $param, 404, $this->sheet_name.' dengan id '.$id.' tidak ditemukan.');
+
         // Ambil semua enum dari kolom group_type
         $data['page']['list_group_type'] = LibraryClayController::get_enum_values('master_location', 'group_type');
 
@@ -666,7 +670,6 @@ class LocationController extends Controller
             ));
         }
 
-        $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
         // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
         if ($param && ! app(MasterAccess::class)->allows('location', 'update', $param)) {
             $data['page']['readonly'] = true;
@@ -678,14 +681,8 @@ class LocationController extends Controller
          */
         $formdata = DB::table('master_'.$this->sheet_slug)->where('id', $id)->get();
 
-        /* redirect jika bukan multi insert */
-        if (empty($formdata)) {
-            if ($form_row_type == 'single') {
-                return redirect()->route('module.'.$sheet_slug.'.index')->with('error_message', 'Data not found with id '.$id.' not found in database.');
-            } else {
-                abort(403, 'data not found');
-            }
-        }
+        // dulu empty($formdata) pada Collection selalu false lalu $formdata[0] = 500; id tidak ada sudah 404 di atas
+        abort_if($formdata->isEmpty(), 404, $this->sheet_name.' dengan id '.$id.' tidak ditemukan.');
 
         $formdata_multi = $formdata;
         $formdata = $formdata[0];

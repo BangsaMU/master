@@ -555,6 +555,8 @@ class ProjectDetailController extends Controller
                 'tbl3.company_name',
             )
             ->first();
+        // id tidak ada (data dihapus permanen / salah ketik di URL) = 404, bukan 500 atau form Create kosong
+        abort_if(! $param, 404, $this->sheet_name.' dengan id '.$id.' tidak ditemukan.');
 
         // kunci form: project/company baris tidak bisa diganti; baris pemilik project juga kode/namanya (ikut Project)
         $data['page']['owner_row'] = $param !== null && app(ProjectOwnerDetail::class)->isOwnerRow($param);

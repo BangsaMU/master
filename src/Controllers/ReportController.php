@@ -348,6 +348,8 @@ class ReportController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // id tidak ada (data dihapus permanen / salah ketik di URL) = 404, bukan 500 atau form Create kosong
+        abort_if(! $param, 404, $this->sheet_name.' dengan id '.$id.' tidak ditemukan.');
 
         return view('master::master'.config('app.themes').'.'.$this->sheet_slug.'.form', compact('data', 'param'));
     }

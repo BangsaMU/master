@@ -410,6 +410,8 @@ class DepartmentController extends Controller
         $data['page']['title'] = $sheet_name;
         $data['page']['readonly'] = $this->readonly;
         $param = DB::table('master_'.$this->sheet_slug)->where('id', $id)->first();
+        // id tidak ada (data dihapus permanen / salah ketik di URL) = 404, bukan 500 atau form Create kosong
+        abort_if(! $param, 404, $this->sheet_name.' dengan id '.$id.' tidak ditemukan.');
         // baris di luar pemilik user (lain aplikasi/company) hanya bisa dilihat
         if ($param && ! app(MasterAccess::class)->allows('department', 'update', $param)) {
             $data['page']['readonly'] = true;

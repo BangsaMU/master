@@ -647,6 +647,17 @@ Sejak v3.20.0 aturan yang sama dengan Create Project (pemilik selain Meindo), Im
   (cermin baris pemilik), yang membuat/mengubah kode baris pemilik tanpa melihat baris company itu di project lain.
 - Test: `ProjectDetailCodePerCompanyTest`.
 
+## View/Edit Master: Id Tidak Ada = 404 (sejak v3.20.1)
+
+`master/{modul}/{id}` dan `master/{modul}/{id}/edit` dengan id yang tidak ada di tabel (salah ketik, dihapus permanen)
+menjawab **404**. Sebelum v3.20.1: Item Code 500 (`Attempt to read property "uom_id" on null`), Location dan Project
+500 (`empty($formdata)` pada Collection selalu false lalu `$formdata[0]`), modul lain 200 berisi form **Create** kosong
+karena view form dipakai bersama Create/Edit (`$param` null). Employee sudah 404 sejak v3.18.2 (`findOrFail`).
+
+- Setiap `edit()` modul (dipanggil juga oleh `show()`): `abort_if(! $param, 404, ...)` tepat setelah baris diambil.
+- Baris terhapus (soft delete) tetap bisa dibuka (query `edit()` tidak menyaring `deleted_at`), untuk Restore.
+- Test: `MasterMissingIdTest`.
+
 ## Konfigurasi Database (`config/database.php`)
 
 Pastikan koneksi `db_master` telah didaftarkan di aplikasi client:

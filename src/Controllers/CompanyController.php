@@ -614,6 +614,8 @@ class CompanyController extends Controller
                 'tbl2.url as company_logo_url'
             )
             ->first();
+        // id tidak ada (data dihapus permanen / salah ketik di URL) = 404, bukan 500 atau form Create kosong
+        abort_if(! $param, 404, $this->sheet_name.' dengan id '.$id.' tidak ditemukan.');
 
         $appCode = config('SsoConfig.main.APP_CODE');
         // template + logo header PDF hanya diubah di aplikasi Master Data; di aplikasi lain kartu Template hanya baca
