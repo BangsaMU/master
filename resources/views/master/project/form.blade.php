@@ -26,8 +26,9 @@
                         <div class="form-group mb-3 row">
                             <div class="col">
                                 <label>Project Code</label>
-                                {{-- panjang maksimal (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH); server tetap mengecek --}}
-                                @php($kodeMax = $data['page']['readonly'] ? null : app(\Bangsamu\Master\Services\ProjectCodePrefix::class)->maxLength())
+                                {{-- panjang maksimal menurut company pemilik (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH, _EXEMPT); Create:
+                                     pemilik dipilih kemudian, maxlength hanya bila tidak ada company yang dikecualikan. Server tetap mengecek --}}
+                                @php($kodeMax = $data['page']['readonly'] ? null : app(\Bangsamu\Master\Services\ProjectCodePrefix::class)->inputMaxLength($param ? app(\Bangsamu\Master\Services\ProjectOwnerDetail::class)->ownerCompanyIdOf($param) : null))
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                                     class="form-control @error('project_code') is-invalid @enderror" id="project_code"
                                     placeholder="Project Code" name="project_code" @if ($kodeMax) maxlength="{{ $kodeMax }}" @endif

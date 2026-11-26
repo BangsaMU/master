@@ -27,6 +27,8 @@ use Illuminate\Validation\ValidationException;
  * "perketat") panjang dicek di SETIAP simpan, juga bila kodenya tidak berubah: Create, Update, Import (baris baru dan
  * lama), Pindah pemilik, Pindah company. Data lama yang kodenya lebih panjang tidak bisa disimpan sebelum kodenya
  * dipendekkan. Restore dan Buat Detail tetap tidak dicek. Awalan tetap hanya dicek bila kode baru / berubah.
+ * Sejak v3.25.0 company tertentu bisa dikecualikan dari panjang maksimal (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH_EXEMPT,
+ * mis. "ENL"): panjang dicek menurut company yang sama dengan awalan (pemilik project / company baris).
  */
 class ProjectCodePrefix
 {
@@ -92,11 +94,60 @@ class ProjectCodePrefix
         return $max > 0 ? $max : null;
     }
 
-    /** Pesan bila $code lebih panjang dari maxLength(), null = sesuai / tanpa batas / kode kosong. */
-    public function lengthMessage(?string $code, string $label = 'Project Code'): ?string
+    /**
+     * company_code (huruf besar) yang tidak kena panjang maksimal (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH_EXEMPT, sejak
+     * v3.25.0): string dipisah koma/titik koma/spasi atau array, mis. "ENL".
+     *
+     * @return list<string>
+     */
+    public function lengthExemptCompanies(): array
+    {
+        $config = config('MasterCrudConfig.PROJECT_CODE_MAX_LENGTH_EXEMPT', []);
+        $list = is_array($config) ? $config : (preg_split('/[,;\s]+/', (string) $config) ?: []);
+
+        return array_values(array_unique(array_filter(
+            array_map(fn ($company) => strtoupper(trim((string) $company)), $list),
+            fn (string $company) => $company !== '',
+        )));
+    }
+
+    /**
+     * Panjang maksimal untuk company $companyId: null = tanpa batas (tidak diatur, atau company dikecualikan). $companyId
+     * null = company belum diketahui, berlaku batas umum.
+     */
+    public function maxLengthFor(?int $companyId): ?int
+    {
+        $max = $this->maxLength();
+        if ($max === null || $companyId === null) {
+            return $max;
+        }
+        $code = $this->companyCode($companyId);
+
+        return $code !== null && in_array($code, $this->lengthExemptCompanies(), true) ? null : $max;
+    }
+
+    /**
+     * Atribut maxlength input kode di form: company diketahui = maxLengthFor(); belum diketahui (form Create, company
+     * dipilih kemudian) = batas umum hanya bila tidak ada company yang dikecualikan, supaya kode panjang company yang
+     * dikecualikan tetap bisa diketik (server tetap mengecek).
+     */
+    public function inputMaxLength(?int $companyId = null): ?int
+    {
+        if ($companyId !== null) {
+            return $this->maxLengthFor($companyId);
+        }
+
+        return $this->lengthExemptCompanies() === [] ? $this->maxLength() : null;
+    }
+
+    /**
+     * Pesan bila $code lebih panjang dari batas company $companyId (null = batas umum), null = sesuai / tanpa batas /
+     * company dikecualikan / kode kosong.
+     */
+    public function lengthMessage(?string $code, string $label = 'Project Code', ?int $companyId = null): ?string
     {
         $code = strtoupper(trim((string) $code));
-        $max = $this->maxLength();
+        $max = $this->maxLengthFor($companyId);
         if ($code === '' || $max === null || mb_strlen($code) <= $max) {
             return null;
         }
@@ -110,7 +161,7 @@ class ProjectCodePrefix
      */
     public function message(int $companyId, ?string $code, string $label = 'Project Code'): ?string
     {
-        return $this->lengthMessage($code, $label) ?? $this->prefixMessage($companyId, $code, $label);
+        return $this->lengthMessage($code, $label, $companyId) ?? $this->prefixMessage($companyId, $code, $label);
     }
 
     /**
@@ -156,13 +207,13 @@ class ProjectCodePrefix
     }
 
     /**
-     * Kode $code tidak melebihi panjang maksimal (setiap simpan, sejak v3.24.0).
+     * Kode $code tidak melebihi panjang maksimal company $companyId (setiap simpan, sejak v3.24.0; null = batas umum).
      *
      * @throws ValidationException
      */
-    public function assertLength(?string $code, string $field = 'project_code', string $label = 'Project Code'): void
+    public function assertLength(?string $code, string $field = 'project_code', string $label = 'Project Code', ?int $companyId = null): void
     {
-        $message = $this->lengthMessage($code, $label);
+        $message = $this->lengthMessage($code, $label, $companyId);
         if ($message !== null) {
             throw ValidationException::withMessages([$field => [$message]]);
         }
@@ -178,7 +229,7 @@ class ProjectCodePrefix
     public function assertChanged(int $companyId, ?string $code, ?string $oldCode, string $field = 'project_code', string $label = 'Project Code'): void
     {
         if ($oldCode !== null && strtoupper(trim((string) $code)) === strtoupper(trim($oldCode))) {
-            $this->assertLength($code, $field, $label);
+            $this->assertLength($code, $field, $label, $companyId);
 
             return;
         }
@@ -193,14 +244,14 @@ class ProjectCodePrefix
      */
     public function messageForCompanies(array $companyIds, ?string $code, string $label = 'Project Code'): ?string
     {
-        // panjang berlaku untuk semua company (juga bila daftar company kosong)
-        if (($length = $this->lengthMessage($code, $label)) !== null) {
-            return $length;
+        // tanpa company (master_company kosong): batas umum saja
+        if ($companyIds === []) {
+            return $this->lengthMessage($code, $label);
         }
 
         $owner = $companyIds[0] ?? null;
         foreach ($companyIds as $companyId) {
-            $message = $this->prefixMessage((int) $companyId, $code, $label);
+            $message = $this->message((int) $companyId, $code, $label);
             if ($message !== null) {
                 // baris company pembuat (session delegasi) memakai kode yang sama dengan project
                 return (int) $companyId === (int) $owner ? $message : $message
@@ -228,14 +279,15 @@ class ProjectCodePrefix
     }
 
     /**
-     * Teks bantuan form, mis. "Maksimal 5 karakter · Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain bebas"; null =
-     * tanpa aturan.
+     * Teks bantuan form, mis. "Maksimal 6 karakter (kecuali ENL) · Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain
+     * bebas"; null = tanpa aturan.
      */
     public function hint(): ?string
     {
         $parts = [];
         if (($max = $this->maxLength()) !== null) {
-            $parts[] = 'Maksimal '.$max.' karakter';
+            $exempt = $this->lengthExemptCompanies();
+            $parts[] = 'Maksimal '.$max.' karakter'.($exempt !== [] ? ' (kecuali '.implode(', ', $exempt).')' : '');
         }
 
         $rules = $this->rules();

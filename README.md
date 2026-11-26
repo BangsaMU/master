@@ -698,7 +698,7 @@ Project Detail.
   OR (c.company_code = 'MEB' AND LEFT(TRIM(d.project_code_client), 1) <> '7'))`.
 - Test: `ProjectCodePrefixTest`.
 
-### Panjang maksimal kode (sejak v3.23.0, diperketat v3.24.0)
+### Panjang maksimal kode (sejak v3.23.0, diperketat v3.24.0, pengecualian company v3.25.0)
 
 `MasterCrudConfig.PROJECT_CODE_MAX_LENGTH` (env `MASTER_PROJECT_CODE_MAX_LENGTH`): panjang maksimal Project Code dan
 Project Code Client, **semua company** (Master Data Meindo: `5`, permintaan user 2026-11-26). Bawaan kosong = tanpa batas
@@ -710,6 +710,13 @@ tambahan (kolom `varchar(10)`, form Project `max:10`).
   (import tidak bisa memendekkan: kunci import = kode). Baris pemilik Project Detail mengikuti Project Code, jadi dipendekkan
   lewat Update Project (cermin). v3.23.0 hanya mengecek kode yang diketik / berubah.
 - Tidak dicek: Restore, Buat Detail, `master:project-detail-mirror`.
+- Sejak v3.25.0 `MasterCrudConfig.PROJECT_CODE_MAX_LENGTH_EXEMPT` (env `MASTER_PROJECT_CODE_MAX_LENGTH_EXEMPT`, kode company
+  dipisah koma, mis. `ENL`): company itu tidak kena batas panjang. Panjang dicek menurut company yang sama dengan awalan:
+  company pemilik project untuk Project Code, company baris untuk Project Code Client (Pindah pemilik: company tujuan; Pindah
+  company: company tujuan). Form Create tidak memasang `maxlength` bila ada company yang dikecualikan (company dipilih
+  sesudah mengetik kode); form Edit memasangnya menurut company data itu. Teks bantuan: "Maksimal 6 karakter (kecuali ENL)".
+  API: `lengthExemptCompanies()`, `maxLengthFor($companyId)`, `inputMaxLength($companyId)`, `lengthMessage($code, $label,
+  $companyId)`. Aplikasi boleh mengisi kedua config ini saat runtime (mis. Master Data dari tabel `dashboard_settings`).
 - Awalan per company tetap hanya dicek untuk kode baru / berubah (data lama berawalan lain tetap bisa disimpan).
 - Pesan: "Project Code `213290` melebihi 5 karakter (6 karakter)." Dicek sebelum awalan.
 - Form tema bawaan: atribut `maxlength` pada input kode, "Maksimal 5 karakter" di depan teks bantuan, dan peringatan

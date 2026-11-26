@@ -71,6 +71,9 @@ return [
     // di setiap simpan (Create, Update walau kode tetap, Import baris baru/lama, Pindah pemilik/company): kode lama yang
     // lebih panjang harus dipendekkan dulu. Kosong/0 (bawaan) = tanpa batas tambahan (kolom varchar(10), form max:10).
     'PROJECT_CODE_MAX_LENGTH' => env('MASTER_PROJECT_CODE_MAX_LENGTH'),
+    // company (company_code, dipisah koma) yang tidak kena PROJECT_CODE_MAX_LENGTH, mis. "ENL" (sejak v3.25.0). Panjang dicek
+    // menurut company pemilik project (Project Code) / company baris (Project Code Client). Kosong (bawaan) = semua kena.
+    'PROJECT_CODE_MAX_LENGTH_EXEMPT' => env('MASTER_PROJECT_CODE_MAX_LENGTH_EXEMPT', ''),
 
     // middleware route api/get*byparams (select2); default wajib login. ['api'] = publik (batas tabel/kolom tetap berlaku)
     'SELECT2_MIDDLEWARE' => ['web', 'auth'],

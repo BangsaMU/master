@@ -149,8 +149,11 @@ class ProjectImportDefinition extends MasterImportDefinition
 
     public function check(array $data, ?array $existing): ?string
     {
-        // panjang maksimal kode: setiap baris, juga project lama (sejak v3.24.0 data lama yang lebih panjang ditolak)
-        if (($length = app(ProjectCodePrefix::class)->lengthMessage($data['project_code'])) !== null) {
+        // panjang maksimal kode project lama (sejak v3.24.0 data lama yang lebih panjang ditolak), menurut company pemiliknya
+        // (v3.25.0: company dikecualikan, mis. ENL, bebas). Project baru dicek di prefixError() menurut rencana pemilik.
+        if ($existing !== null && ($length = app(ProjectCodePrefix::class)->lengthMessage(
+            $data['project_code'], 'Project Code', app(ProjectOwnerDetail::class)->ownerCompanyIdOf((int) $existing['id']),
+        )) !== null) {
             return $length;
         }
         $owner = $this->existingNames->get(self::upper($data['project_name']));
@@ -170,8 +173,8 @@ class ProjectImportDefinition extends MasterImportDefinition
     }
 
     /**
-     * Project baru: kode harus sesuai awalan company pemilik (+ company pembuat lewat delegasi, barisnya memakai kode
-     * yang sama), aturan sama dengan form (ProjectCodePrefix: ME 1/2/3/8/9, MEB 7, company lain bebas).
+     * Project baru: kode harus sesuai panjang maksimal + awalan company pemilik (+ company pembuat lewat delegasi, barisnya
+     * memakai kode yang sama), aturan sama dengan form (ProjectCodePrefix: ME 1/2/3/8/9, MEB 7, company lain bebas).
      */
     protected function prefixError(array $data): ?string
     {

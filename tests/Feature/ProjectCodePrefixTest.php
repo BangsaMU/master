@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\View;
  * v3.23.0 (permintaan user 2026-11-26): MasterCrudConfig.PROJECT_CODE_MAX_LENGTH = panjang maksimal kode, semua company.
  * v3.24.0 (diperketat, permintaan user yang sama): panjang dicek di setiap simpan, juga kode lama yang tidak berubah
  * (Update, Import baris lama, Pindah pemilik, Pindah company). Bawaan kosong = tanpa batas tambahan.
+ * v3.25.0: PROJECT_CODE_MAX_LENGTH_EXEMPT mengecualikan company tertentu (mis. ENL) dari panjang maksimal.
  */
 class ProjectCodePrefixTest extends TestCase
 {
@@ -474,5 +475,65 @@ class ProjectCodePrefixTest extends TestCase
         config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => null, 'MasterCrudConfig.PROJECT_CODE_PREFIX' => '']);
         $this->assertNull(app(ProjectCodePrefix::class)->hint());
         $this->get(route('master.project.create'))->assertOk()->assertDontSee('maxlength=', false);
+    }
+
+    // ---- company dikecualikan dari panjang maksimal (v3.25.0) ----
+
+    public function test_company_dikecualikan_dari_panjang_maksimal(): void
+    {
+        config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => 6, 'MasterCrudConfig.PROJECT_CODE_MAX_LENGTH_EXEMPT' => ' enl ; ']);
+        $service = app(ProjectCodePrefix::class);
+
+        $this->assertSame(['ENL'], $service->lengthExemptCompanies());
+        $this->assertNull($service->maxLengthFor(self::ENL));
+        $this->assertSame(6, $service->maxLengthFor(self::ME));
+        $this->assertSame(6, $service->maxLengthFor(null), 'company belum diketahui = batas umum');
+        $this->assertNull($service->inputMaxLength(), 'form Create: ada company dikecualikan, tanpa maxlength');
+        $this->assertSame(6, $service->inputMaxLength(self::MEB));
+        $this->assertSame('Maksimal 6 karakter (kecuali ENL) · Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain bebas', $service->hint());
+
+        // Create: ENL 7 karakter boleh, ME 7 karakter ditolak, ME 6 karakter boleh
+        $enl = ['project_owner_other' => '1', 'project_owner_company_id' => self::ENL];
+        $this->buatProject('LTS1100', $enl)->assertSessionHasNoErrors();
+        $this->buatProject('2133000')->assertSessionHasErrors(['project_code' => 'Project Code 2133000 melebihi 6 karakter (7 karakter).']);
+        $this->buatProject('21302M')->assertSessionHasNoErrors();
+        $lotus = (int) DB::table('master_project')->where('project_code', 'LTS1100')->value('id');
+        $this->assertSame(self::ENL, (int) DB::table('master_project')->where('id', $lotus)->value('owner_company_id'));
+
+        // Update project ENL berkode panjang boleh; project ME lama 7 karakter ditolak
+        $this->post(route('master.project.store'), ['id' => $lotus, 'project_code' => 'LTS1100', 'project_name' => 'Lotus 1100'])->assertSessionHasNoErrors();
+        $lama = $this->project('2130201');
+        $this->post(route('master.project.store'), ['id' => $lama, 'project_code' => '2130201', 'project_name' => 'Nama Baru'])
+            ->assertSessionHasErrors(['project_code' => 'Project Code 2130201 melebihi 6 karakter (7 karakter).']);
+
+        // Project Detail: baris ENL panjang boleh, baris MEB panjang ditolak
+        $this->tambahDetail($this->projectMe, self::ENL, 'ENL0001')->assertSessionHasNoErrors();
+        $this->tambahDetail($this->projectMe, self::MEB, '7302801')
+            ->assertSessionHasErrors(['project_code_client' => 'Project Code Client 7302801 melebihi 6 karakter (7 karakter).']);
+
+        // form: Create tanpa maxlength, Edit project ME maxlength 6, Edit project ENL tanpa maxlength / peringatan
+        $this->get(route('master.project.create'))->assertOk()->assertDontSee('maxlength=', false);
+        $this->get(route('master.project.edit', $this->projectMe))->assertOk()->assertSee('maxlength="6"', false);
+        $this->get(route('master.project.edit', $lotus))->assertOk()->assertDontSee('maxlength=', false)->assertDontSee('data-project-code-too-long', false);
+        $this->get(route('master.project.edit', $lama))->assertOk()->assertSee('data-project-code-too-long', false);
+
+        // import: project ENL lama + baru panjang boleh, project ME baru panjang ditolak; baris detail ENL panjang boleh
+        $token = $this->upload('project', "Project Code,Project Name,Project Type,Owner Company Code\n"
+            ."LTS1100,Lotus 1100 B,E,ENL\nEH11010,Eka Hindia,E,ENL\n2133001,Proyek Panjang,E,\n");
+        $rows = $this->preview('project', $token);
+        $this->assertNotSame('error', $rows[0]['status'], (string) ($rows[0]['message'] ?? ''));
+        $this->assertSame(['new', 'error'], [$rows[1]['status'], $rows[2]['status']]);
+        $this->assertSame('Project Code 2133001 melebihi 6 karakter (7 karakter).', $rows[2]['message']);
+        $token = $this->upload('project-detail', "Project Code,Project Code Client,Project Name Client,Company Code\n"
+            ."73029,ENL0002,ENL di project MEB,ENL\n73029,2132901,ME panjang,ME\n");
+        $rows = $this->preview('project-detail', $token);
+        $this->assertSame(['new', 'error'], array_column($rows, 'status'));
+
+        // Pindah pemilik project ME 7 karakter: ke ENL boleh (dikecualikan), ke MEB ditolak
+        $this->post(route('master.project.transfer-owner', $lama), ['to_company_id' => self::MEB, 'confirm_transfer' => '1'])
+            ->assertSessionHasErrors('to_company_id');
+        $this->post(route('master.project.transfer-owner', $lama), ['to_company_id' => self::ENL, 'confirm_transfer' => '1'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(self::ENL, (int) DB::table('master_project')->where('id', $lama)->value('owner_company_id'));
     }
 }
