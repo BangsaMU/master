@@ -100,6 +100,21 @@ class ProjectImportDefinition extends MasterImportDefinition
         ];
     }
 
+    /**
+     * File Projects Detail diunggah ke import Project (kejadian prod 2026-11-26): ada kolom Project Code Client / Company Code,
+     * tidak ada Project Name. Tanpa ini semua baris error "Project Name wajib diisi" dan penyebabnya tidak terlihat.
+     */
+    public function fileError(array $headings): ?string
+    {
+        $detailColumns = array_intersect(['projectcodeclient', 'companycode'], $headings);
+        if ($detailColumns === [] || in_array('projectname', $headings, true)) {
+            return null;
+        }
+
+        return 'File ini sepertinya file import Projects Detail (ada kolom Project Code Client / Company Code, tidak ada kolom '
+            .'Project Name): unggah lewat menu Projects Detail → Import. Untuk import Project pakai template import Project.';
+    }
+
     public function validate(array $data): ?string
     {
         return match (true) {

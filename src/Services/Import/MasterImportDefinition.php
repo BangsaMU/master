@@ -158,6 +158,24 @@ abstract class MasterImportDefinition
     public function readHeader(array $header): void {}
 
     /**
+     * Alasan file ditolak seluruhnya sebelum preview (mis. file modul lain diunggah ke import ini), null = lanjut. $headings =
+     * judul kolom baris pertama yang sudah dinormalisasi (huruf kecil, tanpa spasi/tanda baca: "Project Code Client" →
+     * "projectcodeclient"). Hanya untuk import ber-heading row (usesHeadingRow()).
+     *
+     * @param  list<string>  $headings
+     */
+    public function fileError(array $headings): ?string
+    {
+        return null;
+    }
+
+    /** Judul kolom dinormalisasi untuk fileError(): huruf kecil, hanya huruf dan angka. */
+    public static function normalizeHeading(mixed $heading): string
+    {
+        return (string) preg_replace('/[^a-z0-9]/', '', strtolower((string) $heading));
+    }
+
+    /**
      * Data tambahan hasil baca file yang perlu disimpan bersama preview.
      *
      * @return array<string, mixed>

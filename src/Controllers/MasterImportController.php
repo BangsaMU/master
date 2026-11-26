@@ -41,6 +41,11 @@ class MasterImportController extends Controller
 
         $rows = $this->service->readFile($definition, $file);
 
+        // file modul lain (mis. file Projects Detail di import Project): tolak seluruh file dengan petunjuk menu yang benar
+        if (($fileError = $definition->fileError($this->service->lastHeadings())) !== null) {
+            return redirect()->route($definition->indexRoute())->with('error_message', [$fileError]);
+        }
+
         if ($rows === []) {
             return redirect()->route($definition->indexRoute())->with('error_message', ['File tidak berisi data untuk diimport.']);
         }

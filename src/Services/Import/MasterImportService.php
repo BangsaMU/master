@@ -147,6 +147,19 @@ class MasterImportService
         return checkPermission('is_admin') || checkPermission($permission);
     }
 
+    /** @var list<string> judul kolom (dinormalisasi) file terakhir yang dibaca readFile() */
+    protected array $lastHeadings = [];
+
+    /**
+     * Judul kolom file terakhir yang dibaca readFile(), dinormalisasi (MasterImportDefinition::normalizeHeading).
+     *
+     * @return list<string>
+     */
+    public function lastHeadings(): array
+    {
+        return $this->lastHeadings;
+    }
+
     /**
      * Baca sheet pertama file menjadi baris ter-normalisasi.
      *
@@ -166,6 +179,14 @@ class MasterImportService
         };
 
         $sheet = Excel::toCollection($reader, $file)->first() ?? collect();
+
+        // judul kolom (heading row) untuk fileError(): kunci baris pertama yang dibaca WithHeadingRow
+        $this->lastHeadings = $definition->usesHeadingRow() && $sheet->isNotEmpty()
+            ? array_values(array_filter(array_map(
+                fn ($heading) => MasterImportDefinition::normalizeHeading($heading),
+                array_keys($sheet->first()->toArray()),
+            ), fn (string $heading) => $heading !== '' && ! ctype_digit($heading)))
+            : [];
 
         $rows = [];
         foreach ($sheet as $index => $raw) {

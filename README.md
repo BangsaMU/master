@@ -171,6 +171,14 @@ juga masuk ke preview, bukan lagi `Imports\Master\*Import` yang langsung menyimp
 otomatis tanpa saklar dan tanpa activity log). Form yang masih memakai route itu kini diarahkan ke halaman preview.
 Employee tetap import langsung (belum ada definisi preview; kode posisi/lokasi yang salah ditolak).
 
+Sejak v3.26.0 definisi boleh menolak **seluruh file** sebelum preview lewat `fileError(array $headings): ?string` (judul kolom
+baris pertama dinormalisasi `MasterImportDefinition::normalizeHeading()`: "Project Code Client" → `projectcodeclient`;
+`MasterImportService::lastHeadings()`). Pesan tampil sebagai `error_message` di halaman daftar modul. Dipakai Project dan
+Projects Detail: file Projects Detail (ada Project Code Client / Company Code, tanpa Project Name) di import Project, dan
+file Project (ada Project Name, tanpa Project Code Client) di import Projects Detail, ditolak dengan petunjuk menu yang
+benar. Latar: prod 2026-11-26, file `import-project-detail-MEB-....xlsx` diunggah ke import Project dan ketujuh baris hanya
+error "Project Name wajib diisi". Test: `ProjectImportWrongFileTest`.
+
 ## Data Terhapus: Pesan Kode Terpakai dan Restore (sejak v3.5.0)
 
 Data master dihapus secara soft delete, dan kodenya tetap terpakai (rule unik menghitung baris terhapus, sama dengan

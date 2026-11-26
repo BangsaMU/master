@@ -83,6 +83,20 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
         return app(ProjectDetailNumberReset::class);
     }
 
+    /**
+     * File Project diunggah ke import Projects Detail: ada kolom Project Name, tidak ada Project Code Client (pasangan
+     * ProjectImportDefinition::fileError).
+     */
+    public function fileError(array $headings): ?string
+    {
+        if (! in_array('projectname', $headings, true) || in_array('projectcodeclient', $headings, true)) {
+            return null;
+        }
+
+        return 'File ini sepertinya file import Project (ada kolom Project Name, tidak ada kolom Project Code Client): unggah '
+            .'lewat menu Project → Import. Untuk import Projects Detail pakai template import Projects Detail.';
+    }
+
     public function normalize(array $raw): array
     {
         return [
