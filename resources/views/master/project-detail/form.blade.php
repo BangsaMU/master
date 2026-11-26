@@ -56,6 +56,11 @@
                             @if ($kodeHint)
                                 <div class="form-text" data-project-code-hint>{{ $kodeHint }} (menurut Company baris ini)</div>
                             @endif
+                            {{-- kode lama lebih panjang dari batas: setiap simpan ditolak sampai kodenya dipendekkan (v3.24.0) --}}
+                            @php($kodeMaxCek = $data['page']['readonly'] ? null : app(\Bangsamu\Master\Services\ProjectCodePrefix::class)->maxLength())
+                            @if ($kodeMaxCek && $param && mb_strlen(trim((string) ($param->project_code_client ?? ''))) > $kodeMaxCek)
+                                <div class="form-text text-danger" data-project-code-too-long>Kode lama ini melebihi {{ $kodeMaxCek }} karakter: pendekkan dulu{{ ! empty($data['page']['owner_row']) ? ' lewat Update Project (baris pemilik mengikuti Project Code)' : '' }}, baris ini tidak bisa disimpan dengan kode ini.</div>
+                            @endif
                         </div>
                         <div class="form-group mb-3">
                             <label for="project_name_client">Project Name Client</label>

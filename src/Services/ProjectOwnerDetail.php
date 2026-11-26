@@ -751,8 +751,8 @@ class ProjectOwnerDetail
             if ($other !== null) {
                 throw ValidationException::withMessages([$field => ['Company '.$this->companyLabel($toCompanyId).' sudah punya baris di project ini (id '.$other->id.(filled($other->deleted_at) ? ', terhapus' : '').'): bila baris ini dobel, hapus saja baris ini.']]);
             }
-            // kode baris tetap, jadi harus sesuai awalan company tujuan (ME 1/2/3/8/9, MEB 7, ...)
-            if (($prefixError = app(ProjectCodePrefix::class)->prefixMessage($toCompanyId, (string) $detail->project_code_client, 'Project Code Client')) !== null) {
+            // kode baris tetap, jadi harus sesuai panjang maksimal + awalan company tujuan (ME 1/2/3/8/9, MEB 7, ...)
+            if (($prefixError = app(ProjectCodePrefix::class)->message($toCompanyId, (string) $detail->project_code_client, 'Project Code Client')) !== null) {
                 throw ValidationException::withMessages([$field => [$prefixError.' Pindah company tidak mengubah kode baris: pilih company lain, atau hapus baris ini lalu tambah baris baru dengan kode yang sesuai.']]);
             }
 
@@ -896,8 +896,8 @@ class ProjectOwnerDetail
             if ($codeUser !== null) {
                 throw ValidationException::withMessages([$field => ['Kode '.$code.' (baris company '.$this->companyLabel($toCompanyId).') sudah dipakai project lain sebagai Project Code.']]);
             }
-            // kode project baru (= kode baris tujuan) harus sesuai awalan company pemilik baru (ME 1/2/3/8/9, MEB 7, ...)
-            if (($prefixError = app(ProjectCodePrefix::class)->prefixMessage($toCompanyId, $code)) !== null) {
+            // kode project baru (= kode baris tujuan): panjang maksimal + awalan company pemilik baru (ME 1/2/3/8/9, MEB 7, ...)
+            if (($prefixError = app(ProjectCodePrefix::class)->message($toCompanyId, $code)) !== null) {
                 throw ValidationException::withMessages([$field => [$prefixError.($rowStatus === 'created'
                     ? ' Ubah dulu Project Code project ini, atau tambahkan baris Project Detail company itu dengan kode yang sesuai, lalu pindahkan pemiliknya.'
                     : ' Kode ini diambil dari baris Project Detail company itu: ubah dulu kodenya di Project Detail.')]]);

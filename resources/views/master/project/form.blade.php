@@ -40,6 +40,10 @@
                                 @if ($kodeHint)
                                     <div class="form-text" data-project-code-hint>{{ $kodeHint }} (menurut company pemilik project)</div>
                                 @endif
+                                {{-- kode lama lebih panjang dari batas: setiap simpan ditolak sampai kodenya dipendekkan (v3.24.0) --}}
+                                @if ($kodeMax && $param && mb_strlen(trim((string) ($param->project_code ?? ''))) > $kodeMax)
+                                    <div class="form-text text-danger" data-project-code-too-long>Kode lama ini melebihi {{ $kodeMax }} karakter: pendekkan dulu, project tidak bisa disimpan dengan kode ini.</div>
+                                @endif
                             </div>
                             <div class="col">
                                 <label>Project Name</label>

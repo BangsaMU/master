@@ -67,9 +67,9 @@ return [
     // MEB berawalan 7, company lain bebas. Dicek saat kode dibuat/diubah (form, import, Pindah pemilik/company).
     // Kosong (bawaan) = tanpa aturan. Boleh juga array ['ME' => ['1', '2'], 'MEB' => '7'].
     'PROJECT_CODE_PREFIX' => env('MASTER_PROJECT_CODE_PREFIX', ''),
-    // panjang maksimal Project Code dan Project Code Client yang diketik (Create, ubah kode, Import baru), semua company,
-    // Services\ProjectCodePrefix. Kosong/0 (bawaan) = tanpa batas tambahan (kolom varchar(10), form Project max:10).
-    // Kode lama yang lebih panjang tetap bisa disimpan selama kodenya tidak diubah.
+    // panjang maksimal Project Code dan Project Code Client, semua company, Services\ProjectCodePrefix. Sejak v3.24.0 dicek
+    // di setiap simpan (Create, Update walau kode tetap, Import baris baru/lama, Pindah pemilik/company): kode lama yang
+    // lebih panjang harus dipendekkan dulu. Kosong/0 (bawaan) = tanpa batas tambahan (kolom varchar(10), form max:10).
     'PROJECT_CODE_MAX_LENGTH' => env('MASTER_PROJECT_CODE_MAX_LENGTH'),
 
     // middleware route api/get*byparams (select2); default wajib login. ['api'] = publik (batas tabel/kolom tetap berlaku)

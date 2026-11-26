@@ -698,19 +698,24 @@ Project Detail.
   OR (c.company_code = 'MEB' AND LEFT(TRIM(d.project_code_client), 1) <> '7'))`.
 - Test: `ProjectCodePrefixTest`.
 
-### Panjang maksimal kode (sejak v3.23.0)
+### Panjang maksimal kode (sejak v3.23.0, diperketat v3.24.0)
 
 `MasterCrudConfig.PROJECT_CODE_MAX_LENGTH` (env `MASTER_PROJECT_CODE_MAX_LENGTH`): panjang maksimal Project Code dan
 Project Code Client, **semua company** (Master Data Meindo: `5`, permintaan user 2026-11-26). Bawaan kosong = tanpa batas
 tambahan (kolom `varchar(10)`, form Project `max:10`).
 
-- Dicek di jalan yang sama dengan awalan untuk kode yang **diketik**: Create Project (+ route lama app), Edit kode,
-  Import Project baru, tambah / ubah kode Project Detail, Import Project Detail baris baru. Kode tetap = tidak dicek, jadi
-  kode lama yang lebih panjang (hub dev: `21302M`, `23000N`) tetap bisa diubah nama/tanggalnya.
-- **Tidak** dicek di Pindah pemilik dan Pindah company (`prefixMessage()`, hanya awalan): kodenya kode yang sudah ada.
+- Sejak v3.24.0 dicek di **setiap simpan**, juga bila kodenya tidak berubah: Create Project (+ route lama app), Update
+  Project / Project Detail, Import Project dan Project Detail (baris baru **dan** lama), Pindah pemilik, Pindah company.
+  Kode lama yang lebih panjang (hub dev: `21302M`, `23000N`) tidak bisa disimpan sebelum kodenya dipendekkan lewat Update
+  (import tidak bisa memendekkan: kunci import = kode). Baris pemilik Project Detail mengikuti Project Code, jadi dipendekkan
+  lewat Update Project (cermin). v3.23.0 hanya mengecek kode yang diketik / berubah.
+- Tidak dicek: Restore, Buat Detail, `master:project-detail-mirror`.
+- Awalan per company tetap hanya dicek untuk kode baru / berubah (data lama berawalan lain tetap bisa disimpan).
 - Pesan: "Project Code `213290` melebihi 5 karakter (6 karakter)." Dicek sebelum awalan.
-- Form tema bawaan: atribut `maxlength` pada input kode dan "Maksimal 5 karakter" di depan teks bantuan.
-- API: `maxLength()`, `lengthMessage($code, $label)`; `message()` = panjang + awalan, `prefixMessage()` = awalan saja.
+- Form tema bawaan: atribut `maxlength` pada input kode, "Maksimal 5 karakter" di depan teks bantuan, dan peringatan
+  merah (`data-project-code-too-long`) di form Edit bila kode lama melebihi batas.
+- API: `maxLength()`, `lengthMessage($code, $label)`, `assertLength()`; `message()` = panjang + awalan, `prefixMessage()` =
+  awalan saja; `assertChanged()` = panjang selalu, awalan bila kode berubah.
 - Cek data lama: `SELECT id, project_code FROM master_project WHERE deleted_at IS NULL AND CHAR_LENGTH(TRIM(project_code))
   > 5` (dan yang sama untuk `master_project_detail.project_code_client`).
 

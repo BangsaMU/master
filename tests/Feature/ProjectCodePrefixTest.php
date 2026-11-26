@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\View;
  * Project baru, Pindah pemilik) dan Project Code Client (company baris: tambah, ubah kode, Import baris baru, Pindah
  * company). Kode yang tidak berubah tidak dicek (data lama), config kosong = tanpa aturan.
  *
- * v3.23.0 (permintaan user 2026-11-26): MasterCrudConfig.PROJECT_CODE_MAX_LENGTH = panjang maksimal kode yang diketik,
- * semua company (Create, ubah kode, Import baru). Pindah pemilik / Pindah company tidak mengecek panjang (kode yang sudah
- * ada). Bawaan kosong = tanpa batas tambahan.
+ * v3.23.0 (permintaan user 2026-11-26): MasterCrudConfig.PROJECT_CODE_MAX_LENGTH = panjang maksimal kode, semua company.
+ * v3.24.0 (diperketat, permintaan user yang sama): panjang dicek di setiap simpan, juga kode lama yang tidak berubah
+ * (Update, Import baris lama, Pindah pemilik, Pindah company). Bawaan kosong = tanpa batas tambahan.
  */
 class ProjectCodePrefixTest extends TestCase
 {
@@ -377,12 +377,21 @@ class ProjectCodePrefixTest extends TestCase
         $this->buatProject('21330')->assertSessionHasNoErrors();
         $this->buatProject('ENLGN', ['project_owner_other' => '1', 'project_owner_company_id' => self::ENL])->assertSessionHasNoErrors();
 
-        // ubah kode jadi 6 karakter ditolak; kode lama 6 karakter (sebelum aturan) tetap bisa diubah namanya
+        // ubah kode jadi 6 karakter ditolak
         $this->post(route('master.project.store'), ['id' => $this->projectMe, 'project_code' => '213291', 'project_name' => 'Project 21329', 'confirm_key_change' => '1'])
             ->assertSessionHasErrors(['project_code' => 'Project Code 213291 melebihi 5 karakter (6 karakter).']);
+
+        // v3.24.0 (diperketat): kode lama 6 karakter (sebelum aturan) juga ditolak walau kodenya tidak diubah ...
         $lama = $this->project('21302M');
-        $this->post(route('master.project.store'), ['id' => $lama, 'project_code' => '21302M', 'project_name' => 'Nama Baru'])->assertSessionHasNoErrors();
-        $this->assertSame('Nama Baru', DB::table('master_project')->where('id', $lama)->value('project_name'));
+        $this->post(route('master.project.store'), ['id' => $lama, 'project_code' => '21302M', 'project_name' => 'Nama Baru'])
+            ->assertSessionHasErrors(['project_code' => 'Project Code 21302M melebihi 5 karakter (6 karakter).']);
+        $this->assertSame('Project 21302M', DB::table('master_project')->where('id', $lama)->value('project_name'));
+        $this->get(route('master.project.edit', $lama))->assertOk()->assertSee('data-project-code-too-long', false);
+        // ... sampai kodenya dipendekkan
+        $this->post(route('master.project.store'), ['id' => $lama, 'project_code' => '21302', 'project_name' => 'Nama Baru', 'confirm_key_change' => '1'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('21302', DB::table('master_project')->where('id', $lama)->value('project_code'));
+        $this->get(route('master.project.edit', $lama))->assertOk()->assertDontSee('data-project-code-too-long', false);
     }
 
     public function test_panjang_maksimal_project_code_client(): void
@@ -402,9 +411,17 @@ class ProjectCodePrefixTest extends TestCase
             'project_name_client' => 'Klien 73028', 'confirm_key_change' => '1',
         ])->assertSessionHasErrors(['project_code_client' => 'Project Code Client 730289 melebihi 5 karakter (6 karakter).']);
         $this->assertSame('73028', DB::table('master_project_detail')->where('id', $baris)->value('project_code_client'));
+
+        // v3.24.0: baris lama 6 karakter tidak bisa disimpan walau kodenya tidak diubah
+        $lama = $this->detail($this->projectMe, self::ENL, 'ENL001');
+        $this->post(route('master.project-detail.store'), [
+            'id' => $lama, 'project_id' => $this->projectMe, 'company_id' => self::ENL, 'project_code_client' => 'ENL001', 'project_name_client' => 'Nama Baru',
+        ])->assertSessionHasErrors(['project_code_client' => 'Project Code Client ENL001 melebihi 5 karakter (6 karakter).']);
+        $this->assertSame('Klien ENL001', DB::table('master_project_detail')->where('id', $lama)->value('project_name_client'));
+        $this->get(route('master.project-detail.edit', $lama))->assertOk()->assertSee('data-project-code-too-long', false);
     }
 
-    public function test_panjang_maksimal_di_import_dan_tidak_dicek_saat_pindah_company(): void
+    public function test_panjang_maksimal_di_import_pindah_company_dan_pindah_pemilik(): void
     {
         config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => 5]);
 
@@ -419,11 +436,30 @@ class ProjectCodePrefixTest extends TestCase
         $this->assertSame(['error', 'new'], array_column($rows, 'status'));
         $this->assertSame('Project Code Client 730281 melebihi 5 karakter (6 karakter).', $rows[0]['message']);
 
-        // baris lama 6 karakter yang company-nya terhapus: kode tidak diketik, jadi hanya awalan yang dicek
+        // v3.24.0: baris / project lama di import juga dicek (kunci import = kode, jadi tidak bisa dipendekkan lewat import)
+        $lamaProject = $this->project('21302M');
+        $this->detail($this->projectMe, self::ENL, 'ENL001');
+        $token = $this->upload('project', "Project Code,Project Name,Project Type\n21302M,Nama Baru,E\n");
+        $rows = $this->preview('project', $token);
+        $this->assertSame(['error'], array_column($rows, 'status'));
+        $this->assertSame('Project Code 21302M melebihi 5 karakter (6 karakter).', $rows[0]['message']);
+        $token = $this->upload('project-detail', "Project Code,Project Code Client,Project Name Client,Company Code\n21329,ENL001,Nama Baru,ENL\n");
+        $rows = $this->preview('project-detail', $token);
+        $this->assertSame(['error'], array_column($rows, 'status'));
+        $this->assertSame('Project Code Client ENL001 melebihi 5 karakter (6 karakter).', $rows[0]['message']);
+
+        // v3.24.0: Pindah company baris lama 6 karakter ditolak
         $phm = $this->detail($this->projectMeb, self::PHM, '21801X');
         $this->post(route('master.project-detail.move-company', $phm), ['move_company_id' => self::ME, 'confirm_move_company' => '1'])
-            ->assertSessionHasNoErrors();
-        $this->assertSame(self::ME, (int) DB::table('master_project_detail')->where('id', $phm)->value('company_id'));
+            ->assertSessionHasErrors(['move_company_id' => 'Project Code Client 21801X melebihi 5 karakter (6 karakter).'
+                .' Pindah company tidak mengubah kode baris: pilih company lain, atau hapus baris ini lalu tambah baris baru dengan kode yang sesuai.']);
+        $this->assertSame(self::PHM, (int) DB::table('master_project_detail')->where('id', $phm)->value('company_id'));
+
+        // v3.24.0: Pindah pemilik project lama 6 karakter ditolak (ENL bebas awalan, jadi yang menolak = panjang)
+        $this->post(route('master.project.transfer-owner', $lamaProject), ['to_company_id' => self::ENL, 'confirm_transfer' => '1'])
+            ->assertSessionHasErrors(['to_company_id' => 'Project Code 21302M melebihi 5 karakter (6 karakter).'
+                .' Ubah dulu Project Code project ini, atau tambahkan baris Project Detail company itu dengan kode yang sesuai, lalu pindahkan pemiliknya.']);
+        $this->assertNull(DB::table('master_project')->where('id', $lamaProject)->value('owner_company_id'));
     }
 
     public function test_form_menampilkan_batas_panjang(): void

@@ -197,6 +197,10 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
         if (! $this->companies->has($data['company_code'])) {
             return "Company Code '{$data['company_code']}' tidak ditemukan di master company.";
         }
+        // panjang maksimal Project Code Client: setiap baris, juga baris lama (sejak v3.24.0)
+        if (($length = app(ProjectCodePrefix::class)->lengthMessage($data['project_code_client'], 'Project Code Client')) !== null) {
+            return $length;
+        }
 
         // baris pemilik project: kode/nama mengikuti Project, tidak diubah lewat import Project Detail
         if ($existing !== null && ($row = DB::table('master_project_detail')->where('id', $existing['id'])->first()) !== null) {

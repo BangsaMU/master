@@ -23,9 +23,10 @@ use Illuminate\Validation\ValidationException;
  * Kode company dan awalan tidak membedakan huruf besar/kecil; awalan boleh lebih dari satu karakter (mis. `71`).
  *
  * Sejak v3.23.0 juga panjang maksimal kode (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH, env MASTER_PROJECT_CODE_MAX_LENGTH,
- * kosong/0 = tanpa batas tambahan selain kolom), untuk semua company: Project Code dan Project Code Client yang diketik
- * (Create, ubah kode, Import baru). Pindah pemilik dan Pindah company hanya mengecek awalan (prefixMessage), karena
- * kodenya tidak diketik melainkan kode yang sudah ada; data lama yang lebih panjang tetap bisa diubah namanya.
+ * kosong/0 = tanpa batas tambahan selain kolom), untuk semua company. Sejak v3.24.0 (permintaan user 2026-11-26
+ * "perketat") panjang dicek di SETIAP simpan, juga bila kodenya tidak berubah: Create, Update, Import (baris baru dan
+ * lama), Pindah pemilik, Pindah company. Data lama yang kodenya lebih panjang tidak bisa disimpan sebelum kodenya
+ * dipendekkan. Restore dan Buat Detail tetap tidak dicek. Awalan tetap hanya dicek bila kode baru / berubah.
  */
 class ProjectCodePrefix
 {
@@ -113,7 +114,7 @@ class ProjectCodePrefix
     }
 
     /**
-     * Hanya awalan company $companyId (Pindah pemilik / Pindah company: kode yang sudah ada, panjangnya tidak dicek).
+     * Hanya awalan company $companyId, tanpa panjang maksimal.
      * null = sesuai / bebas / kode kosong.
      */
     public function prefixMessage(int $companyId, ?string $code, string $label = 'Project Code'): ?string
@@ -142,7 +143,7 @@ class ProjectCodePrefix
     }
 
     /**
-     * Kode $code harus sesuai awalan company $companyId.
+     * Kode $code harus sesuai panjang maksimal dan awalan company $companyId.
      *
      * @throws ValidationException
      */
@@ -155,14 +156,30 @@ class ProjectCodePrefix
     }
 
     /**
-     * assert() hanya bila kode berubah dari $oldCode (null = data baru, selalu dicek): data lama di luar aturan tetap
-     * bisa disimpan selama kodenya tidak diubah.
+     * Kode $code tidak melebihi panjang maksimal (setiap simpan, sejak v3.24.0).
+     *
+     * @throws ValidationException
+     */
+    public function assertLength(?string $code, string $field = 'project_code', string $label = 'Project Code'): void
+    {
+        $message = $this->lengthMessage($code, $label);
+        if ($message !== null) {
+            throw ValidationException::withMessages([$field => [$message]]);
+        }
+    }
+
+    /**
+     * Simpan data lama (Update): panjang maksimal SELALU dicek (sejak v3.24.0, juga bila kode tidak berubah, jadi kode
+     * lama yang lebih panjang harus dipendekkan dulu), awalan hanya bila kode berubah dari $oldCode (null = data baru,
+     * selalu dicek): data lama dengan awalan di luar aturan tetap bisa disimpan selama kodenya tidak diubah.
      *
      * @throws ValidationException
      */
     public function assertChanged(int $companyId, ?string $code, ?string $oldCode, string $field = 'project_code', string $label = 'Project Code'): void
     {
         if ($oldCode !== null && strtoupper(trim((string) $code)) === strtoupper(trim($oldCode))) {
+            $this->assertLength($code, $field, $label);
+
             return;
         }
 

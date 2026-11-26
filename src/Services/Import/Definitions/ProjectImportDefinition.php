@@ -149,6 +149,10 @@ class ProjectImportDefinition extends MasterImportDefinition
 
     public function check(array $data, ?array $existing): ?string
     {
+        // panjang maksimal kode: setiap baris, juga project lama (sejak v3.24.0 data lama yang lebih panjang ditolak)
+        if (($length = app(ProjectCodePrefix::class)->lengthMessage($data['project_code'])) !== null) {
+            return $length;
+        }
         $owner = $this->existingNames->get(self::upper($data['project_name']));
         if ($owner && self::upper($owner->project_code) !== $data['project_code']) {
             return "Project Name '{$data['project_name']}' sudah dipakai Project Code '{$owner->project_code}'.";
