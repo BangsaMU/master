@@ -21,6 +21,11 @@ use Illuminate\Validation\ValidationException;
  *
  * Bentuk config: string `KODE_COMPANY:awalan,awalan;KODE_COMPANY:awalan` atau array ['ME' => ['1', '2'], 'MEB' => '7'].
  * Kode company dan awalan tidak membedakan huruf besar/kecil; awalan boleh lebih dari satu karakter (mis. `71`).
+ *
+ * Sejak v3.23.0 juga panjang maksimal kode (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH, env MASTER_PROJECT_CODE_MAX_LENGTH,
+ * kosong/0 = tanpa batas tambahan selain kolom), untuk semua company: Project Code dan Project Code Client yang diketik
+ * (Create, ubah kode, Import baru). Pindah pemilik dan Pindah company hanya mengecek awalan (prefixMessage), karena
+ * kodenya tidak diketik melainkan kode yang sudah ada; data lama yang lebih panjang tetap bisa diubah namanya.
  */
 class ProjectCodePrefix
 {
@@ -78,8 +83,40 @@ class ProjectCodePrefix
         return $code !== null ? ($rules[$code] ?? []) : [];
     }
 
-    /** Pesan bila $code tidak sesuai awalan company $companyId, null = sesuai / bebas / kode kosong. */
+    /** Panjang maksimal kode project (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH), null = tanpa batas tambahan. */
+    public function maxLength(): ?int
+    {
+        $max = (int) config('MasterCrudConfig.PROJECT_CODE_MAX_LENGTH', 0);
+
+        return $max > 0 ? $max : null;
+    }
+
+    /** Pesan bila $code lebih panjang dari maxLength(), null = sesuai / tanpa batas / kode kosong. */
+    public function lengthMessage(?string $code, string $label = 'Project Code'): ?string
+    {
+        $code = strtoupper(trim((string) $code));
+        $max = $this->maxLength();
+        if ($code === '' || $max === null || mb_strlen($code) <= $max) {
+            return null;
+        }
+
+        return $label.' '.$code.' melebihi '.$max.' karakter ('.mb_strlen($code).' karakter).';
+    }
+
+    /**
+     * Aturan lengkap untuk kode yang diketik (baru / diubah): panjang maksimal lalu awalan company $companyId. null =
+     * sesuai / bebas / kode kosong.
+     */
     public function message(int $companyId, ?string $code, string $label = 'Project Code'): ?string
+    {
+        return $this->lengthMessage($code, $label) ?? $this->prefixMessage($companyId, $code, $label);
+    }
+
+    /**
+     * Hanya awalan company $companyId (Pindah pemilik / Pindah company: kode yang sudah ada, panjangnya tidak dicek).
+     * null = sesuai / bebas / kode kosong.
+     */
+    public function prefixMessage(int $companyId, ?string $code, string $label = 'Project Code'): ?string
     {
         $code = strtoupper(trim((string) $code));
         $prefixes = $this->prefixesFor($companyId);
@@ -139,9 +176,14 @@ class ProjectCodePrefix
      */
     public function messageForCompanies(array $companyIds, ?string $code, string $label = 'Project Code'): ?string
     {
+        // panjang berlaku untuk semua company (juga bila daftar company kosong)
+        if (($length = $this->lengthMessage($code, $label)) !== null) {
+            return $length;
+        }
+
         $owner = $companyIds[0] ?? null;
         foreach ($companyIds as $companyId) {
-            $message = $this->message((int) $companyId, $code, $label);
+            $message = $this->prefixMessage((int) $companyId, $code, $label);
             if ($message !== null) {
                 // baris company pembuat (session delegasi) memakai kode yang sama dengan project
                 return (int) $companyId === (int) $owner ? $message : $message
@@ -169,21 +211,26 @@ class ProjectCodePrefix
     }
 
     /**
-     * Teks bantuan form, mis. "Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain bebas"; null = tanpa aturan.
+     * Teks bantuan form, mis. "Maksimal 5 karakter · Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain bebas"; null =
+     * tanpa aturan.
      */
     public function hint(): ?string
     {
-        $rules = $this->rules();
-        if ($rules === []) {
-            return null;
-        }
-
         $parts = [];
-        foreach ($rules as $company => $prefixes) {
-            $parts[] = $company.' '.implode(', ', $prefixes);
+        if (($max = $this->maxLength()) !== null) {
+            $parts[] = 'Maksimal '.$max.' karakter';
         }
 
-        return 'Awalan kode: '.implode(' · ', $parts).' · company lain bebas';
+        $rules = $this->rules();
+        if ($rules !== []) {
+            $prefixes = [];
+            foreach ($rules as $company => $list) {
+                $prefixes[] = $company.' '.implode(', ', $list);
+            }
+            $parts[] = 'Awalan kode: '.implode(' · ', $prefixes).' · company lain bebas';
+        }
+
+        return $parts !== [] ? implode(' · ', $parts) : null;
     }
 
     /** @param  list<string>  $prefixes */

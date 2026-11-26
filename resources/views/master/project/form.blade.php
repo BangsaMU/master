@@ -26,9 +26,11 @@
                         <div class="form-group mb-3 row">
                             <div class="col">
                                 <label>Project Code</label>
+                                {{-- panjang maksimal (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH); server tetap mengecek --}}
+                                @php($kodeMax = $data['page']['readonly'] ? null : app(\Bangsamu\Master\Services\ProjectCodePrefix::class)->maxLength())
                                 <input {{ $data['page']['readonly'] ? 'readonly' : '' }} type="text"
                                     class="form-control @error('project_code') is-invalid @enderror" id="project_code"
-                                    placeholder="Project Code" name="project_code"
+                                    placeholder="Project Code" name="project_code" @if ($kodeMax) maxlength="{{ $kodeMax }}" @endif
                                     value="{{ $param->project_code ?? old('project_code') }}">
                                 @error('project_code')
                                     <span class="text-danger">{{ $message }}</span>

@@ -44,7 +44,10 @@
 
                         <div class="form-group mb-3">
                             <label for="project_code_client">Project Code Client</label>
+                            {{-- panjang maksimal (MasterCrudConfig.PROJECT_CODE_MAX_LENGTH); server tetap mengecek --}}
+                            @php($kodeMax = $data['page']['readonly'] || ! empty($data['page']['owner_row']) ? null : app(\Bangsamu\Master\Services\ProjectCodePrefix::class)->maxLength())
                             <input {{ $data['page']['readonly'] || ! empty($data['page']['owner_row']) ? 'readonly' : '' }} type="text" name="project_code_client" id="project_code_client" class="form-control @error('project_code_client') is-invalid @enderror"
+                                   @if ($kodeMax) maxlength="{{ $kodeMax }}" @endif
                                    value="{{ $param ? $param->project_code_client : old('project_code_client') }}" required placeholder="Input your Project Code Client">
 
                             @error('project_code_client') <span class="text-danger">{{ $message }}</span> @enderror

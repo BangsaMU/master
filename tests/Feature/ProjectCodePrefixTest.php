@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\View;
  * berawalan 7, company lain bebas. Berlaku untuk Project Code (company pemilik project: Create, Edit kode, Import
  * Project baru, Pindah pemilik) dan Project Code Client (company baris: tambah, ubah kode, Import baris baru, Pindah
  * company). Kode yang tidak berubah tidak dicek (data lama), config kosong = tanpa aturan.
+ *
+ * v3.23.0 (permintaan user 2026-11-26): MasterCrudConfig.PROJECT_CODE_MAX_LENGTH = panjang maksimal kode yang diketik,
+ * semua company (Create, ubah kode, Import baru). Pindah pemilik / Pindah company tidak mengecek panjang (kode yang sudah
+ * ada). Bawaan kosong = tanpa batas tambahan.
  */
 class ProjectCodePrefixTest extends TestCase
 {
@@ -355,5 +359,84 @@ class ProjectCodePrefixTest extends TestCase
             ->assertSessionHasErrors(['move_company_id' => 'Project Code Client 21801 tidak sesuai untuk company MEB: kode company MEB harus berawalan 7. Awalan 2 milik company ME.'
                 .' Pindah company tidak mengubah kode baris: pilih company lain, atau hapus baris ini lalu tambah baris baru dengan kode yang sesuai.']);
         $this->assertSame(self::PHM, (int) DB::table('master_project_detail')->where('id', $phm3)->value('company_id'));
+    }
+
+    // ---- panjang maksimal (v3.23.0) ----
+
+    public function test_panjang_maksimal_kode_project_semua_company(): void
+    {
+        config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => 5]);
+
+        $this->assertSame(5, app(ProjectCodePrefix::class)->maxLength());
+        $this->buatProject('213290')->assertSessionHasErrors(['project_code' => 'Project Code 213290 melebihi 5 karakter (6 karakter).']);
+        // company lain (bebas awalan) tetap kena batas panjang
+        $this->buatProject('EH1101', ['project_owner_other' => '1', 'project_owner_company_id' => self::ENL])
+            ->assertSessionHasErrors(['project_code' => 'Project Code EH1101 melebihi 5 karakter (6 karakter).']);
+        $this->assertFalse(DB::table('master_project')->whereIn('project_code', ['213290', 'EH1101'])->exists());
+
+        $this->buatProject('21330')->assertSessionHasNoErrors();
+        $this->buatProject('ENLGN', ['project_owner_other' => '1', 'project_owner_company_id' => self::ENL])->assertSessionHasNoErrors();
+
+        // ubah kode jadi 6 karakter ditolak; kode lama 6 karakter (sebelum aturan) tetap bisa diubah namanya
+        $this->post(route('master.project.store'), ['id' => $this->projectMe, 'project_code' => '213291', 'project_name' => 'Project 21329', 'confirm_key_change' => '1'])
+            ->assertSessionHasErrors(['project_code' => 'Project Code 213291 melebihi 5 karakter (6 karakter).']);
+        $lama = $this->project('21302M');
+        $this->post(route('master.project.store'), ['id' => $lama, 'project_code' => '21302M', 'project_name' => 'Nama Baru'])->assertSessionHasNoErrors();
+        $this->assertSame('Nama Baru', DB::table('master_project')->where('id', $lama)->value('project_name'));
+    }
+
+    public function test_panjang_maksimal_project_code_client(): void
+    {
+        config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => 5]);
+
+        $this->tambahDetail($this->projectMe, self::MEB, '730281')
+            ->assertSessionHasErrors(['project_code_client' => 'Project Code Client 730281 melebihi 5 karakter (6 karakter).']);
+        $this->tambahDetail($this->projectMe, self::ENL, 'ENL001')
+            ->assertSessionHasErrors(['project_code_client' => 'Project Code Client ENL001 melebihi 5 karakter (6 karakter).']);
+        $this->tambahDetail($this->projectMe, self::MEB, '73028')->assertSessionHasNoErrors();
+
+        // ubah kode baris jadi 6 karakter ditolak
+        $baris = (int) DB::table('master_project_detail')->where('project_id', $this->projectMe)->where('company_id', self::MEB)->value('id');
+        $this->post(route('master.project-detail.store'), [
+            'id' => $baris, 'project_id' => $this->projectMe, 'company_id' => self::MEB, 'project_code_client' => '730289',
+            'project_name_client' => 'Klien 73028', 'confirm_key_change' => '1',
+        ])->assertSessionHasErrors(['project_code_client' => 'Project Code Client 730289 melebihi 5 karakter (6 karakter).']);
+        $this->assertSame('73028', DB::table('master_project_detail')->where('id', $baris)->value('project_code_client'));
+    }
+
+    public function test_panjang_maksimal_di_import_dan_tidak_dicek_saat_pindah_company(): void
+    {
+        config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => 5]);
+
+        $token = $this->upload('project', "Project Code,Project Name,Project Type\n213290,Proyek Panjang,E\n21331,Proyek Pas,E\n");
+        $rows = $this->preview('project', $token);
+        $this->assertSame(['error', 'new'], array_column($rows, 'status'));
+        $this->assertSame('Project Code 213290 melebihi 5 karakter (6 karakter).', $rows[0]['message']);
+
+        $token = $this->upload('project-detail', "Project Code,Project Code Client,Project Name Client,Company Code\n"
+            ."21329,730281,MEB panjang,MEB\n21329,73028,MEB pas,MEB\n");
+        $rows = $this->preview('project-detail', $token);
+        $this->assertSame(['error', 'new'], array_column($rows, 'status'));
+        $this->assertSame('Project Code Client 730281 melebihi 5 karakter (6 karakter).', $rows[0]['message']);
+
+        // baris lama 6 karakter yang company-nya terhapus: kode tidak diketik, jadi hanya awalan yang dicek
+        $phm = $this->detail($this->projectMeb, self::PHM, '21801X');
+        $this->post(route('master.project-detail.move-company', $phm), ['move_company_id' => self::ME, 'confirm_move_company' => '1'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(self::ME, (int) DB::table('master_project_detail')->where('id', $phm)->value('company_id'));
+    }
+
+    public function test_form_menampilkan_batas_panjang(): void
+    {
+        config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => 5]);
+        $hint = 'Maksimal 5 karakter · Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain bebas';
+
+        $this->assertSame($hint, app(ProjectCodePrefix::class)->hint());
+        $this->get(route('master.project.create'))->assertOk()->assertSee('maxlength="5"', false)->assertSee($hint, false);
+        $this->get(route('master.project-detail.create'))->assertOk()->assertSee('maxlength="5"', false)->assertSee($hint, false);
+
+        config(['MasterCrudConfig.PROJECT_CODE_MAX_LENGTH' => null, 'MasterCrudConfig.PROJECT_CODE_PREFIX' => '']);
+        $this->assertNull(app(ProjectCodePrefix::class)->hint());
+        $this->get(route('master.project.create'))->assertOk()->assertDontSee('maxlength=', false);
     }
 }

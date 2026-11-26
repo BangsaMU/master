@@ -455,7 +455,7 @@ class ProjectDetailController extends Controller
                 'project_code_client' => strtoupper((string) $request->project_code_client),
                 'project_name_client' => $request->project_name_client,
             ]);
-            // kode baru harus sesuai awalan company baris ini (ME 1/2/3/8/9, MEB 7, ...); kode tetap = tidak dicek
+            // kode baru: panjang maksimal + awalan company baris ini (ME 1/2/3/8/9, MEB 7, ...); kode tetap = tidak dicek
             app(ProjectCodePrefix::class)->assertChanged(
                 (int) $project_detail->company_id,
                 (string) $request->project_code_client,
@@ -494,7 +494,7 @@ class ProjectDetailController extends Controller
             }
         } else {
             // Create new master_project_detail
-            // kode harus sesuai awalan company baris ini (ME 1/2/3/8/9, MEB 7, company lain bebas)
+            // kode: panjang maksimal + awalan company baris ini (ME 1/2/3/8/9, MEB 7, company lain bebas)
             app(ProjectCodePrefix::class)->assert((int) $request->company_id, (string) $request->project_code_client, 'project_code_client', 'Project Code Client');
             // satu kode satu project: kode ini belum dipakai project lain oleh company mana pun
             app(ProjectOwnerDetail::class)->assertChangedCodeFree((int) $request->project_id, (string) $request->project_code_client);
