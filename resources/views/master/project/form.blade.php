@@ -33,6 +33,11 @@
                                 @error('project_code')
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
+                                {{-- awalan kode per company pemilik (ProjectCodePrefix, MasterCrudConfig.PROJECT_CODE_PREFIX) --}}
+                                @php($kodeHint = $data['page']['readonly'] ? null : app(\Bangsamu\Master\Services\ProjectCodePrefix::class)->hint())
+                                @if ($kodeHint)
+                                    <div class="form-text" data-project-code-hint>{{ $kodeHint }} (menurut company pemilik project)</div>
+                                @endif
                             </div>
                             <div class="col">
                                 <label>Project Name</label>

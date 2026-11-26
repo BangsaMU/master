@@ -1,0 +1,224 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Bangsamu\Master\Services;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Awalan kode project per company (MasterCrudConfig.PROJECT_CODE_PREFIX, env MASTER_PROJECT_CODE_PREFIX). Company yang
+ * terdaftar hanya boleh memakai kode berawalan salah satu awalannya, mis. `ME:1,2,3,8,9;MEB:7` = kode company ME harus
+ * berawalan 1, 2, 3, 8, atau 9 dan kode company MEB berawalan 7 (kode 73034 untuk ME ditolak). Company yang tidak
+ * terdaftar bebas, termasuk memakai awalan company lain. Kosong (bawaan paket) = tanpa aturan.
+ *
+ * "Kode company" = Project Code untuk company pemilik project (Create Project, Edit kode, Import Project baru, Pindah
+ * pemilik) dan Project Code Client untuk baris Project Detail company itu (tambah, ubah kode, Import baris baru, Pindah
+ * company). Project baru yang juga mendapat baris company pembuat (session delegasi) dicek untuk company itu juga,
+ * karena barisnya memakai kode yang sama. Kode yang tidak berubah tidak dicek, jadi data lama di luar aturan tetap
+ * bisa diubah nama/tanggalnya; Restore dan Buat Detail (cermin kode yang sudah ada) juga tidak dicek.
+ *
+ * Bentuk config: string `KODE_COMPANY:awalan,awalan;KODE_COMPANY:awalan` atau array ['ME' => ['1', '2'], 'MEB' => '7'].
+ * Kode company dan awalan tidak membedakan huruf besar/kecil; awalan boleh lebih dari satu karakter (mis. `71`).
+ */
+class ProjectCodePrefix
+{
+    /** @var array<int, ?string> master_company.id => company_code huruf besar (null = tidak ada), per request */
+    protected array $companyCodes = [];
+
+    /**
+     * Aturan yang berlaku.
+     *
+     * @return array<string, list<string>> company_code huruf besar => awalan huruf besar
+     */
+    public function rules(): array
+    {
+        $config = config('MasterCrudConfig.PROJECT_CODE_PREFIX', []);
+        if (is_string($config)) {
+            $parsed = [];
+            foreach (preg_split('/[;\r\n]+/', $config) ?: [] as $part) {
+                if (str_contains($part, ':')) {
+                    [$company, $prefixes] = explode(':', $part, 2);
+                    $parsed[$company] = $prefixes;
+                }
+            }
+            $config = $parsed;
+        }
+
+        $rules = [];
+        foreach ((array) $config as $company => $prefixes) {
+            $company = strtoupper(trim((string) $company));
+            $list = is_array($prefixes) ? $prefixes : explode(',', (string) $prefixes);
+            $list = array_values(array_unique(array_filter(
+                array_map(fn ($prefix) => strtoupper(trim((string) $prefix)), $list),
+                fn (string $prefix) => $prefix !== '',
+            )));
+            if ($company !== '' && $list !== []) {
+                $rules[$company] = $list;
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Awalan yang boleh dipakai company $companyId.
+     *
+     * @return list<string> kosong = bebas
+     */
+    public function prefixesFor(int $companyId): array
+    {
+        $rules = $this->rules();
+        if ($rules === []) {
+            return [];
+        }
+        $code = $this->companyCode($companyId);
+
+        return $code !== null ? ($rules[$code] ?? []) : [];
+    }
+
+    /** Pesan bila $code tidak sesuai awalan company $companyId, null = sesuai / bebas / kode kosong. */
+    public function message(int $companyId, ?string $code, string $label = 'Project Code'): ?string
+    {
+        $code = strtoupper(trim((string) $code));
+        $prefixes = $this->prefixesFor($companyId);
+        if ($code === '' || $prefixes === [] || $this->matches($code, $prefixes)) {
+            return null;
+        }
+
+        $company = (string) $this->companyCode($companyId);
+        $message = $label.' '.$code.' tidak sesuai untuk company '.$company.': kode company '.$company.' harus berawalan '
+            .$this->listLabel($prefixes).'.';
+        foreach ($this->rules() as $otherCompany => $otherPrefixes) {
+            if ($otherCompany === $company) {
+                continue;
+            }
+            foreach ($otherPrefixes as $prefix) {
+                if (str_starts_with($code, $prefix)) {
+                    return $message.' Awalan '.$prefix.' milik company '.$otherCompany.'.';
+                }
+            }
+        }
+
+        return $message;
+    }
+
+    /**
+     * Kode $code harus sesuai awalan company $companyId.
+     *
+     * @throws ValidationException
+     */
+    public function assert(int $companyId, ?string $code, string $field = 'project_code', string $label = 'Project Code'): void
+    {
+        $message = $this->message($companyId, $code, $label);
+        if ($message !== null) {
+            throw ValidationException::withMessages([$field => [$message]]);
+        }
+    }
+
+    /**
+     * assert() hanya bila kode berubah dari $oldCode (null = data baru, selalu dicek): data lama di luar aturan tetap
+     * bisa disimpan selama kodenya tidak diubah.
+     *
+     * @throws ValidationException
+     */
+    public function assertChanged(int $companyId, ?string $code, ?string $oldCode, string $field = 'project_code', string $label = 'Project Code'): void
+    {
+        if ($oldCode !== null && strtoupper(trim((string) $code)) === strtoupper(trim($oldCode))) {
+            return;
+        }
+
+        $this->assert($companyId, $code, $field, $label);
+    }
+
+    /**
+     * Pesan pertama untuk beberapa company sekaligus (project baru: company pemilik lalu company pembuat), null = sesuai.
+     *
+     * @param  list<int>  $companyIds
+     */
+    public function messageForCompanies(array $companyIds, ?string $code, string $label = 'Project Code'): ?string
+    {
+        $owner = $companyIds[0] ?? null;
+        foreach ($companyIds as $companyId) {
+            $message = $this->message((int) $companyId, $code, $label);
+            if ($message !== null) {
+                // baris company pembuat (session delegasi) memakai kode yang sama dengan project
+                return (int) $companyId === (int) $owner ? $message : $message
+                    .' Project baru yang dibuat lewat session company '.$this->companyCode((int) $companyId)
+                    .' juga mendapat baris Project Detail company itu dengan kode yang sama.';
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * messageForCompanies() sebagai error validasi.
+     *
+     * @param  list<int>  $companyIds
+     *
+     * @throws ValidationException
+     */
+    public function assertForCompanies(array $companyIds, ?string $code, string $field = 'project_code', string $label = 'Project Code'): void
+    {
+        $message = $this->messageForCompanies($companyIds, $code, $label);
+        if ($message !== null) {
+            throw ValidationException::withMessages([$field => [$message]]);
+        }
+    }
+
+    /**
+     * Teks bantuan form, mis. "Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain bebas"; null = tanpa aturan.
+     */
+    public function hint(): ?string
+    {
+        $rules = $this->rules();
+        if ($rules === []) {
+            return null;
+        }
+
+        $parts = [];
+        foreach ($rules as $company => $prefixes) {
+            $parts[] = $company.' '.implode(', ', $prefixes);
+        }
+
+        return 'Awalan kode: '.implode(' · ', $parts).' · company lain bebas';
+    }
+
+    /** @param  list<string>  $prefixes */
+    protected function matches(string $code, array $prefixes): bool
+    {
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($code, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param  list<string>  $prefixes  "7" / "1 atau 2" / "1, 2, 3, 8, atau 9" */
+    protected function listLabel(array $prefixes): string
+    {
+        if (count($prefixes) === 1) {
+            return $prefixes[0];
+        }
+        $last = array_pop($prefixes);
+
+        return implode(', ', $prefixes).(count($prefixes) > 1 ? ',' : '').' atau '.$last;
+    }
+
+    /** company_code company $companyId (baris terhapus juga), huruf besar; null = tidak ada. */
+    protected function companyCode(int $companyId): ?string
+    {
+        if (! array_key_exists($companyId, $this->companyCodes)) {
+            $code = $companyId > 0 && SchemaColumns::hasTable('master_company')
+                ? DB::table('master_company')->where('id', $companyId)->value('company_code')
+                : null;
+            $this->companyCodes[$companyId] = filled($code) ? strtoupper(trim((string) $code)) : null;
+        }
+
+        return $this->companyCodes[$companyId];
+    }
+}

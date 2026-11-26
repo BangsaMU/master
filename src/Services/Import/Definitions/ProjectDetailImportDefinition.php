@@ -6,6 +6,7 @@ namespace Bangsamu\Master\Services\Import\Definitions;
 
 use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\Import\MasterImportDefinition;
+use Bangsamu\Master\Services\ProjectCodePrefix;
 use Bangsamu\Master\Services\ProjectDetailNumberReset;
 use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Illuminate\Support\Collection;
@@ -212,10 +213,17 @@ class ProjectDetailImportDefinition extends MasterImportDefinition
      * Baris baru: satu kode satu project (company mana pun). Kode itu belum dipakai project lain, baik di DB (baris detail
      * aktif / Project Code project aktif, ProjectOwnerDetail::codeUsageMessage) maupun di baris baru lain file ini.
      * Beberapa company di project yang sama boleh memakai kode yang sama. Baris lama tidak dicek: kunci import memuat
-     * kodenya, jadi kodenya tidak berubah lewat import.
+     * kodenya, jadi kodenya tidak berubah lewat import. Kode baris baru juga harus sesuai awalan company-nya
+     * (ProjectCodePrefix: ME 1/2/3/8/9, MEB 7, company lain bebas).
      */
     protected function newCodeError(array $data): ?string
     {
+        $companyId = (int) $this->companies->get($data['company_code'])->id;
+        $prefix = app(ProjectCodePrefix::class)->message($companyId, $data['project_code_client'], 'Project Code Client');
+        if ($prefix !== null) {
+            return $prefix;
+        }
+
         $projectId = (int) $this->projects->get($data['project_code'])->id;
         $usage = app(ProjectOwnerDetail::class)->codeUsageMessage($data['project_code_client'], $projectId);
         if ($usage !== null) {

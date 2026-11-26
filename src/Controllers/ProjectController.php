@@ -15,6 +15,7 @@ use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\ActivityLogService;
 use Bangsamu\Master\Services\MasterBroadcastService;
 use Bangsamu\Master\Services\MasterUniqueKeyGuard;
+use Bangsamu\Master\Services\ProjectCodePrefix;
 use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Bangsamu\Master\Traits\DynamicFilterable;
 use Illuminate\Http\Request;
@@ -566,6 +567,9 @@ class ProjectController extends Controller
                 throw \Illuminate\Validation\ValidationException::withMessages([ProjectOwnerDetail::FIELD_OWNER_COMPANY => ['Pilih company pemilik project, atau hapus centang "Pemilik project bukan '.$ownerDetail->defaultOwnerLabel().'".']]);
             }
             $ownerPlan = $ownerDetail->newProjectPlan($chosen);
+            // awalan kode per company (ME 1/2/3/8/9, MEB 7, ...): company pemilik + company pembuat (delegasi) yang
+            // barisnya ikut memakai kode ini
+            app(ProjectCodePrefix::class)->assertForCompanies($ownerPlan['companies'] ?? [], (string) $request->input('project_code'));
             // satu kode satu project: kode project (= kode baris pemilik) belum dipakai baris detail company mana pun
             $ownerDetail->assertCodeFree((string) $request->input('project_code'));
         }
@@ -574,6 +578,8 @@ class ProjectController extends Controller
             // Update existing Project
             $project = Project::findOrFail($request->id);
             $kodeLama = (string) $project->project_code;
+            // kode baru harus sesuai awalan company pemilik project; kode tetap = tidak dicek (data lama)
+            app(ProjectCodePrefix::class)->assertChanged(app(ProjectOwnerDetail::class)->ownerCompanyIdOf($project), (string) $request->project_code, $kodeLama);
             // kode baru (ikut dicerminkan ke baris pemilik) belum dipakai project lain; kode tetap = tidak dicek
             app(ProjectOwnerDetail::class)->assertChangedCodeFree((int) $project->id, (string) $request->project_code, $kodeLama, 'project_code');
             $update = $project->update(app(MasterScope::class)->stamp('master_project', [

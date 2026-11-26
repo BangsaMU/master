@@ -62,6 +62,12 @@ return [
     //   ]],                              //           boleh class invokable / nama fungsi yang mengembalikan daftar id
     'RELATION_FILTERS' => [],
 
+    // awalan kode project per company (Services\ProjectCodePrefix): "KODE_COMPANY:awalan,awalan;KODE_COMPANY:awalan",
+    // mis. "ME:1,2,3,8,9;MEB:7" = Project Code project milik ME / Project Code Client baris ME harus berawalan 1/2/3/8/9,
+    // MEB berawalan 7, company lain bebas. Dicek saat kode dibuat/diubah (form, import, Pindah pemilik/company).
+    // Kosong (bawaan) = tanpa aturan. Boleh juga array ['ME' => ['1', '2'], 'MEB' => '7'].
+    'PROJECT_CODE_PREFIX' => env('MASTER_PROJECT_CODE_PREFIX', ''),
+
     // middleware route api/get*byparams (select2); default wajib login. ['api'] = publik (batas tabel/kolom tetap berlaku)
     'SELECT2_MIDDLEWARE' => ['web', 'auth'],
     // tabel yang boleh dibaca api/get{tabel}byparams (pola Str::is, mis. 'master_*'); kosong = semua kecuali SELECT2_DENY_TABLES

@@ -48,6 +48,11 @@
                                    value="{{ $param ? $param->project_code_client : old('project_code_client') }}" required placeholder="Input your Project Code Client">
 
                             @error('project_code_client') <span class="text-danger">{{ $message }}</span> @enderror
+                            {{-- awalan kode per company baris (ProjectCodePrefix, MasterCrudConfig.PROJECT_CODE_PREFIX) --}}
+                            @php($kodeHint = $data['page']['readonly'] || ! empty($data['page']['owner_row']) ? null : app(\Bangsamu\Master\Services\ProjectCodePrefix::class)->hint())
+                            @if ($kodeHint)
+                                <div class="form-text" data-project-code-hint>{{ $kodeHint }} (menurut Company baris ini)</div>
+                            @endif
                         </div>
                         <div class="form-group mb-3">
                             <label for="project_name_client">Project Name Client</label>

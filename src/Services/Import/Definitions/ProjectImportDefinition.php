@@ -7,6 +7,7 @@ namespace Bangsamu\Master\Services\Import\Definitions;
 use Bangsamu\Master\Models\Project;
 use Bangsamu\Master\Models\ProjectDetail;
 use Bangsamu\Master\Services\Import\MasterImportDefinition;
+use Bangsamu\Master\Services\ProjectCodePrefix;
 use Bangsamu\Master\Services\ProjectOwnerDetail;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -157,8 +158,26 @@ class ProjectImportDefinition extends MasterImportDefinition
         if ($existing === null && ($usage = app(ProjectOwnerDetail::class)->codeUsageMessage($data['project_code'])) !== null) {
             return $usage;
         }
+        if (($ownerError = $this->ownerError($data, $existing)) !== null) {
+            return $ownerError;
+        }
 
-        return $this->ownerError($data, $existing);
+        return $existing === null ? $this->prefixError($data) : null;
+    }
+
+    /**
+     * Project baru: kode harus sesuai awalan company pemilik (+ company pembuat lewat delegasi, barisnya memakai kode
+     * yang sama), aturan sama dengan form (ProjectCodePrefix: ME 1/2/3/8/9, MEB 7, company lain bebas).
+     */
+    protected function prefixError(array $data): ?string
+    {
+        try {
+            $plan = $this->ownerPlan($data);
+        } catch (ValidationException $e) {
+            return $e->validator->errors()->first();
+        }
+
+        return app(ProjectCodePrefix::class)->messageForCompanies($plan['companies'], $data['project_code']);
     }
 
     /** Kolom Owner Company Code: company harus aktif; project lama tidak dipindah pemiliknya; project baru = aturan form. */

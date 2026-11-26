@@ -663,6 +663,41 @@ Baris/project terhapus tidak dihitung. Perbandingan `UPPER(TRIM(...))`.
   IS NULL GROUP BY kode HAVING COUNT(DISTINCT project_id) > 1`.
 - Test: `ProjectCodeOneProjectTest` (13; dulu `ProjectDetailCodePerCompanyTest`).
 
+## Project: Awalan Kode per Company (sejak v3.22.0)
+
+`MasterCrudConfig.PROJECT_CODE_PREFIX` (env `MASTER_PROJECT_CODE_PREFIX`) membatasi awalan kode project per company.
+Contoh Master Data Meindo (permintaan user 2026-11-26): `ME:1,2,3,8,9;MEB:7` = kode company ME harus berawalan 1, 2,
+3, 8, atau 9 (`73034` untuk ME ditolak), kode company MEB berawalan 7, company lain bebas (juga memakai awalan ME/MEB).
+Bawaan paket kosong = tanpa aturan. Format string `KODE_COMPANY:awalan,awalan;...` atau array
+`['ME' => ['1', '2'], 'MEB' => '7']`; kode company dan awalan tidak membedakan huruf besar/kecil, awalan boleh lebih
+dari satu karakter. Service: `Services\ProjectCodePrefix`.
+
+"Kode company" = Project Code untuk **company pemilik** project, dan Project Code Client untuk **company baris**
+Project Detail.
+
+| Jalan | Aturan |
+|---|---|
+| Create Project | Kode dicek untuk company pemilik (bawaan, atau company yang dicentang). Lewat session delegasi tanpa centang, baris company pembuat ikut memakai kode yang sama, jadi kode juga dicek untuk company itu (pesan menyebutnya) |
+| Edit Project | Dicek untuk company pemilik bila kode berubah; kode tetap = tidak dicek (data lama di luar aturan tetap bisa diubah nama/tanggalnya) |
+| Import Project | Project **baru** dicek per baris (company dari Owner Company Code, kosong = pemilik bawaan + company delegasi). Project lama tidak dicek |
+| Pindah pemilik | Kode project sesudah pindah (kode baris company tujuan, atau kode project bila baris dibuat) dicek untuk company tujuan |
+| Project Detail: tambah / ubah | Dicek untuk company baris; ubah hanya bila kode berubah |
+| Import Project Detail | Baris **baru** dicek untuk company baris |
+| Project Detail: Pindah company | Kode baris tetap, dicek untuk company tujuan |
+| Restore, Buat Detail, `master:project-detail-mirror` | Tidak dicek (memulihkan / mencerminkan kode yang sudah ada) |
+
+- Pesan: "Project Code `73034` tidak sesuai untuk company ME: kode company ME harus berawalan 1, 2, 3, 8, atau 9.
+  Awalan 7 milik company MEB." (bagian terakhir hanya bila awalan itu milik company lain di aturan).
+- Form Create/Edit Project dan Project Detail (tema bawaan) menampilkan `ProjectCodePrefix::hint()` di bawah input
+  kode, mis. "Awalan kode: ME 1, 2, 3, 8, 9 · MEB 7 · company lain bebas".
+- API: `rules()`, `prefixesFor($companyId)`, `message($companyId, $code, $label)`, `assert()`, `assertChanged($companyId,
+  $code, $oldCode, $field, $label)`, `messageForCompanies()` / `assertForCompanies($companyIds, ...)`, `hint()`.
+- Data lama tidak diperbaiki otomatis. Cek pelanggar (hub dev `meindo_master` 2026-11-26: 0): `SELECT d.id,
+  c.company_code, d.project_code_client FROM master_project_detail d JOIN master_company c ON c.id = d.company_id WHERE
+  d.deleted_at IS NULL AND ((c.company_code = 'ME' AND LEFT(TRIM(d.project_code_client), 1) NOT IN ('1','2','3','8','9'))
+  OR (c.company_code = 'MEB' AND LEFT(TRIM(d.project_code_client), 1) <> '7'))`.
+- Test: `ProjectCodePrefixTest`.
+
 ## View/Edit Master: Id Tidak Ada = 404 (sejak v3.20.1)
 
 `master/{modul}/{id}` dan `master/{modul}/{id}/edit` dengan id yang tidak ada di tabel (salah ketik, dihapus permanen)
